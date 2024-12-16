@@ -20,13 +20,13 @@ from dataclasses import dataclass, field
 import torch
 from torch.distributed.checkpoint.stateful import Stateful
 
+from composition.computing import ComputeConfig
 from composition.data import (
     DataConfig,
     DataLoaderState,
     data_loader_context,
     init_dataloader_state,
 )
-from composition.distributed import ComputeConfig
 from composition.model import Transformer, TransformerConfig
 from composition.monitor import MonitorConfig
 from composition.optim import OptimizerConfig, build_optimizer
@@ -58,6 +58,7 @@ class TrainingConfig:
 
         self.data.seq_len = self.model.seq_len
         self.data.batch_size = 32
+        self.data.seed = 42
 
 
 # -------------------------------------------------------------------------------
@@ -87,11 +88,16 @@ def train(config: TrainingConfig):
     with ExitStack() as context_stack:
 
         # ---------------------------------------------------------------------
+        # Monitor
+        # ---------------------------------------------------------------------
+
+        # ---------------------------------------------------------------------
         # Build and Parallelize model
         # ---------------------------------------------------------------------
 
         logger.info("Building model")
         model = Transformer(config.model)
+        model.to(device="cuda")
         logger.info("Done building model")
 
         # Build Optimizer
@@ -112,7 +118,7 @@ def train(config: TrainingConfig):
         train_state.data_loader_state = init_dataloader_state(config.data.seed)
 
         # ---------------------------------------------------------------------
-        # Build Data and Monitoring Context
+        # DataLoader
         # ---------------------------------------------------------------------
 
         data_loader = context_stack.enter_context(
@@ -141,12 +147,12 @@ def train(config: TrainingConfig):
             X_batch = torch.tensor(
                 batch[:, :-1],
                 dtype=torch.long,
-            )
+            ).cuda()
 
             y_batch = torch.tensor(
                 batch[:, 1:],
                 dtype=torch.long,
-            )
+            ).cuda()
 
             # -----------------------------------------------------------------
             # Forward and backward pass

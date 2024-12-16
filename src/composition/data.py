@@ -9,7 +9,7 @@ import numpy as np
 class DataConfig:
     seq_len: int = -1
     batch_size: int = -1
-    seed: int = 42
+    seed: int = None
 
 
 @dataclass
