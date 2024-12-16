@@ -11,8 +11,8 @@ Comments abbreviations:
 
 License
 -------
-This source code is licensed under the CC license found in the LICENSE file
-in the root directory of this source tree.
+This source code is licensed under the terms specified in the `LICENSE` file,
+located in the root directory of this repository.
 
 @ 2024, Meta
 """
@@ -24,7 +24,6 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 # -------------------------------------------------------------------------------
 # Configuration Class
@@ -77,7 +76,7 @@ class SelfAttention(nn.Module):
     """
 
     def __init__(
-        self, 
+        self,
         seq_len: int,
         emb_dim: int,
         nb_heads: int,
@@ -108,7 +107,7 @@ class SelfAttention(nn.Module):
         ----------
         x: torch.Tensor (B, S, D)
             input sequence
-        
+
         Returns
         -------
         z: torch.Tensor (B, S, D)
@@ -202,12 +201,9 @@ class SelfAttention(nn.Module):
         # (x1 * cos - x2 * sin, x2 * cos + x1 * sin)
         # out = ((qk[..., 0] + qk[..., 1] * 1j) * (rm[..., 0] + rm[..., 1] * 1j))
         # out = torch.view_as_real(out)
-        out = (
-            qk[..., 0] * rm[..., 0] - qk[..., 1] * rm[..., 1],
-            qk[..., 0] * rm[..., 1] + qk[..., 1] * rm[..., 0]
-        )
+        out = (qk[..., 0] * rm[..., 0] - qk[..., 1] * rm[..., 1], qk[..., 0] * rm[..., 1] + qk[..., 1] * rm[..., 0])
         out = torch.stack((out[0], out[1]), dim=-1)
-        
+
         return out.type_as(qk).view((B, H, S, dim))
 
 
@@ -280,9 +276,9 @@ class RMSNorm(nn.Module):
 
     Parameters
     ----------
-        dim: 
+        dim:
             dimension of the input tensor
-        eps: 
+        eps:
             numerical stability parameter
     """
 
@@ -317,15 +313,9 @@ class TransformerBlock(nn.Module):
         super().__init__()
 
         self.attn = SelfAttention(
-            seq_len=config.seq_len,
-            emb_dim=config.emb_dim,
-            nb_heads=config.nb_heads,
-            rope_theta=config.rope_theta
+            seq_len=config.seq_len, emb_dim=config.emb_dim, nb_heads=config.nb_heads, rope_theta=config.rope_theta
         )
-        self.ffn = FeedForward(
-            emb_dim=config.emb_dim,
-            ffn_dim=config.ffn_dim
-        )
+        self.ffn = FeedForward(emb_dim=config.emb_dim, ffn_dim=config.ffn_dim)
         self.attn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
         self.ffn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
 
@@ -423,4 +413,4 @@ class Transformer(nn.Module):
                 std=init_std,
                 a=-3 * init_std,
                 b=3 * init_std,
-        )
+            )
