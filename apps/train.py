@@ -47,6 +47,18 @@ class TrainingConfig:
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
     compute: ComputeConfig = field(default_factory=ComputeConfig)
 
+    def __post_init__(self):
+        # TO BE REMOVED temporary patch
+        self.model.vocab_size = 4
+        self.model.seq_len = 32
+        self.model.emb_dim = 64
+        self.model.nb_heads = 2
+        self.model.ffn_dim = 256
+        self.model.nb_layers = 2
+
+        self.data.seq_len = self.model.seq_len
+        self.data.batch_size = 32
+
 
 # -------------------------------------------------------------------------------
 # Training State and Preemption Handling
@@ -62,7 +74,7 @@ class TrainState(Stateful):
 
 
 def loss_func(preds, targets):
-    return torch.nn.functional.cross_entropy(preds, targets)
+    return torch.nn.functional.cross_entropy(preds.view(-1, 4), targets.view(-1))
 
 
 # -----------------------------------------------------------------------------
@@ -80,10 +92,12 @@ def train(config: TrainingConfig):
 
         logger.info("Building model")
         model = Transformer(config.model)
+        logger.info("Done building model")
 
         # Build Optimizer
-
+        logger.info("Building optimizer")
         optimizer, scheduler = build_optimizer(model, config.optim)
+        logger.info("Done building optimizer")
 
         # ---------------------------------------------------------------------
         # Recover Checkpoint
@@ -117,13 +131,22 @@ def train(config: TrainingConfig):
         while train_state.step < config.optim.steps:
             # accumulation step
             train_state.acc_step += 1
-            train_state.acc_step = train_state.acc_step % config.grad_acc_steps
+            train_state.acc_step = train_state.acc_step % config.optim.grad_acc_steps
 
             # -----------------------------------------------------------------
             # Batch of data
             # -----------------------------------------------------------------
 
-            X_batch, y_batch, train_state.data_loader_state = next(data_loader)
+            batch, train_state.data_loader_state = next(data_loader)
+            X_batch = torch.tensor(
+                batch[:, :-1],
+                dtype=torch.long,
+            )
+
+            y_batch = torch.tensor(
+                batch[:, 1:],
+                dtype=torch.long,
+            )
 
             # -----------------------------------------------------------------
             # Forward and backward pass
@@ -145,6 +168,8 @@ def train(config: TrainingConfig):
                 scheduler.step()
                 optimizer.zero_grad()
                 train_state.step += 1
+
+            print(f"Step: {train_state.step}, Loss: {loss.item()}")
 
 
 if __name__ == "__main__":
