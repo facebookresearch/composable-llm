@@ -11,13 +11,11 @@ located in the root directory of this repository.
 
 from dataclasses import dataclass
 
-from torch.distributed.checkpoint.stateful import Stateful
-
 from .data import DataLoaderState
 from .optim import OptimizerState
 
 
 @dataclass
-class TrainState(Stateful):
+class TrainState:
     data: DataLoaderState
     optim: OptimizerState
