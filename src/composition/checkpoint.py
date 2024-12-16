@@ -7,6 +7,9 @@ from typing import Optional
 
 import torch
 
+from .optim import OptimizerConfig
+from .train import TrainState
+
 logger = logging.getLogger(__file__)
 
 
@@ -32,14 +35,26 @@ class CheckpointManager:
     TRAIN_STATE_NAME = "train_state_rank_{:05d}.json"
     RE_DIGITS = re.compile(r"\d+")
 
-    def __init__(self, config: CheckpointConfig):
+    def __init__(self, config: CheckpointConfig, model: torch.nn.Module, optimizer: OptimizerConfig, state: TrainState):
         self.path = config.path
         self.freq = config.freq
         self.keep_only = config.keep_only
+
+        self.model = model
+        self.optimizer = optimizer
+        self.state = state
         # os.makedirs(self.path, exist_ok=True)
 
-        # get rank (WE DO NOT HANDLE PARALLELISM YET)
+        # device rank (WE DO NOT HANDLE PARALLELISM YET)
         self.dp_rank = 0
+        self.save = False
+
+    def __enter__(self):
+        # potentially load moded
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
 
     def list_checkpoints(self) -> list[Path]:
         """

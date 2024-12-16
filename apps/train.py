@@ -20,19 +20,19 @@ from dataclasses import dataclass, field
 import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
-from torch.distributed.checkpoint.stateful import Stateful
 
 from composition.checkpoint import CheckpointConfig, CheckpointManager
 from composition.computing import ComputeConfig
-from composition.data import (
-    DataConfig,
-    DataLoaderState,
-    data_loader_manager,
-    init_dataloader_state,
-)
+from composition.data import DataConfig, dataloader_manager, init_dataloader_state
 from composition.model import Transformer, TransformerConfig
 from composition.monitor import MonitorConfig, MonitorsManager
-from composition.optim import OptimizerConfig, build_optimizer
+from composition.optim import (
+    OptimizerConfig,
+    init_optimizer,
+    init_optimizer_state,
+    init_scheduler,
+)
+from composition.train import TrainState
 
 logger = logging.getLogger(__name__)
 
@@ -64,18 +64,14 @@ class TrainingConfig:
         if self.data.seq_len == -1:
             self.data.seq_len = self.model.seq_len
 
+        for module in self.__dict__.values():
+            if hasattr(module, "__manual_post_init__"):
+                module.__manual_post_init__()
+
 
 # -------------------------------------------------------------------------------
 # Training State and Preemption Handling
 # -------------------------------------------------------------------------------
-
-
-@dataclass
-class TrainState(Stateful):
-    step: int  # nb of steps taken by the optimizer
-    acc_step: int  # nb of accumulation steps done since last optimizer step
-    scheduler: None
-    data_loader_state: DataLoaderState
 
 
 def loss_func(preds, targets):
@@ -90,7 +86,6 @@ def loss_func(preds, targets):
 
 def train(config: TrainingConfig):
 
-    saved = True
     with ExitStack() as context_stack:
 
         # ---------------------------------------------------------------------
@@ -105,38 +100,44 @@ def train(config: TrainingConfig):
 
         logger.info("Building model")
         model = Transformer(config.model)
-        model.to(device="cuda")
+        model.to(device=config.compute.device)
         logger.info("Done building model")
+
+        monitor.report_model(model)
 
         # Build Optimizer
         logger.info("Building optimizer")
-        optimizer, scheduler = build_optimizer(model, config.optim)
+        optimizer = init_optimizer(model, config.optim)
+        scheduler = init_scheduler(optimizer, config.optim)
         logger.info("Done building optimizer")
-
-        monitor.report_model(model)
 
         # ---------------------------------------------------------------------
         # Recover Checkpoint
         # ---------------------------------------------------------------------
 
-        checkpointer = context_stack.enter_context(CheckpointManager(config.checkpoint))
-        train_state = TrainState(
-            step=0,
-            acc_step=0,
-            data_loader_state=None,
-            scheduler=None,
+        state = TrainState(
+            data=init_dataloader_state(config.data.seed),
+            optim=init_optimizer_state(),
         )
-        train_state.data_loader_state = init_dataloader_state(config.data.seed)
-        saved = checkpointer.load(model, optimizer, train_state)
+
+        checkpointer = context_stack.enter_context(
+            CheckpointManager(
+                config=config.checkpoint,
+                model=model,
+                optimizer=optimizer,
+                state=state,
+            )
+        )
+        checkpointer.load(model, optimizer, state)
 
         # ---------------------------------------------------------------------
         # DataLoader
         # ---------------------------------------------------------------------
 
-        data_loader = context_stack.enter_context(
-            data_loader_manager(
-                config.data,
-                state=train_state.data_loader_state,
+        dataloader = context_stack.enter_context(
+            dataloader_manager(
+                config=config.data,
+                state=state.data,
             )
         )
 
@@ -146,25 +147,25 @@ def train(config: TrainingConfig):
 
         model.train()
 
-        while train_state.step < config.optim.steps:
+        while state.optim.step < config.optim.steps:
             # accumulation step
-            train_state.acc_step += 1
-            train_state.acc_step = train_state.acc_step % config.optim.grad_acc_steps
+            state.optim.acc_step += 1
+            state.optim.acc_step = state.optim.acc_step % config.optim.grad_acc_steps
 
             # -----------------------------------------------------------------
             # Batch of data
             # -----------------------------------------------------------------
 
-            batch, train_state.data_loader_state = next(data_loader)
+            batch, state.data = next(dataloader)
             X_batch = torch.tensor(
                 batch[:, :-1],
                 dtype=torch.long,
-            ).cuda()
+            ).to(device=config.compute.device)
 
             y_batch = torch.tensor(
                 batch[:, 1:],
                 dtype=torch.long,
-            ).cuda()
+            ).to(device=config.compute.device)
 
             # -----------------------------------------------------------------
             # Forward and backward pass
@@ -181,16 +182,13 @@ def train(config: TrainingConfig):
             loss.backward()
 
             # optimizer step
-            if train_state.acc_step == 0:
+            if state.optim.acc_step == 0:
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
-                train_state.step += 1
+                state.optim.step += 1
 
-            print(f"Step: {train_state.step}, Loss: {loss.item()}")
-
-    if not saved:
-        checkpointer.save(model, optimizer, train_state)
+            print(f"Step: {state.optim.step}, Loss: {loss.item()}")
 
 
 def main():

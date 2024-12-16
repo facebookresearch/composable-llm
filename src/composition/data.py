@@ -87,7 +87,7 @@ def get_batch_iterator(
 
 
 @contextmanager
-def data_loader_manager(config: DataConfig, state: DataLoaderState) -> Iterator[tuple[np.ndarray, dict[str, Any]]]:
+def dataloader_manager(config: DataConfig, state: DataLoaderState) -> Iterator[tuple[np.ndarray, dict[str, Any]]]:
     """
     Context manager for the data loader.
 

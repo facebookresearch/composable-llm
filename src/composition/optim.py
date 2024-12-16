@@ -1,9 +1,24 @@
+"""
+Optimization Managers
+
+License
+-------
+This source code is licensed under the terms specified in the `LICENSE` file,
+located in the root directory of this repository.
+
+@ 2024, Meta
+"""
+
 import math
 from dataclasses import dataclass
 from functools import partial
 
 from torch import nn
 from torch.optim import AdamW, lr_scheduler
+
+# -----------------------------------------------------------------------------
+# Optimizer
+# -----------------------------------------------------------------------------
 
 
 @dataclass
@@ -26,6 +41,56 @@ class OptimizerConfig:
     lr_min_ratio: float = 0.1
 
 
+def init_optimizer(model: nn.Module, config: OptimizerConfig):
+    """
+    Build optimizer and Scheduler
+    """
+    return AdamW(
+        model.parameters(),
+        lr=config.lr,
+        betas=(config.beta1, config.beta2),
+        weight_decay=config.weight_decay,
+        eps=config.epsilon,
+        fused=True,  # Faster optim.step but can throw errors
+    )
+
+
+@dataclass
+class OptimizerState:
+    # nb of steps taken by the optimizer
+    step: int
+    # nb of accumulation steps done since last optimizer step
+    acc_step: int
+
+
+def init_optimizer_state():
+    """
+    Initialize the scheduler state
+    """
+    return OptimizerState(step=0, acc_step=0)
+
+
+# -----------------------------------------------------------------------------
+# Scheduler
+# -----------------------------------------------------------------------------
+
+
+def init_scheduler(optimizer, config: OptimizerConfig):
+    """
+    Initialize the scheduler state
+    """
+    scheduler = lr_scheduler.LambdaLR(
+        optimizer,
+        partial(
+            lr_cosine,
+            warmup=config.warmup,
+            steps=config.steps,
+            min_ratio=config.lr_min_ratio,
+        ),
+    )
+    return scheduler
+
+
 def lr_cosine(
     step: int,
     warmup: int,
@@ -43,32 +108,3 @@ def lr_cosine(
     else:
         lr = min_ratio
     return lr
-
-
-def build_optimizer(model: nn.Module, config: OptimizerConfig):
-    """
-    Build optimizer and Scheduler
-    """
-    # optimizer
-    optimizer = AdamW(
-        model.parameters(),
-        lr=config.lr,
-        betas=(config.beta1, config.beta2),
-        weight_decay=config.weight_decay,
-        eps=config.epsilon,
-        fused=True,  # Faster optim.step but can throw errors
-    )
-
-    # scheduler
-    if config.scheduler == "cosine":
-        lr_fn = partial(
-            lr_cosine,
-            warmup=config.warmup,
-            steps=config.steps,
-            min_ratio=config.lr_min_ratio,
-        )
-    else:
-        raise NotImplementedError(f"Unknown scheduler: {config.scheduler}")
-    scheduler = lr_scheduler.LambdaLR(optimizer, lr_fn)
-
-    return optimizer, scheduler
