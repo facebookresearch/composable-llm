@@ -11,7 +11,6 @@ located in the root directory of this repository.
 
 import json
 import logging
-import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,8 +34,6 @@ class CheckpointConfig:
     def __post_init__(self):
         if self.path is None:
             self.path = str(CHECKPOINT_DIR)
-        if self.keep_only == 1:
-            self.overwrite: bool = True
 
 
 class CheckpointManager:
@@ -45,20 +42,18 @@ class CheckpointManager:
 
     Attributes
     ----------
-    path:
-        Path to the checkpoint directory
     freq:
         Frequency at which to save checkpoints
     keep_only:
         Number of checkpoints to keep
+    path:
+        Path to the checkpoint directory
     model:
         Model to checkpoint
     optimizer:
         Optimizer to checkpoint
     state:
         Training state to checkpoint
-    dp_rank:
-        Device rank
     saved:
         Whether the latest model has been saved
     """
@@ -66,21 +61,19 @@ class CheckpointManager:
     FOLDER_NAME = "{:010d}"
     RE_FOLDER = r"\d{10}"
     CONFIG_NAME = "params.json"
-    TRAIN_STATE_NAME = "train_state_rank_{:05d}.json"
+    TRAIN_STATE_NAME = "train_state.json"
     RE_DIGITS = re.compile(r"\d+")
 
     def __init__(self, config: CheckpointConfig, model: torch.nn.Module, optimizer: OptimizerConfig, state: TrainState):
-        self.path = config.path
         self.freq = config.freq
         self.keep_only = config.keep_only
+        self.path = Path(config.path)
+        self.path.mkdir(parents=True, exist_ok=True)
 
         self.model = model
         self.optimizer = optimizer
         self.state = state
-        os.makedirs(self.path, exist_ok=True)
 
-        # device rank (WE DO NOT HANDLE PARALLELISM YET)
-        self.dp_rank = 0
         self.saved = False
 
     def __enter__(self):
@@ -89,7 +82,7 @@ class CheckpointManager:
         if path is None:
             self.saved = False
         else:
-            self.load()
+            self.load(path)
             self.saved = True
         return self
 
@@ -105,7 +98,7 @@ class CheckpointManager:
         """
         List all existing checkpoints
         """
-        folders = [p for p in Path(self.path).iterdir() if p.is_dir() and re.match(self.RE_FOLDER, p.name)]
+        folders = [p for p in self.path.iterdir() if p.is_dir() and re.match(self.RE_FOLDER, p.name)]
         folders.sort(key=lambda p: self._get_key_step(p.name))
         return folders
 
@@ -116,7 +109,7 @@ class CheckpointManager:
         path = None
         all_checkpoints = self.list_checkpoints()
         for p in reversed(all_checkpoints):
-            if (p / self.TRAIN_STATE_NAME.format(self.dp_rank)).is_file():
+            if (p / self.TRAIN_STATE_NAME).is_file():
                 path = p
                 break
         return path
@@ -128,30 +121,27 @@ class CheckpointManager:
     def get_state_dict(self, model, optimizer):
         return {"model": model.state_dict(), "optim": optimizer.state_dict()}
 
-    def save(self, model, optimizer, train_state, config) -> bool:
+    def save(self) -> bool:
         """
         Checkpoint model, optimizer and training state
         """
         path = Path(self.path)
-        curr_save_dir = path / self.FOLDER_NAME.format(train_state.step)
-        curr_save_dir.mkdir(parents=False, exist_ok=True)
+        save_dir = path / self.FOLDER_NAME.format(self.state.optim.step)
+        save_dir.mkdir(parents=False, exist_ok=True)
 
-        logger.info(f"Saving to: {str(curr_save_dir)}")
-        state_dict = self.get_state_dict(model, optimizer)
-        torch.save(state_dict, curr_save_dir / "checkpoint.pth")
+        logger.info(f"Saving to: {str(save_dir)}")
+        state_dict = self.get_state_dict(self.model, self.optimizer)
+        torch.save(state_dict, save_dir / "checkpoint.pth")
 
-        with open(curr_save_dir / self.CONFIG_NAME, "w") as f:
-            json.dump(config, f)
+        # with open(save_dir / self.CONFIG_NAME, "w") as f:
+        #     json.dump(config, f)
 
         train_state_name = self.TRAIN_STATE_NAME.format(0)
-        with open(curr_save_dir / train_state_name, "w") as f:
-            json.dump(train_state.state_dict(), f)
-
-        self.existing_saves.append(curr_save_dir)
-        self.clean_up()
+        with open(save_dir / train_state_name, "w") as f:
+            json.dump(self.state.state_dict(), f)
 
     @torch.no_grad()
-    def load(self, model, optimizer, train_state) -> bool:
+    def load(self, path) -> bool:
         """
         Load from checkpoint
 
@@ -169,22 +159,21 @@ class CheckpointManager:
         bool
             Whether a checkpoint was successfully loaded.
         """
-        return False
 
-        # logger.info("Reloading train state")
-        # train_state_name = self.TRAIN_STATE_NAME.format(self.dp_rank)
-        # with open(path / train_state_name, "r") as f:
-        #     train_state_dict = json.load(f)
-        # train_state.load_state_dict(train_state_dict)
-        # logger.info("Train state reloaded")
+        logger.info("Reloading train state")
+        train_state_name = self.TRAIN_STATE_NAME
+        with open(path / train_state_name, "r") as f:
+            train_state_dict = json.load(f)
+        self.state.load_state_dict(train_state_dict)
+        logger.info("Train state reloaded")
 
-        # logger.info(f"Loading from: {str(path)}")
-        # state_dict = torch.load(path / "checkpoint.pth")
-        # model.load_state_dict(state_dict["model"])
-        # optimizer.load_state_dict(state_dict["optim"])
-        # logger.info("Model and optimizer reloaded")
+        logger.info(f"Loading from: {str(path)}")
+        state_dict = torch.load(path / "checkpoint.pth")
+        self.model.load_state_dict(state_dict["model"])
+        self.optimizer.load_state_dict(state_dict["optim"])
+        logger.info("Model and optimizer reloaded")
 
-        # return True
+        return True
 
     @classmethod
     def _get_key_step(cls, name: str):

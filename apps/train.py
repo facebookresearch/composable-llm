@@ -56,6 +56,11 @@ class TrainingConfig:
         """
         Check validity of arguments and fill in missing values.
         """
+        # handling type not recognized by OmegaConf
+        for module in self.__dict__.values():
+            if hasattr(module, "__manual_post_init__"):
+                module.__manual_post_init__()
+
         # Sequence length
         if self.model.seq_len == -1 and self.data.seq_len == -1:
             raise ValueError("seq_len must be provided in either model or data")
@@ -63,10 +68,6 @@ class TrainingConfig:
             self.model.seq_len = self.data.seq_len
         if self.data.seq_len == -1:
             self.data.seq_len = self.model.seq_len
-
-        for module in self.__dict__.values():
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
 
 
 # -------------------------------------------------------------------------------

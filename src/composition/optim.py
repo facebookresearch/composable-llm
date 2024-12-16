@@ -12,6 +12,7 @@ located in the root directory of this repository.
 import math
 from dataclasses import dataclass
 from functools import partial
+from typing import TypedDict
 
 from torch import nn
 from torch.optim import AdamW, lr_scheduler
@@ -23,9 +24,10 @@ from torch.optim import AdamW, lr_scheduler
 
 @dataclass
 class OptimizerConfig:
-    # Optimizer parameters
+    # total number of update steps
+    steps: int = -1
+    # number of gradient accumulation before update
     grad_acc_steps: int = 1
-    steps: int = 1000
 
     # AdamW parameters
     lr: float = 3e-4
@@ -33,6 +35,8 @@ class OptimizerConfig:
     epsilon: float = 1e-8
     beta1: float = 0.9
     beta2: float = 0.95
+
+    # gradient clipping
     clip: float = 1.0
 
     # scheduler parameters
@@ -56,7 +60,7 @@ def init_optimizer(model: nn.Module, config: OptimizerConfig):
 
 
 @dataclass
-class OptimizerState:
+class OptimizerState(TypedDict):
     # nb of steps taken by the optimizer
     step: int
     # nb of accumulation steps done since last optimizer step

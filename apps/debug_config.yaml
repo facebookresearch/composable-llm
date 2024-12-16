@@ -10,3 +10,6 @@ data:
   seq_len: 32
   batch_size: 32
   seed: 42
+
+optim:
+  steps: 10
