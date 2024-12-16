@@ -27,17 +27,11 @@ from composition.data import (
     init_dataloader_state,
 )
 from composition.distributed import ComputeConfig
-from composition.logging import MonitorConfig
 from composition.model import Transformer, TransformerConfig
+from composition.monitor import MonitorConfig
+from composition.optim import OptimizerConfig, build_optimizer
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class OptimizerConfig:
-    grad_acc_steps: int = 1
-    steps: int = 1000
-    pass
 
 
 # -------------------------------------------------------------------------------
@@ -65,6 +59,10 @@ class TrainState(Stateful):
     acc_step: int  # nb of accumulation steps done since last optimizer step
     scheduler: None
     data_loader_state: DataLoaderState
+
+
+def loss_func(preds, targets):
+    return torch.nn.functional.cross_entropy(preds, targets)
 
 
 # -----------------------------------------------------------------------------
@@ -156,4 +154,4 @@ if __name__ == "__main__":
         handlers=[logging.StreamHandler()],
     )
 
-    main()
+    train(TrainingConfig())
