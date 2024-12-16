@@ -18,18 +18,20 @@ from contextlib import ExitStack
 from dataclasses import dataclass, field
 
 import torch
+import torch.nn.functional as F
 from omegaconf import OmegaConf
 from torch.distributed.checkpoint.stateful import Stateful
 
+from composition.checkpoint import CheckpointConfig, CheckpointManager
 from composition.computing import ComputeConfig
 from composition.data import (
     DataConfig,
     DataLoaderState,
-    data_loader_context,
+    data_loader_manager,
     init_dataloader_state,
 )
 from composition.model import Transformer, TransformerConfig
-from composition.monitor import MonitorConfig
+from composition.monitor import MonitorConfig, MonitorsManager
 from composition.optim import OptimizerConfig, build_optimizer
 
 logger = logging.getLogger(__name__)
@@ -45,8 +47,10 @@ class TrainingConfig:
     data: DataConfig = field(default_factory=DataConfig)
     model: TransformerConfig = field(default_factory=TransformerConfig)
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
-    monitor: MonitorConfig = field(default_factory=MonitorConfig)
+
+    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     compute: ComputeConfig = field(default_factory=ComputeConfig)
+    monitor: MonitorConfig = field(default_factory=MonitorConfig)
 
     def __manual_post_init__(self):
         """
@@ -75,7 +79,8 @@ class TrainState(Stateful):
 
 
 def loss_func(preds, targets):
-    return torch.nn.functional.cross_entropy(preds.view(-1, 4), targets.view(-1))
+    vocab_size = preds.size(-1)
+    return F.cross_entropy(preds.view(-1, vocab_size), targets.view(-1))
 
 
 # -----------------------------------------------------------------------------
@@ -85,11 +90,14 @@ def loss_func(preds, targets):
 
 def train(config: TrainingConfig):
 
+    saved = True
     with ExitStack() as context_stack:
 
         # ---------------------------------------------------------------------
         # Monitor
         # ---------------------------------------------------------------------
+
+        monitor = context_stack.enter_context(MonitorsManager(config.monitor))
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
@@ -105,10 +113,13 @@ def train(config: TrainingConfig):
         optimizer, scheduler = build_optimizer(model, config.optim)
         logger.info("Done building optimizer")
 
+        monitor.report_model(model)
+
         # ---------------------------------------------------------------------
         # Recover Checkpoint
         # ---------------------------------------------------------------------
 
+        checkpointer = context_stack.enter_context(CheckpointManager(config.checkpoint))
         train_state = TrainState(
             step=0,
             acc_step=0,
@@ -116,13 +127,14 @@ def train(config: TrainingConfig):
             scheduler=None,
         )
         train_state.data_loader_state = init_dataloader_state(config.data.seed)
+        saved = checkpointer.load(model, optimizer, train_state)
 
         # ---------------------------------------------------------------------
         # DataLoader
         # ---------------------------------------------------------------------
 
         data_loader = context_stack.enter_context(
-            data_loader_context(
+            data_loader_manager(
                 config.data,
                 state=train_state.data_loader_state,
             )
@@ -176,6 +188,9 @@ def train(config: TrainingConfig):
                 train_state.step += 1
 
             print(f"Step: {train_state.step}, Loss: {loss.item()}")
+
+    if not saved:
+        checkpointer.save(model, optimizer, train_state)
 
 
 def main():

@@ -13,3 +13,6 @@ savings/
 # Personal file and folder
 TODO.md
 *.ipynb
+
+tmp_*
+tests/

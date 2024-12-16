@@ -34,7 +34,7 @@ pip install -e .
 ## First run
 You can run a debug script with the following command:
 ```
-python -m apps.train config=apps/config.yaml
+python -m apps.train config=apps/debug_config.yaml
 ```
 
 ## Development

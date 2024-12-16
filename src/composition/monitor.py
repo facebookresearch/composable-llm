@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 import torch.nn as nn
@@ -22,19 +22,20 @@ class MonitorConfig:
     # evaluation
     async_eval_gpus: Optional[int] = None
 
-    # profiling
     # checkpointing
 
 
-class MonitorContext:
-    def __init__(self, config: MonitorConfig, model: nn.Module):
+class MonitorsManager:
+    def __init__(self, config: MonitorConfig):
+        pass
         # initialize all context
 
-        self.nb_params = sum([p.numel() for p in model.parameters()])
-        logger.info(f"Model built with {self.nb_params:,} parameters")
-
     def __enter__(self):
-        pass
+        return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         pass
+
+    def report_model(self, model: nn.Module):
+        self.nb_params = sum([p.numel() for p in model.parameters()])
+        logger.info(f"Model built with {self.nb_params:,} parameters")
