@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 import numpy as np
 
@@ -9,7 +9,7 @@ import numpy as np
 class DataConfig:
     seq_len: int = -1
     batch_size: int = -1
-    seed: int = None
+    seed: Optional[int] = None
 
 
 @dataclass

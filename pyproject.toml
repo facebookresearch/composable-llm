@@ -22,7 +22,7 @@ dependencies = [
     "torch",
 
     # argument parsing
-    "fire",
+    "omegaconf",
 
     # transformer libraries
     "sentencepiece",

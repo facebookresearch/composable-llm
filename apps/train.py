@@ -18,6 +18,7 @@ from contextlib import ExitStack
 from dataclasses import dataclass, field
 
 import torch
+from omegaconf import OmegaConf
 from torch.distributed.checkpoint.stateful import Stateful
 
 from composition.computing import ComputeConfig
@@ -46,19 +47,6 @@ class TrainingConfig:
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
     compute: ComputeConfig = field(default_factory=ComputeConfig)
-
-    def __post_init__(self):
-        # TO BE REMOVED temporary patch
-        self.model.vocab_size = 4
-        self.model.seq_len = 32
-        self.model.emb_dim = 64
-        self.model.nb_heads = 2
-        self.model.ffn_dim = 256
-        self.model.nb_layers = 2
-
-        self.data.seq_len = self.model.seq_len
-        self.data.batch_size = 32
-        self.data.seed = 42
 
 
 # -------------------------------------------------------------------------------
@@ -178,6 +166,62 @@ def train(config: TrainingConfig):
             print(f"Step: {train_state.step}, Loss: {loss.item()}")
 
 
+def main():
+    """
+    The command line interface here uses OmegaConf
+    https://omegaconf.readthedocs.io/en/2.3_branch/usage.html#from-command-line-arguments
+
+    This accepts arguments as a dot list
+    So if the dataclass looks like
+
+    @dataclass
+    class DummyArgs:
+        name: str
+        mode: LMTransformerArgsgs
+
+    @dataclass
+    class LMTransformerArgsgs:
+        dim: int
+
+    Then you can pass model.dim=32 to change values in LMTransformerArgsgs
+    or just name=tictac for top level attributes.
+
+    The behavior here is as follows:
+    1. We instantiate TrainArgs with its default values
+    2. We override those default values with the ones in the provided config file
+    3. We override the result with the additional arguments provided through command line
+
+    For example, if the config is the following
+
+    model:
+        dim: 128
+        n_layers: 4
+
+    and you call train.py with train.py model.dim=64
+
+    Then the final TrainArgs will have
+
+    model:
+        dim: 64
+        n_layers: 4
+
+    Plus all the default values in TrainArgs dataclass.
+    """
+    # Load config from path specified by the `config` cli argument
+    cli_args = OmegaConf.from_cli()
+    file_cfg = OmegaConf.load(cli_args.config)
+    # remove 'config' attribute as the underlying config class does not have it
+    del cli_args.config
+
+    # Load structured config
+    default_cfg = OmegaConf.structured(TrainingConfig())
+    cfg = OmegaConf.merge(default_cfg, file_cfg, cli_args)
+    cfg = OmegaConf.to_object(cfg)
+
+    # Launch training with the config
+    train(cfg)
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
@@ -185,4 +229,4 @@ if __name__ == "__main__":
         handlers=[logging.StreamHandler()],
     )
 
-    train(TrainingConfig())
+    main()
