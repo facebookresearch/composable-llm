@@ -31,6 +31,12 @@ cd <repo path>
 pip install -e .
 ```
 
+## First run
+You can run a debug script with the following command:
+```
+python -m apps.train config=apps/config.yaml
+```
+
 ## Development
 For formatting, I recommand using `black`, `flake8`, and `isort`.
 Consider automatic formatting when saving files (easy to setup in VSCode, ask ChatGPT to get set up if not confortable with VSCode configuration).

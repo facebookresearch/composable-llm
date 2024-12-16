@@ -48,6 +48,18 @@ class TrainingConfig:
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
     compute: ComputeConfig = field(default_factory=ComputeConfig)
 
+    def __manual_post_init__(self):
+        """
+        Check validity of arguments and fill in missing values.
+        """
+        # Sequence length
+        if self.model.seq_len == -1 and self.data.seq_len == -1:
+            raise ValueError("seq_len must be provided in either model or data")
+        if self.model.seq_len == -1:
+            self.model.seq_len = self.data.seq_len
+        if self.data.seq_len == -1:
+            self.data.seq_len = self.model.seq_len
+
 
 # -------------------------------------------------------------------------------
 # Training State and Preemption Handling
@@ -169,54 +181,24 @@ def train(config: TrainingConfig):
 def main():
     """
     The command line interface here uses OmegaConf
-    https://omegaconf.readthedocs.io/en/2.3_branch/usage.html#from-command-line-arguments
 
-    This accepts arguments as a dot list
-    So if the dataclass looks like
+    Read argument from a config file specified by the `config` cli argument. E.g.,
+    ```bash
+    python -m apps.train config=apps/debug.yaml
+    ```
 
-    @dataclass
-    class DummyArgs:
-        name: str
-        mode: LMTransformerArgsgs
-
-    @dataclass
-    class LMTransformerArgsgs:
-        dim: int
-
-    Then you can pass model.dim=32 to change values in LMTransformerArgsgs
-    or just name=tictac for top level attributes.
-
-    The behavior here is as follows:
-    1. We instantiate TrainArgs with its default values
-    2. We override those default values with the ones in the provided config file
-    3. We override the result with the additional arguments provided through command line
-
-    For example, if the config is the following
-
-    model:
-        dim: 128
-        n_layers: 4
-
-    and you call train.py with train.py model.dim=64
-
-    Then the final TrainArgs will have
-
-    model:
-        dim: 64
-        n_layers: 4
-
-    Plus all the default values in TrainArgs dataclass.
+    Non-specified arguments will be filled with the default values of the Config classes.
     """
     # Load config from path specified by the `config` cli argument
     cli_args = OmegaConf.from_cli()
     file_cfg = OmegaConf.load(cli_args.config)
-    # remove 'config' attribute as the underlying config class does not have it
     del cli_args.config
 
     # Load structured config
     default_cfg = OmegaConf.structured(TrainingConfig())
     cfg = OmegaConf.merge(default_cfg, file_cfg, cli_args)
     cfg = OmegaConf.to_object(cfg)
+    cfg.__manual_post_init__()
 
     # Launch training with the config
     train(cfg)

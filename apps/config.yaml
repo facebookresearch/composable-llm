@@ -1,7 +1,6 @@
 
 model:
   vocab_size: 4
-  seq_len: 32
   emb_dim: 64
   nb_heads: 2
   ffn_dim: 256
