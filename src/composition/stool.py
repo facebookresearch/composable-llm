@@ -13,15 +13,12 @@ import os
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Optional
 
 from omegaconf import OmegaConf
 
-from .checkpoint import CheckpointConfig
 from .computing import ComputeConfig
-from .data import DataConfig
-from .model import TransformerConfig
 from .monitor import MonitorConfig
-from .optim import OptimizerConfig
 
 # -------------------------------------------------------------------------------
 # Configuration Class
@@ -30,25 +27,28 @@ from .optim import OptimizerConfig
 
 @dataclass
 class TrainingConfig:
-    data: DataConfig = field(default_factory=DataConfig)
-    model: TransformerConfig = field(default_factory=TransformerConfig)
-    optim: OptimizerConfig = field(default_factory=OptimizerConfig)
+    data: Optional[Any] = None
+    model: Optional[Any] = None
+    optim: Optional[Any] = None
+    checkpoint: Optional[Any] = None
 
-    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     compute: ComputeConfig = field(default_factory=ComputeConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
 
 
 @dataclass
 class LauncherConfig:
-    run_config: TrainingConfig = None
+    run_config: TrainingConfig = field(default_factory=TrainingConfig)
     launcher: str = "sbatch"
     script: str = "apps.train"
     copy_code: bool = True
     python_env: str = "default"
-    stdout: bool = False
 
-    def __post_init__(self):
+    def __manual_post_init__(self):
+        """
+        Check validity of arguments and fill in missing values.
+        """
+        # recover python environment from the job was launched.
         if self.python_env:
             if self.python_env == "default":
                 self.python_env = subprocess.check_output("which python", shell=True).decode("ascii").strip()
@@ -96,33 +96,29 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 
 # Logging configuration
 #SBATCH --job-name={name}
-#SBATCH --output={dump_dir}/logs/%j/%j.stdout
-#SBATCH --error={dump_dir}/logs/%j/%j.stderr
+#SBATCH --output={dump_dir}/logs/%j.stdout
+#SBATCH --error={dump_dir}/logs/%j.stderr
 #SBATCH --open-mode=append
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
 
 # Job specification
 #SBATCH --partition={partition}
-#SBATCH --time={time}
-#SBATCH --mem={mem}
 #SBATCH --nodes={nodes}
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=1
-#SBATCH --gpus-per-node=1
-
-{exclude}
-{qos}
-{account}
-{constraint}
-SBATCH --gres=gpu:{ngpus}
-SBATCH --cpus-per-gpu={ncpu}
-SBATCH --distribution=block
+#SBATCH --gres=gpu:{nb_gpu}
+#SBATCH --cpus-per-gpu={nb_cpu}
+#SBATCH --mem={mem}
+#SBATCH --time={time}
+#SBATCH --distribution=block
 
 # termination handling
 #SBATCH --signal=USR2@120
 
-{cluster_depandent_envs}
+# slurm extra commands
+{slurm_extra}
+
+# cluster dependent commands
+{script_extra}
 
 # activate conda environment
 eval "$({conda_exe} shell.bash hook)"
@@ -167,22 +163,19 @@ def launch_job(config: LauncherConfig):
     # log_output = "" if config.stdout else f"-o {dump_dir}/logs/output.log -e {dump_dir}/logs/error.log"
 
     bash_command = LAUNCHER_SCRIPT.format(
-        exclude="",
-        qos="",
-        account="",
-        constraint="",
-        name="try",
-        nodes=1,
-        ngpus="",
-        ncpu="",
-        time="4:00:00",
-        partition="scavenge",
-        mem="256G",
-        cluster_depandent_envs="",
+        name=config.run_config.monitor.name,
+        dump_dir=dump_dir,
+        partition=config.run_config.compute.partition,
+        nodes=config.run_config.compute.nodes,
+        nb_gpu=config.run_config.compute.nb_gpu,
+        nb_cpu=config.run_config.compute.nb_cpu,
+        time=config.run_config.compute.time,
+        mem=config.run_config.compute.mem,
+        slurm_extra=config.run_config.compute.slurm_extra,
+        script_extra=config.run_config.compute.script_extra,
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
         go_to_code_dir=go_to_code_dir,
-        dump_dir=dump_dir,
         log_output="",
         tasks="",
         nodes_per_run="",
@@ -214,8 +207,13 @@ def main():
     args.run_config = OmegaConf.load(args.config)
     del args.config
 
-    # Launch job with the config
-    config = LauncherConfig(**args)
+    # Load structured config
+    default_cfg = OmegaConf.structured(LauncherConfig())
+    config = OmegaConf.merge(default_cfg, args)
+    config = OmegaConf.to_object(config)
+    config.__manual_post_init__()
+
+    # Launch job
     launch_job(config)
 
 

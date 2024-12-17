@@ -225,12 +225,12 @@ def main():
 
     # Load structured config
     default_cfg = OmegaConf.structured(TrainingConfig())
-    cfg = OmegaConf.merge(default_cfg, file_cfg, cli_args)
-    cfg = OmegaConf.to_object(cfg)
-    cfg.__manual_post_init__()
+    config = OmegaConf.merge(default_cfg, file_cfg, cli_args)
+    config = OmegaConf.to_object(config)
+    config.__manual_post_init__()
 
     # Launch training with the config
-    train(cfg)
+    train(config)
 
 
 if __name__ == "__main__":
