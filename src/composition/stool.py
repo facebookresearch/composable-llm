@@ -12,6 +12,7 @@ located in the root directory of this repository.
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from omegaconf import OmegaConf
 
@@ -27,7 +28,7 @@ logger = logging.getLogger(__file__)
 
 LAUNCHER_SCRIPT = """#!/bin/bash
 eval "$({conda_exe} shell.bash hook)"
-source activate {conda_env_path}
+conda activate {conda_env_path}
 cd {dump_dir}/code
 export OMP_NUM_THREADS=1
 python -u -m {script} config={dump_dir}/base_config.yaml
@@ -69,7 +70,7 @@ def launch_job(config: LauncherConfig):
         cfg.write(OmegaConf.to_yaml(config.run_config))
 
     conda_exe = os.environ.get("CONDA_EXE", "conda")
-    conda_env_path = os.path.dirname(os.path.dirname(config.anaconda))
+    conda_env_path = config.anaconda
     log_output = "" if config.stdout else f"-o {dump_dir}/logs/output.log -e {dump_dir}/logs/error.log"
 
     bash_command = LAUNCHER_SCRIPT.format(

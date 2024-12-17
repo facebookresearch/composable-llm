@@ -5,6 +5,7 @@
 
 # Checkpointing and runs
 logs/
+dumps/
 savings/
 
 # Configuration files
