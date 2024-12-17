@@ -126,10 +126,10 @@ def train(config: TrainingConfig):
                 config=config.checkpoint,
                 model=model,
                 optimizer=optimizer,
+                scheduler=scheduler,
                 state=state,
             )
         )
-        checkpointer.load(model, optimizer, state)
 
         # ---------------------------------------------------------------------
         # DataLoader
@@ -189,7 +189,14 @@ def train(config: TrainingConfig):
                 optimizer.zero_grad()
                 state.optim.step += 1
 
-            print(f"Step: {state.optim.step}, Loss: {loss.item()}")
+            logger.info(f"Step: {state.optim.step}, Loss: {loss.item()}")
+
+            # -----------------------------------------------------------------
+            # Manager calls
+            # -----------------------------------------------------------------
+
+            # checkpointing
+            checkpointer()
 
 
 def main():

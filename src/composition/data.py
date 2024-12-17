@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Iterator, Optional, TypedDict
+from typing import Any, Iterator, Optional
 
 import numpy as np
 
@@ -13,7 +13,7 @@ class DataConfig:
 
 
 @dataclass
-class DataLoaderState(TypedDict):
+class DataLoaderState:
     rng_state: dict[str, Any]
 
 

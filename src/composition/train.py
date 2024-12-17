@@ -10,6 +10,7 @@ located in the root directory of this repository.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 from torch.distributed.checkpoint.stateful import Stateful
 
@@ -21,3 +22,15 @@ from .optim import OptimizerState
 class TrainState(Stateful):
     data: DataLoaderState
     optim: OptimizerState
+
+    def state_dict(self) -> dict[str, Any]:
+        return {
+            "data.rng_state": self.data.rng_state,
+            "optim": {"step": self.optim.step, "acc_step": self.optim.acc_step},
+        }
+
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        self.data.rng_state = state_dict["data.rng_state"]
+        optim_state = state_dict["optim"]
+        self.optim.step = optim_state["step"]
+        self.optim.acc_step = optim_state["acc_step"]

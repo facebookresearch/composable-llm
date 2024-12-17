@@ -12,10 +12,9 @@ located in the root directory of this repository.
 import math
 from dataclasses import dataclass
 from functools import partial
-from typing import TypedDict
 
 from torch import nn
-from torch.optim import AdamW, lr_scheduler
+from torch.optim import AdamW, Optimizer, lr_scheduler
 
 # -----------------------------------------------------------------------------
 # Optimizer
@@ -45,7 +44,7 @@ class OptimizerConfig:
     lr_min_ratio: float = 0.1
 
 
-def init_optimizer(model: nn.Module, config: OptimizerConfig):
+def init_optimizer(model: nn.Module, config: OptimizerConfig) -> Optimizer:
     """
     Build optimizer and Scheduler
     """
@@ -60,7 +59,7 @@ def init_optimizer(model: nn.Module, config: OptimizerConfig):
 
 
 @dataclass
-class OptimizerState(TypedDict):
+class OptimizerState:
     # nb of steps taken by the optimizer
     step: int
     # nb of accumulation steps done since last optimizer step
@@ -79,7 +78,7 @@ def init_optimizer_state():
 # -----------------------------------------------------------------------------
 
 
-def init_scheduler(optimizer, config: OptimizerConfig):
+def init_scheduler(optimizer, config: OptimizerConfig) -> lr_scheduler.LambdaLR:
     """
     Initialize the scheduler state
     """
