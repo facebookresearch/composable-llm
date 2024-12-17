@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ComputeConfig:
+class ClusterConfig:
     # slurm configuration
     partition: str = ""
     nodes: int = 1  # number of nodes to run the job on.

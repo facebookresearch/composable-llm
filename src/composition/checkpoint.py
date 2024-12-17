@@ -21,6 +21,7 @@ from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
 from .train import TrainState
+from .utils import trigger_update
 
 logger = logging.getLogger(__file__)
 
@@ -78,7 +79,7 @@ class CheckpointManager:
         self.state = state
 
         self.dp_rank = 0
-        self.saved = True
+        self.up_to_date = True
 
     def __enter__(self):
         """
@@ -93,17 +94,17 @@ class CheckpointManager:
         """
         Save checkpoint if it matching the frequency
         """
-        if self.freq != -1 and self.state.optim.step % self.freq == 0:
+        if trigger_update(self.state, self.freq):
             self.save()
-            self.saved = True
+            self.up_to_date = True
         else:
-            self.saved = False
+            self.up_to_date = False
 
     def __exit__(self, exc_type, exc_value, traceback):
         """
         Exit checkpoint context by saving checkpoint if needed
         """
-        if not self.saved:
+        if not self.up_to_date:
             self.save()
 
     def save(self) -> bool:
@@ -112,7 +113,7 @@ class CheckpointManager:
         """
         save_dir = self.path / self.folder_name.format(self.state.optim.step)
         save_dir.mkdir(parents=False, exist_ok=True)
-        logger.info(f"Saving to: {str(save_dir)}")
+        logger.info(f"Saving checkpoint to: {str(save_dir)}")
 
         state_dict = {
             "model": self.model.state_dict(),

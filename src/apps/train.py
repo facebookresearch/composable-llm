@@ -14,6 +14,10 @@ located in the root directory of this repository.
 # -------------------------------------------------------------------------------
 
 import logging
+import os
+import signal
+import socket
+import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,7 +27,7 @@ import torch.nn.functional as F
 from omegaconf import OmegaConf
 
 from ..composition.checkpoint import CheckpointConfig, CheckpointManager
-from ..composition.computing import ComputeConfig
+from ..composition.cluster import ClusterConfig
 from ..composition.data import DataConfig, dataloader_manager, init_dataloader_state
 from ..composition.model import Transformer, TransformerConfig
 from ..composition.monitor import MonitorConfig, MonitorsManager
@@ -50,7 +54,7 @@ class TrainingConfig:
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
-    compute: ComputeConfig = field(default_factory=ComputeConfig)
+    cluster: ClusterConfig = field(default_factory=ClusterConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
 
     def __manual_post_init__(self):
@@ -79,7 +83,7 @@ class TrainingConfig:
 
 
 # -------------------------------------------------------------------------------
-# Training State and Preemption Handling
+# Preemption Handling
 # -------------------------------------------------------------------------------
 
 
@@ -95,6 +99,19 @@ def loss_func(preds, targets):
 
 def train(config: TrainingConfig):
 
+    # -------------------------------------------------------------------------
+    # Handle preemption
+    # -------------------------------------------------------------------------
+
+    preemption_flag = dict(flag=False)
+
+    def set_preemption_flag(signum, frame):
+        logger.warning("Signal handler called with signal " + str(signum))
+        preemption_flag["flag"] = True
+
+    signal.signal(signal.SIGUSR2, set_preemption_flag)
+    logger.info("Signal handler installed.")
+
     with ExitStack() as context_stack:
 
         # ---------------------------------------------------------------------
@@ -109,7 +126,7 @@ def train(config: TrainingConfig):
 
         logger.info("Building model")
         model = Transformer(config.model)
-        model.to(device=config.compute.device)
+        model.to(device=config.cluster.device)
         logger.info("Done building model")
 
         monitor.report_model(model)
@@ -169,12 +186,12 @@ def train(config: TrainingConfig):
             X_batch = torch.tensor(
                 batch[:, :-1],
                 dtype=torch.long,
-            ).to(device=config.compute.device)
+            ).to(device=config.cluster.device)
 
             y_batch = torch.tensor(
                 batch[:, 1:],
                 dtype=torch.long,
-            ).to(device=config.compute.device)
+            ).to(device=config.cluster.device)
 
             # -----------------------------------------------------------------
             # Forward and backward pass
@@ -205,6 +222,23 @@ def train(config: TrainingConfig):
 
             # checkpointing
             checkpointer()
+
+            # -----------------------------------------------------------------
+            # Handle preemption
+            # -----------------------------------------------------------------
+
+            if preemption_flag["flag"]:
+                break
+
+    if preemption_flag["flag"]:
+        prod_id = int(os.environ["SLURM_PROCID"])
+        logger.warning(f"Host: {socket.gethostname()} - Global rank: {prod_id}")
+        if prod_id == 0:
+            logger.warning("Requeuing job " + os.environ["SLURM_JOB_ID"])
+            os.system("scontrol requeue " + os.environ["SLURM_JOB_ID"])
+        else:
+            logger.warning("Not the master process, no need to requeue.")
+        sys.exit(0)
 
 
 def main():

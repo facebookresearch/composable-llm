@@ -1,4 +1,9 @@
 # Debugging configuration
+monitor:
+  overwrite: true
+
+cluster:
+  time: 1
 
 model:
   vocab_size: 4
@@ -13,7 +18,7 @@ data:
   seed: 42
 
 optim:
-  steps: 3000
+  steps: 10000
 
 checkpoint:
   freq: 10

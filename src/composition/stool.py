@@ -18,7 +18,7 @@ from typing import Any, Optional
 
 from omegaconf import OmegaConf
 
-from .computing import ComputeConfig
+from .cluster import ClusterConfig
 from .monitor import MonitorConfig
 
 # -------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ class TrainingConfig:
     optim: Optional[Any] = None
     checkpoint: Optional[Any] = None
 
-    compute: ComputeConfig = field(default_factory=ComputeConfig)
+    cluster: ClusterConfig = field(default_factory=ClusterConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
 
 
@@ -174,21 +174,21 @@ def launch_job(config: LauncherConfig):
     conda_exe = os.environ.get("CONDA_EXE", "conda")
     conda_env_path = str(Path(config.python_env).parent.parent)
 
-    nodes = config.config.compute.nodes
-    nb_gpus = config.config.compute.nb_gpus
+    nodes = config.config.cluster.nodes
+    nb_gpus = config.config.cluster.nb_gpus
 
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.config.monitor.name,
         log_dir=log_dir,
-        partition=config.config.compute.partition,
+        partition=config.config.cluster.partition,
         nodes=nodes,
         tasks=nodes * nb_gpus,
         nb_gpus=nb_gpus,
-        nb_cpus=config.config.compute.nb_cpus,
-        time=config.config.compute.time,
-        mem=config.config.compute.mem,
-        slurm_extra=config.config.compute.slurm_extra,
-        script_extra=config.config.compute.script_extra,
+        nb_cpus=config.config.cluster.nb_cpus,
+        time=config.config.cluster.time,
+        mem=config.config.cluster.mem,
+        slurm_extra=config.config.cluster.slurm_extra,
+        script_extra=config.config.cluster.script_extra,
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
         go_to_code_dir=go_to_code_dir,
@@ -217,7 +217,6 @@ def main():
     # Load config from path specified by the `config` cli argument
     args = OmegaConf.from_cli()
     args.config = OmegaConf.load(args.config)
-    del args.config
 
     # Default to default arguments for unspecified values
     default_cfg = OmegaConf.structured(LauncherConfig())
