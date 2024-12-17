@@ -11,8 +11,8 @@ located in the root directory of this repository.
 
 import logging
 import os
+import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from omegaconf import OmegaConf
 
@@ -25,14 +25,9 @@ from .optim import OptimizerConfig
 
 logger = logging.getLogger(__file__)
 
-
-LAUNCHER_SCRIPT = """#!/bin/bash
-eval "$({conda_exe} shell.bash hook)"
-conda activate {conda_env_path}
-cd {dump_dir}/code
-export OMP_NUM_THREADS=1
-python -u -m {script} config={dump_dir}/base_config.yaml
-"""
+# -------------------------------------------------------------------------------
+# Configuration Class
+# -------------------------------------------------------------------------------
 
 
 @dataclass
@@ -51,9 +46,56 @@ class LauncherConfig:
     run_config: TrainingConfig = None
     launcher: str = "bash"
     script: str = "apps.train"
-    copy_code: bool = False
+    copy_code: bool = True
     anaconda: str = "llm"
     stdout: bool = False
+
+
+# -------------------------------------------------------------------------------
+# Utility Functions
+# -------------------------------------------------------------------------------
+
+
+def copy_dir(input_dir: str, output_dir: str) -> None:
+    print(f"Copying : {input_dir}\n" f"to      : {output_dir} ...")
+    assert os.path.isdir(input_dir), f"{input_dir} is not a directory"
+    assert os.path.isdir(output_dir), f"{output_dir} is not a directory"
+    rsync_cmd = (
+        "rsync -ar --copy-links "
+        "--exclude .git/ "
+        # configuration and cache
+        "--exclude .gitignore "
+        "--exclude .vscode "
+        "--exclude '*.egg-info' "
+        "--exclude '__pycache__' "
+        "--exclude '*.md' "
+        "--exclude '*.toml' "
+        # checkpoints and runs
+        "--exclude dumps/ "
+        "--exclude logs/ "
+        "--exclude savings/ "
+        # personal files and folders
+        "--exclude '*.ipynb' "
+        "--exclude 'tmp_*' "
+        "--exclude tests/ "
+        f"{input_dir}/ {output_dir}"
+    )
+    print(f"Copying command: {rsync_cmd}")
+    subprocess.call([rsync_cmd], shell=True)
+    print("Copy done.")
+
+
+# -------------------------------------------------------------------------------
+# Job Launcher
+# -------------------------------------------------------------------------------
+
+LAUNCHER_SCRIPT = """#!/bin/bash
+eval "$({conda_exe} shell.bash hook)"
+conda activate {conda_env_path}
+cd {dump_dir}/code
+export OMP_NUM_THREADS=1
+python -u -m {script} config={dump_dir}/base_config.yaml
+"""
 
 
 def launch_job(config: LauncherConfig):
@@ -65,6 +107,8 @@ def launch_job(config: LauncherConfig):
 
     if config.copy_code:
         os.makedirs(f"{dump_dir}/code", exist_ok=True)
+        print("Copying code ...")
+        copy_dir(os.getcwd(), f"{dump_dir}/code")
 
     with open(f"{dump_dir}/base_config.yaml", "w") as cfg:
         cfg.write(OmegaConf.to_yaml(config.run_config))
