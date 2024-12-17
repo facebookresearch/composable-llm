@@ -1,18 +1,22 @@
+import json
+import logging
+import subprocess
 from dataclasses import dataclass
 
 import torch
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class ComputeConfig:
     # slurm configuration
-    partition: str = "scavenge"
+    partition: str = ""
     nodes: int = 1  # number of nodes to run the job on.
     nb_gpus: int = 1  # number of GPUs required per node.
     nb_cpus: int = 16  # number of CPUs allocated per GPU.
-    mem: str = "256G"  # amount of memory to allocate per node.
-    time: int = 60  # time limit of the job (in minutes).
-    # time: int = -1  # time limit of the job (in minutes).
+    mem: str = ""  # amount of memory to allocate per node.
+    time: int = -1  # time limit of the job (in minutes).
 
     # slurm extra configuration
     slurm_extra: str = ""  # placeholder
@@ -36,3 +40,41 @@ class ComputeConfig:
     def __manual_post_init__(self):
         # handling type not recognized by OmegaConf
         self.device = torch.device(self.device)
+
+        # if partition, time or memory was not set
+        priorities, max_times, memories = {}, {}, {}
+        if self.partition == "" or self.time == -1 or self.mem == "":
+            priorities, max_times, memories = self.extract_sinfo()
+        if self.partition == "":
+            self.partition = min(priorities.keys(), key=lambda k: priorities[k]["job_factor"])
+            logger.info(f"No partition specified default to {self.partition}")
+        if self.time == -1:
+            self.time = max_times[self.partition]
+            logger.info(f"No time specified, default to {self.time} minutes")
+        if self.mem == "":
+            self.mem = memories[self.partition]
+            logger.info(f"No memory specified, default to {self.mem}MB")
+
+    @staticmethod
+    def extract_sinfo() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+        # retrieve partition max times (a bit slow)
+
+        sinfo = json.loads(subprocess.check_output("sinfo --json", shell=True))["sinfo"]
+        priorities: dict[str, int] = {}
+        max_times: dict[str, int] = {}
+        memories: dict[str, int] = {}
+
+        for info in sinfo:
+            partition = info["partition"]["name"]
+            if partition in priorities:
+                continue
+
+            priorities[partition] = info["partition"]["priority"]
+            memories[partition] = info["memory"]["maximum"]  # in MB
+
+            if info["partition"]["maximums"]["time"]["infinite"]:
+                max_times[partition] = 14 * 24 * 60  # 14 days
+            else:
+                max_times[partition] = info["partition"]["maximums"]["time"]["number"]  # in minutes
+
+        return priorities, max_times, memories

@@ -57,7 +57,7 @@ class TrainingConfig:
         """
         Check validity of arguments and fill in missing values.
         """
-        # handling type not recognized by OmegaConf
+        # manual post initialization of all modules
         for module in self.__dict__.values():
             if hasattr(module, "__manual_post_init__"):
                 module.__manual_post_init__()
@@ -223,7 +223,7 @@ def main():
     file_cfg = OmegaConf.load(cli_args.config)
     del cli_args.config
 
-    # Load structured config
+    # Default to default arguments for unspecified values
     default_cfg = OmegaConf.structured(TrainingConfig())
     config = OmegaConf.merge(default_cfg, file_cfg, cli_args)
     config = OmegaConf.to_object(config)

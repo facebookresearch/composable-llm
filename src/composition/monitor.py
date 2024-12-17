@@ -14,12 +14,14 @@ class MonitorConfig:
     # logging
     name: str = "comp_default"
     dir: str = ""
+    # whether to overwrite logging directory
+    overwrite: bool = False
 
     # reproducibility
     seed: int = 42
 
-    # garbage collection
-    gc_collect_freq: int = 1000
+    # garbage collection frequency
+    gc_freq: int = 1000
 
     # evaluation
     async_eval_gpus: Optional[int] = None
@@ -30,6 +32,7 @@ class MonitorConfig:
     def __post_init__(self):
         if not self.dir:
             self.dir = str(Path.home() / "logs" / self.name)
+            logger.info(f"Logging directory set to {self.dir}")
 
 
 class MonitorsManager:

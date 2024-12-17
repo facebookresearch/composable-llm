@@ -1,6 +1,4 @@
 # Debugging configuration
-monitor:
-  dir: "/private/home/vivc/code/composable-llm/dumps/debug"
 
 model:
   vocab_size: 4

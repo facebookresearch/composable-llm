@@ -1,5 +1,5 @@
 """
-Script tool to launch jobs on a Slurm cluster.
+Slurm tool script to launch jobs on a Slurm cluster.
 
 License
 -------
@@ -10,6 +10,7 @@ located in the root directory of this repository.
 """
 
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,7 +39,7 @@ class TrainingConfig:
 
 @dataclass
 class LauncherConfig:
-    run_config: TrainingConfig = field(default_factory=TrainingConfig)
+    config: TrainingConfig = field(default_factory=TrainingConfig)
     launcher: str = "sbatch"
     script: str = "apps.train"
     copy_code: bool = True
@@ -48,6 +49,11 @@ class LauncherConfig:
         """
         Check validity of arguments and fill in missing values.
         """
+        # manual post initialization of all modules
+        for module in self.config.__dict__.values():
+            if hasattr(module, "__manual_post_init__"):
+                module.__manual_post_init__()
+
         # recover python environment from the job was launched.
         if self.python_env:
             if self.python_env == "default":
@@ -96,8 +102,8 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 
 # Logging configuration
 #SBATCH --job-name={name}
-#SBATCH --output={dump_dir}/logs/%j.stdout
-#SBATCH --error={dump_dir}/logs/%j.stderr
+#SBATCH --output={log_dir}/logs/%j/main.out
+#SBATCH --error={log_dir}/logs/%j/main.err
 #SBATCH --open-mode=append
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
@@ -106,8 +112,8 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 #SBATCH --partition={partition}
 #SBATCH --nodes={nodes}
 #SBATCH --ntasks={tasks}
-#SBATCH --gres=gpu:{nb_gpu}
-#SBATCH --cpus-per-gpu={nb_cpu}
+#SBATCH --gres=gpu:{nb_gpus}
+#SBATCH --cpus-per-gpu={nb_cpus}
 #SBATCH --mem={mem}
 #SBATCH --time={time}
 #SBATCH --distribution=block
@@ -127,9 +133,8 @@ conda activate {conda_env_path}
 
 # launch the job
 export OMP_NUM_THREADS=1
-export LAUNCH_WITH="SBATCH"
-export DUMP_DIR={dump_dir}
-srun {log_output} python -u -m {script} config=$DUMP_DIR/run_config.yaml
+export LOG_DIR={log_dir}
+srun -o {log_dir}/logs/%j/%t.out -e {log_dir}/logs/%j/%t.err python -u -m {script} config=$LOG_DIR/config.yaml
 """
 
 
@@ -137,58 +142,64 @@ def launch_job(config: LauncherConfig):
     """
     Launch a job on a Slurm cluster.
     """
-    dump_dir = config.run_config.monitor.dir
-    os.makedirs(dump_dir, exist_ok=True)
+    # logging directory
+    log_dir = config.config.monitor.dir
+    os.makedirs(log_dir, exist_ok=True)
+    if config.config.monitor.overwrite:
+        confirm = input(
+            f"Are you sure you want to delete the directory '{log_dir}'? This action cannot be undone. (yes/no): "
+        )
+        if confirm.upper().startswith("Y"):
+            shutil.rmtree(log_dir)
+            print(f"Directory '{log_dir}' has been deleted.")
+        else:
+            print("Operation cancelled.")
+            return
 
     # copy code
     if config.copy_code:
-        os.makedirs(f"{dump_dir}/code", exist_ok=True)
-        print(f"Copying code to {dump_dir} ...", end="")
-        copy_dir(os.getcwd(), f"{dump_dir}/code")
-        go_to_code_dir = f"cd {dump_dir}/code"
+        os.makedirs(f"{log_dir}/code", exist_ok=True)
+        print(f"Copying code to {log_dir} ...", end="")
+        copy_dir(os.getcwd(), f"{log_dir}/code")
+        go_to_code_dir = f"cd {log_dir}/code"
     else:
         go_to_code_dir = ""
     print(" Done.")
 
-    # write run_config
-    with open(f"{dump_dir}/run_config.yaml", "w") as cfg:
-        cfg.write(OmegaConf.to_yaml(config.run_config))
+    # write config
+    with open(f"{log_dir}/config.yaml", "w") as cfg:
+        cfg.write(OmegaConf.to_yaml(config.config))
 
     # define proper conda environment
     conda_exe = os.environ.get("CONDA_EXE", "conda")
     conda_env_path = str(Path(config.python_env).parent.parent)
 
-    # log_output = "" if config.stdout else f"-o {dump_dir}/logs/output.log -e {dump_dir}/logs/error.log"
-
-    nodes = config.run_config.compute.nodes
-    nb_gpus = config.run_config.compute.nb_gpus
+    nodes = config.config.compute.nodes
+    nb_gpus = config.config.compute.nb_gpus
 
     bash_command = LAUNCHER_SCRIPT.format(
-        name=config.run_config.monitor.name,
-        dump_dir=dump_dir,
-        partition=config.run_config.compute.partition,
+        name=config.config.monitor.name,
+        log_dir=log_dir,
+        partition=config.config.compute.partition,
         nodes=nodes,
         tasks=nodes * nb_gpus,
         nb_gpus=nb_gpus,
-        nb_cpus=config.run_config.compute.nb_cpus,
-        time=config.run_config.compute.time,
-        mem=config.run_config.compute.mem,
-        slurm_extra=config.run_config.compute.slurm_extra,
-        script_extra=config.run_config.compute.script_extra,
+        nb_cpus=config.config.compute.nb_cpus,
+        time=config.config.compute.time,
+        mem=config.config.compute.mem,
+        slurm_extra=config.config.compute.slurm_extra,
+        script_extra=config.config.compute.script_extra,
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
         go_to_code_dir=go_to_code_dir,
-        log_output="",
-        tasks="",
-        nodes_per_run="",
         script=config.script,
     )
 
-    with open(f"{dump_dir}/run.sh", "w") as f:
+    with open(f"{log_dir}/run.sh", "w") as f:
         f.write(bash_command)
 
     print(f"Launching job with `{config.launcher}` command ...", end="")
-    os.system(f"{config.launcher} {dump_dir}/run.sh")
+    os.system(f"{config.launcher} {log_dir}/run.sh")
     print(" Done.")
 
 
@@ -203,12 +214,12 @@ def main():
 
     Non-specified arguments will be filled with the default values of the Config classes.
     """
-    # Load run_config from path specified by the `config` cli argument
+    # Load config from path specified by the `config` cli argument
     args = OmegaConf.from_cli()
-    args.run_config = OmegaConf.load(args.config)
+    args.config = OmegaConf.load(args.config)
     del args.config
 
-    # Load structured config
+    # Default to default arguments for unspecified values
     default_cfg = OmegaConf.structured(LauncherConfig())
     config = OmegaConf.merge(default_cfg, args)
     config = OmegaConf.to_object(config)
