@@ -1,7 +1,8 @@
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
+import torch
 import torch.nn as nn
 
 logger = logging.getLogger(__name__)
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 class MonitorConfig:
     # logging
     name: str = "difformer"
-    dump_dir: str = ""
+    dir: str = ""
 
     # reproducibility
     seed: int = 42
@@ -27,8 +28,9 @@ class MonitorConfig:
 
 class MonitorsManager:
     def __init__(self, config: MonitorConfig):
-        pass
-        # initialize all context
+        torch.manual_seed(config.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(config.seed)
 
     def __enter__(self):
         return self

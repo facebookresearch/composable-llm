@@ -1,3 +1,6 @@
+# Debugging configuration
+monitor:
+  dir: "/private/home/vivc/dump/debug"
 
 model:
   vocab_size: 4
@@ -12,7 +15,7 @@ data:
   seed: 42
 
 optim:
-  steps: 1000
+  steps: 100
 
 checkpoint:
   freq: 10

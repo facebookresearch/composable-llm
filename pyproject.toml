@@ -43,8 +43,12 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/VivienCabannes/LLMs"
-"Bug Tracker" = "https://github.com/VivienCabannes/LLMs/issues"
+"Homepage" = "https://github.com/fairinternal/composable-llm/"
+"Bug Tracker" = "https://github.com/fairinternal/composable-llm/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["src.apps"]
 
 [tool.black]
 line-length = 120

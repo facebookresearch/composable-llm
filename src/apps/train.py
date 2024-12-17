@@ -21,18 +21,18 @@ import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
 
-from composition.checkpoint import CheckpointConfig, CheckpointManager
-from composition.computing import ComputeConfig
-from composition.data import DataConfig, dataloader_manager, init_dataloader_state
-from composition.model import Transformer, TransformerConfig
-from composition.monitor import MonitorConfig, MonitorsManager
-from composition.optim import (
+from ..composition.checkpoint import CheckpointConfig, CheckpointManager
+from ..composition.computing import ComputeConfig
+from ..composition.data import DataConfig, dataloader_manager, init_dataloader_state
+from ..composition.model import Transformer, TransformerConfig
+from ..composition.monitor import MonitorConfig, MonitorsManager
+from ..composition.optim import (
     OptimizerConfig,
     init_optimizer,
     init_optimizer_state,
     init_scheduler,
 )
-from composition.train import TrainState
+from ..composition.train import TrainState
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +201,7 @@ def train(config: TrainingConfig):
 
 def main():
     """
-    The command line interface here uses OmegaConf
+    Command line interface using OmegaConf
 
     Read argument from a config file specified by the `config` cli argument. E.g.,
     ```bash
