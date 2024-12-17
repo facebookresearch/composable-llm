@@ -13,6 +13,7 @@ import logging
 import os
 import subprocess
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from omegaconf import OmegaConf
 
@@ -47,8 +48,16 @@ class LauncherConfig:
     launcher: str = "bash"
     script: str = "apps.train"
     copy_code: bool = True
-    anaconda: str = "llm"
+    python_env: str = "default"
     stdout: bool = False
+
+    def __post_init__(self):
+        if self.python_env:
+            if self.python_env == "default":
+                self.python_env = subprocess.check_output("which python", shell=True).decode("ascii").strip()
+            else:
+                self.python_env = f"{self.python_env}/bin/python"
+            assert os.path.isfile(self.python_env)
 
 
 # -------------------------------------------------------------------------------
@@ -70,6 +79,7 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
         "--exclude '__pycache__' "
         "--exclude '*.md' "
         "--exclude '*.toml' "
+        "--exclude '*.yaml' "
         # checkpoints and runs
         "--exclude dumps/ "
         "--exclude logs/ "
@@ -89,9 +99,14 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
 # Job Launcher
 # -------------------------------------------------------------------------------
 
+
 LAUNCHER_SCRIPT = """#!/bin/bash
+
+# activate conda environment
 eval "$({conda_exe} shell.bash hook)"
 conda activate {conda_env_path}
+
+# launch the job
 cd {dump_dir}/code
 export OMP_NUM_THREADS=1
 python -u -m {script} config={dump_dir}/base_config.yaml
@@ -114,7 +129,8 @@ def launch_job(config: LauncherConfig):
         cfg.write(OmegaConf.to_yaml(config.run_config))
 
     conda_exe = os.environ.get("CONDA_EXE", "conda")
-    conda_env_path = config.anaconda
+    conda_env_path = str(Path(config.python_env).parent.parent)
+
     log_output = "" if config.stdout else f"-o {dump_dir}/logs/output.log -e {dump_dir}/logs/error.log"
 
     bash_command = LAUNCHER_SCRIPT.format(

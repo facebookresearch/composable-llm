@@ -1,15 +1,13 @@
 
-# Package and cache
+# configurations and caches
+.vscode/
 *.egg-info
 *__pycache__
 
 # Checkpointing and runs
-logs/
 dumps/
+logs/
 savings/
-
-# Configuration files
-.vscode/
 
 # Personal file and folder
 TODO.md
