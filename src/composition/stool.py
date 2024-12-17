@@ -116,10 +116,8 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 
 # slurm extra commands
 {slurm_extra}
-
 # cluster dependent commands
 {script_extra}
-
 # activate conda environment
 eval "$({conda_exe} shell.bash hook)"
 conda activate {conda_env_path}
@@ -196,8 +194,7 @@ def main():
 
     Read argument from a config file specified by the `config` cli argument. E.g.,
     ```bash
-    python -m apps.train config=apps/debug.yaml
-    python -m launchers.stool script=apps.main.train config=apps/main/configs/lr3e3.yaml nodes=1
+    python -m launchers.stool script=src.apps.train config=src/apps/debug.yaml
     ```
 
     Non-specified arguments will be filled with the default values of the Config classes.
