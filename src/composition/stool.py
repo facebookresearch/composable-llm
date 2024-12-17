@@ -105,6 +105,7 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 # Job specification
 #SBATCH --partition={partition}
 #SBATCH --nodes={nodes}
+#SBATCH --ntasks={tasks}
 #SBATCH --gres=gpu:{nb_gpu}
 #SBATCH --cpus-per-gpu={nb_cpu}
 #SBATCH --mem={mem}
@@ -128,8 +129,7 @@ conda activate {conda_env_path}
 export OMP_NUM_THREADS=1
 export LAUNCH_WITH="SBATCH"
 export DUMP_DIR={dump_dir}
-# srun {log_output} -n {tasks} -N {nodes_per_run} python -u -m {script} config=$DUMP_DIR/run_config.yaml
-python -u -m {script} config=$DUMP_DIR/run_config.yaml
+srun {log_output} python -u -m {script} config=$DUMP_DIR/run_config.yaml
 """
 
 
@@ -160,13 +160,17 @@ def launch_job(config: LauncherConfig):
 
     # log_output = "" if config.stdout else f"-o {dump_dir}/logs/output.log -e {dump_dir}/logs/error.log"
 
+    nodes = config.run_config.compute.nodes
+    nb_gpus = config.run_config.compute.nb_gpus
+
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.run_config.monitor.name,
         dump_dir=dump_dir,
         partition=config.run_config.compute.partition,
-        nodes=config.run_config.compute.nodes,
-        nb_gpu=config.run_config.compute.nb_gpu,
-        nb_cpu=config.run_config.compute.nb_cpu,
+        nodes=nodes,
+        tasks=nodes * nb_gpus,
+        nb_gpus=nb_gpus,
+        nb_cpus=config.run_config.compute.nb_cpus,
         time=config.run_config.compute.time,
         mem=config.run_config.compute.mem,
         slurm_extra=config.run_config.compute.slurm_extra,

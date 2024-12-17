@@ -8,8 +8,8 @@ class ComputeConfig:
     # slurm configuration
     partition: str = "scavenge"
     nodes: int = 1  # number of nodes to run the job on.
-    nb_gpu: int = 1  # number of GPUs required per node.
-    nb_cpu: int = 16  # number of CPUs allocated per GPU.
+    nb_gpus: int = 1  # number of GPUs required per node.
+    nb_cpus: int = 16  # number of CPUs allocated per GPU.
     mem: str = "256G"  # amount of memory to allocate per node.
     time: int = 60  # time limit of the job (in minutes).
     # time: int = -1  # time limit of the job (in minutes).
