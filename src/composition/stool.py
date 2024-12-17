@@ -9,7 +9,6 @@ located in the root directory of this repository.
 @ 2024, Meta
 """
 
-import logging
 import os
 import subprocess
 from dataclasses import dataclass, field
@@ -23,8 +22,6 @@ from .data import DataConfig
 from .model import TransformerConfig
 from .monitor import MonitorConfig
 from .optim import OptimizerConfig
-
-logger = logging.getLogger(__file__)
 
 # -------------------------------------------------------------------------------
 # Configuration Class
@@ -45,7 +42,7 @@ class TrainingConfig:
 @dataclass
 class LauncherConfig:
     run_config: TrainingConfig = None
-    launcher: str = "bash"
+    launcher: str = "sbatch"
     script: str = "apps.train"
     copy_code: bool = True
     python_env: str = "default"
@@ -66,9 +63,6 @@ class LauncherConfig:
 
 
 def copy_dir(input_dir: str, output_dir: str) -> None:
-    print(f"Copying : {input_dir}\n" f"to      : {output_dir} ...")
-    assert os.path.isdir(input_dir), f"{input_dir} is not a directory"
-    assert os.path.isdir(output_dir), f"{output_dir} is not a directory"
     rsync_cmd = (
         "rsync -ar --copy-links "
         "--exclude .git/ "
@@ -90,9 +84,7 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
         "--exclude tests/ "
         f"{input_dir}/ {output_dir}"
     )
-    print(f"Copying command: {rsync_cmd}")
     subprocess.call([rsync_cmd], shell=True)
-    print("Copy done.")
 
 
 # -------------------------------------------------------------------------------
@@ -102,14 +94,48 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
 
 LAUNCHER_SCRIPT = """#!/bin/bash
 
+# Logging configuration
+#SBATCH --job-name={name}
+#SBATCH --output={dump_dir}/logs/%j/%j.stdout
+#SBATCH --error={dump_dir}/logs/%j/%j.stderr
+#SBATCH --open-mode=append
+#SBATCH --mail-type=END
+#SBATCH --mail-user=%u@meta.com
+
+# Job specification
+#SBATCH --partition={partition}
+#SBATCH --time={time}
+#SBATCH --mem={mem}
+#SBATCH --nodes={nodes}
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --gpus-per-node=1
+
+{exclude}
+{qos}
+{account}
+{constraint}
+SBATCH --gres=gpu:{ngpus}
+SBATCH --cpus-per-gpu={ncpu}
+SBATCH --distribution=block
+
+# termination handling
+#SBATCH --signal=USR2@120
+
+{cluster_depandent_envs}
+
 # activate conda environment
 eval "$({conda_exe} shell.bash hook)"
 conda activate {conda_env_path}
 
+{go_to_code_dir}
+
 # launch the job
-cd {dump_dir}/code
 export OMP_NUM_THREADS=1
-python -u -m {script} config={dump_dir}/base_config.yaml
+export LAUNCH_WITH="SBATCH"
+export DUMP_DIR={dump_dir}
+# srun {log_output} -n {tasks} -N {nodes_per_run} python -u -m {script} config=$DUMP_DIR/run_config.yaml
+python -u -m {script} config=$DUMP_DIR/run_config.yaml
 """
 
 
@@ -120,33 +146,55 @@ def launch_job(config: LauncherConfig):
     dump_dir = config.run_config.monitor.dir
     os.makedirs(dump_dir, exist_ok=True)
 
+    # copy code
     if config.copy_code:
         os.makedirs(f"{dump_dir}/code", exist_ok=True)
-        print("Copying code ...")
+        print(f"Copying code to {dump_dir} ...", end="")
         copy_dir(os.getcwd(), f"{dump_dir}/code")
+        go_to_code_dir = f"cd {dump_dir}/code"
+    else:
+        go_to_code_dir = ""
+    print(" Done.")
 
-    with open(f"{dump_dir}/base_config.yaml", "w") as cfg:
+    # write run_config
+    with open(f"{dump_dir}/run_config.yaml", "w") as cfg:
         cfg.write(OmegaConf.to_yaml(config.run_config))
 
+    # define proper conda environment
     conda_exe = os.environ.get("CONDA_EXE", "conda")
     conda_env_path = str(Path(config.python_env).parent.parent)
 
-    log_output = "" if config.stdout else f"-o {dump_dir}/logs/output.log -e {dump_dir}/logs/error.log"
+    # log_output = "" if config.stdout else f"-o {dump_dir}/logs/output.log -e {dump_dir}/logs/error.log"
 
     bash_command = LAUNCHER_SCRIPT.format(
-        script=config.script,
-        dump_dir=dump_dir,
+        exclude="",
+        qos="",
+        account="",
+        constraint="",
+        name="try",
+        nodes=1,
+        ngpus="",
+        ncpu="",
+        time="4:00:00",
+        partition="scavenge",
+        mem="256G",
+        cluster_depandent_envs="",
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
-        log_output=log_output,
+        go_to_code_dir=go_to_code_dir,
+        dump_dir=dump_dir,
+        log_output="",
+        tasks="",
+        nodes_per_run="",
+        script=config.script,
     )
 
     with open(f"{dump_dir}/run.sh", "w") as f:
         f.write(bash_command)
 
-    logger.info(f"Launching job with command: {bash_command}")
-    os.system(f"bash {dump_dir}/run.sh")
-    logger.info("Job launched.")
+    print(f"Launching job with `{config.launcher}` command ...", end="")
+    os.system(f"{config.launcher} {dump_dir}/run.sh")
+    print(" Done.")
 
 
 def main():
@@ -161,9 +209,12 @@ def main():
 
     Non-specified arguments will be filled with the default values of the Config classes.
     """
+    # Load run_config from path specified by the `config` cli argument
     args = OmegaConf.from_cli()
     args.run_config = OmegaConf.load(args.config)
     del args.config
+
+    # Launch job with the config
     config = LauncherConfig(**args)
     launch_job(config)
 

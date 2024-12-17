@@ -15,13 +15,11 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from .path import CHECKPOINT_DIR
 from .train import TrainState
 
 logger = logging.getLogger(__file__)
@@ -31,11 +29,7 @@ logger = logging.getLogger(__file__)
 class CheckpointConfig:
     freq: int = -1
     keep_only: int = -1
-    path: Optional[str] = None
-
-    def __post_init__(self):
-        if self.path is None:
-            self.path = str(CHECKPOINT_DIR)
+    path: str = ""
 
 
 class CheckpointManager:

@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 import torch
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MonitorConfig:
     # logging
-    name: str = "difformer"
+    name: str = "comp_default"
     dir: str = ""
 
     # reproducibility
@@ -23,7 +24,12 @@ class MonitorConfig:
     # evaluation
     async_eval_gpus: Optional[int] = None
 
-    # checkpointing
+    # probing
+    # profiling
+
+    def __post_init__(self):
+        if not self.dir:
+            self.dir = str(Path.home() / "logs" / self.name)
 
 
 class MonitorsManager:

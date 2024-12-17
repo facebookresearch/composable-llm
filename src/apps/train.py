@@ -16,6 +16,7 @@ located in the root directory of this repository.
 import logging
 from contextlib import ExitStack
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
@@ -68,6 +69,13 @@ class TrainingConfig:
             self.model.seq_len = self.data.seq_len
         if self.data.seq_len == -1:
             self.data.seq_len = self.model.seq_len
+
+        # vocabulary size
+
+        # checkpoint directory
+        if self.checkpoint.path == "":
+            dir = self.monitor.dir
+            self.checkpoint.path = str(Path(dir) / "checkpoints")
 
 
 # -------------------------------------------------------------------------------

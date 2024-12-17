@@ -15,7 +15,7 @@ data:
   seed: 42
 
 optim:
-  steps: 100
+  steps: 3000
 
 checkpoint:
   freq: 10
