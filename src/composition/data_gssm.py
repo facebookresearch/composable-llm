@@ -309,6 +309,7 @@ def get_batch(nodes: dict[str, Node], batch_size: int, seq_len: int) -> np.ndarr
     nodes["X"].initialize(batch_size)
 
     for t in range(seq_len):
+        assert nodes["X"].time == t, f"Discrepancy in time: {nodes["X"].time} and {t}."
         nodes["X"].evolve()
         batch[:, t] = nodes["X"].state
     return batch
