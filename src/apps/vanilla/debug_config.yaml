@@ -15,7 +15,7 @@ model:
 
 data:
   seq_len: 32
-  batch_size: 32
+  batch_size: 16
   seed: 42
 
 optim:

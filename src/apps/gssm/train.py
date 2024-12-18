@@ -27,19 +27,20 @@ import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
 
-from ..composition.checkpoint import CheckpointConfig, CheckpointManager
-from ..composition.cluster import ClusterConfig
-from ..composition.data import DataConfig, dataloader_manager, init_dataloader_state
-from ..composition.model import Transformer, TransformerConfig
-from ..composition.monitor import MonitorConfig, MonitorsManager
-from ..composition.optim import (
+from ...composition.checkpoint import CheckpointConfig, CheckpointManager
+from ...composition.cluster import ClusterConfig
+from ...composition.data import init_dataloader_state
+from ...composition.data_gssm import DataConfig, DataLoaderManager
+from ...composition.model import Transformer, TransformerConfig
+from ...composition.monitor import MonitorConfig, MonitorsManager
+from ...composition.optim import (
     OptimizerConfig,
     init_optimizer,
     init_optimizer_state,
     init_scheduler,
 )
-from ..composition.train import TrainState
-from ..composition.utils import trigger_update
+from ...composition.train import TrainState
+from ...composition.utils import trigger_update
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +172,7 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         dataloader = context_stack.enter_context(
-            dataloader_manager(
+            DataLoaderManager(
                 config=config.data,
                 state=state.data,
             )
@@ -193,7 +194,7 @@ def train(config: TrainingConfig):
             # -----------------------------------------------------------------
 
             dataloader_time = timer()
-            batch, state.data = next(dataloader)
+            batch, state.data.rng_state = next(dataloader)
             X_batch = torch.tensor(
                 batch[:, :-1],
                 dtype=torch.long,

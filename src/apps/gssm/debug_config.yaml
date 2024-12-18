@@ -1,0 +1,47 @@
+# Debugging configuration
+monitor:
+  log_period: 1
+  overwrite: true
+
+cluster:
+  time: 1
+  signal_time: 10
+
+model:
+  vocab_size: 32
+  emb_dim: 64
+  nb_heads: 2
+  ffn_dim: 256
+  nb_layers: 2
+
+data:
+  seq_len: 32
+  batch_size: 16
+  seed: 42
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: []
+      alpha: 1e3
+    - name: Z2
+      state_dim: 4
+      alpha: 1e3
+    - name: Z3
+      state_dim: 4
+      alpha: 1e3
+    - name: Z4
+      state_dim: 4
+      parents: [Z3]
+      alpha: 1e3
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+
+optim:
+  steps: 10000
+
+checkpoint:
+  period: 1000
+  keep_only: 3

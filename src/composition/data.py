@@ -1,3 +1,14 @@
+"""
+Example file demonstrating the DataLoader logic.
+
+License
+-------
+This source code is licensed under the terms specified in the `LICENSE` file,
+located in the root directory of this repository.
+
+@ 2024, Meta
+"""
+
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional
@@ -55,7 +66,7 @@ def get_sample_iterator(seq_len: int, rng_state: dict[str, Any]) -> Iterator[tup
 
 def get_batch_iterator(
     sample_iterator: Iterator[tuple[np.ndarray, dict[str, Any]]], batch_size: int, seq_len: int, state: DataLoaderState
-) -> Iterator[tuple[np.ndarray, np.ndarray, dict[str, Any]]]:
+) -> Iterator[tuple[np.ndarray, dict[str, Any]]]:
     """
     Generate batches of sentences.
 
@@ -72,8 +83,8 @@ def get_batch_iterator(
 
     Yields
     ------
-    tuple[np.ndarray, np.ndarray, dict[str, Any]]
-        The generated batch of sentences, the target, and the state of the random number generator.
+    tuple[np.ndarray, dict[str, Any]]
+        The generated batch of sentence and the state of the random number generator.
     """
     batch = np.empty((batch_size, seq_len), dtype=int)
     i = 0
