@@ -28,7 +28,7 @@ logger = logging.getLogger(__file__)
 
 @dataclass
 class CheckpointConfig:
-    freq: int = -1
+    period: int = -1
     keep_only: int = -1
     path: str = ""
 
@@ -39,8 +39,8 @@ class CheckpointManager:
 
     Attributes
     ----------
-    freq:
-        Frequency at which to save checkpoints
+    period:
+        Number of updates between each checkpoint
     keep_only:
         Number of checkpoints to keep
     path:
@@ -68,7 +68,7 @@ class CheckpointManager:
         scheduler: lr_scheduler.LambdaLR,
         state: TrainState,
     ):
-        self.freq = config.freq
+        self.period = config.period
         self.keep_only = config.keep_only
         self.path = Path(config.path)
         self.path.mkdir(parents=True, exist_ok=True)
@@ -92,9 +92,9 @@ class CheckpointManager:
 
     def __call__(self):
         """
-        Save checkpoint if it matching the frequency
+        Save checkpoint if it matching the period
         """
-        if trigger_update(self.state, self.freq):
+        if trigger_update(self.state, self.period):
             self.save()
             self.up_to_date = True
         else:
@@ -113,7 +113,7 @@ class CheckpointManager:
         """
         save_dir = self.path / self.folder_name.format(self.state.optim.step)
         save_dir.mkdir(parents=False, exist_ok=True)
-        logger.info(f"Saving checkpoint to: {str(save_dir)}")
+        logger.info(f"Saving checkpoint at step {self.state.optim.step} to {str(save_dir)}")
 
         state_dict = {
             "model": self.model.state_dict(),

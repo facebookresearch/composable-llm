@@ -21,6 +21,7 @@ import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
+from timeit import default_timer as timer
 
 import torch
 import torch.nn.functional as F
@@ -38,6 +39,7 @@ from ..composition.optim import (
     init_scheduler,
 )
 from ..composition.train import TrainState
+from ..composition.utils import trigger_update
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +122,7 @@ def train(config: TrainingConfig):
     with ExitStack() as context_stack:
 
         # ---------------------------------------------------------------------
-        # Monitor
+        # Monitor: profiling, probing, logging
         # ---------------------------------------------------------------------
 
         monitor = context_stack.enter_context(MonitorsManager(config.monitor))
@@ -134,9 +136,10 @@ def train(config: TrainingConfig):
         model.to(device=config.cluster.device)
         logger.info("Done building model")
 
-        monitor.report_model(model)
-
+        # ---------------------------------------------------------------------
         # Build Optimizer
+        # ---------------------------------------------------------------------
+
         logger.info("Building optimizer")
         optimizer = init_optimizer(model, config.optim)
         scheduler = init_scheduler(optimizer, config.optim)
@@ -160,6 +163,8 @@ def train(config: TrainingConfig):
                 state=state,
             )
         )
+
+        monitor.report_objects(model=model, optimizer=optimizer, scheduler=scheduler, state=state)
 
         # ---------------------------------------------------------------------
         # DataLoader
@@ -187,6 +192,7 @@ def train(config: TrainingConfig):
             # Batch of data
             # -----------------------------------------------------------------
 
+            dataloader_time = timer()
             batch, state.data = next(dataloader)
             X_batch = torch.tensor(
                 batch[:, :-1],
@@ -197,10 +203,15 @@ def train(config: TrainingConfig):
                 batch[:, 1:],
                 dtype=torch.long,
             ).to(device=config.cluster.device)
+            dataloader_time = round(timer() - dataloader_time, 4)
 
             # -----------------------------------------------------------------
             # Forward and backward pass
             # -----------------------------------------------------------------
+
+            model_time = torch.cuda.Event(enable_timing=True)
+            model_endtime = torch.cuda.Event(enable_timing=True)
+            model_time.record()
 
             # forward propagation
             preds = model(X_batch)
@@ -219,14 +230,37 @@ def train(config: TrainingConfig):
                 optimizer.zero_grad()
                 state.optim.step += 1
 
-            logger.info(f"Step: {state.optim.step}, Loss: {loss.item()}")
+            model_endtime.record()
+            torch.cuda.synchronize()
+            model_time = round(model_time.elapsed_time(model_endtime) * 1e-3, 4)
 
             # -----------------------------------------------------------------
-            # Manager calls
+            # Log metrics
             # -----------------------------------------------------------------
 
-            # checkpointing
+            monitor()
+
+            if trigger_update(state, config.monitor.log_period):
+                # For logging we undo that scaling
+                loss = loss.detach() * config.optim.grad_acc_steps
+                metrics = {
+                    "loss": loss.item(),
+                    "step": state.optim.step,
+                    "acc_step": state.optim.acc_step,
+                    "data_time": dataloader_time,
+                    "model_time": model_time,
+                }
+                monitor.report_metrics(metrics)
+
+            # -----------------------------------------------------------------
+            # Checkpointing
+            # -----------------------------------------------------------------
+
             checkpointer()
+
+            # -----------------------------------------------------------------
+            # Evaluation
+            # -----------------------------------------------------------------
 
             # -----------------------------------------------------------------
             # Handle preemption
@@ -244,6 +278,8 @@ def train(config: TrainingConfig):
         else:
             logger.warning("Not the master process, no need to requeue.")
         sys.exit(0)
+
+    logger.info("Training finished")
 
 
 def main():

@@ -134,7 +134,7 @@ conda activate {conda_env_path}
 # launch the job
 export OMP_NUM_THREADS=1
 export LOG_DIR={log_dir}
-srun -o {log_dir}/logs/%j/%t.out -e {log_dir}/logs/%j/%t.err python -u -m {script} config=$LOG_DIR/config.yaml
+{run_command}
 """
 
 
@@ -177,6 +177,13 @@ def launch_job(config: LauncherConfig):
     nodes = config.config.cluster.nodes
     nb_gpus = config.config.cluster.nb_gpus
 
+    # define the run command
+    if config.launcher == "sbatch":
+        log_flags = f"-o {log_dir}/logs/%j/%t.out -e {log_dir}/logs/%j/%t.err"
+        run_command = f"srun {log_flags} python -u -m {config.script} config=$LOG_DIR/config.yaml"
+    else:
+        run_command = f"python -u -m {config.script} config=$LOG_DIR/config.yaml"
+
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.config.monitor.name,
         log_dir=log_dir,
@@ -193,7 +200,7 @@ def launch_job(config: LauncherConfig):
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
         go_to_code_dir=go_to_code_dir,
-        script=config.script,
+        run_command=run_command,
     )
 
     with open(f"{log_dir}/run.sh", "w") as f:

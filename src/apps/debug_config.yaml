@@ -22,5 +22,5 @@ optim:
   steps: 10000
 
 checkpoint:
-  freq: 10
+  period: 10
   keep_only: 3

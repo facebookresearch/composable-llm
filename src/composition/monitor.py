@@ -1,10 +1,15 @@
+import gc
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 import torch
-import torch.nn as nn
+from torch import nn
+from torch.optim import Optimizer, lr_scheduler
+
+from .train import TrainState
+from .utils import trigger_update
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +19,14 @@ class MonitorConfig:
     # logging
     name: str = "comp_default"
     dir: str = ""
-    # whether to overwrite logging directory
-    overwrite: bool = False
+    overwrite: bool = False  # whether to overwrite logging directory
+    log_period: int = 100
 
     # reproducibility
     seed: int = 42
 
     # garbage collection frequency
-    gc_freq: int = 1000
+    gc_period: int = 1000
 
     # evaluation
     async_eval_gpus: Optional[int] = None
@@ -41,12 +46,46 @@ class MonitorsManager:
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(config.seed)
 
+        self.gc_period = config.gc_period
+
+        self.model = None
+        self.optimizer = None
+        self.scheduler = None
+
     def __enter__(self):
+
+        # disable garbage collection
+        gc.disable()
+
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        pass
+    def report_objects(
+        self, model: nn.Module, optimizer: Optimizer, scheduler: lr_scheduler.LambdaLR, state: TrainState
+    ):
+        """
+        Report the objects to monitor.
+        """
+        self.model = model
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+        self.state = state
 
-    def report_model(self, model: nn.Module):
         self.nb_params = sum([p.numel() for p in model.parameters()])
         logger.info(f"Model built with {self.nb_params:,} parameters")
+
+    def __call__(self):
+
+        # manual garbage collection
+        if trigger_update(self.state, self.gc_period):
+            logger.info("garbage collection")
+            gc.collect()
+
+    def report_metrics(self, metrics: dict):
+        """
+        Report the metrics to monitor.
+        """
+        logger.info(f"DataLoader time: {metrics['data_time']}, Model time: {metrics['model_time']}")
+        logger.info(f"Step: {metrics['step']}, Loss: {metrics['loss']}")
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        gc.collect()
