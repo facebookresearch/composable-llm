@@ -186,6 +186,7 @@ class Node:
         input_state = np.vstack((self.state, *(parent.state for parent in self.parents)))
         input_state = np.ravel_multi_index(input_state, self.size_in)
         self.state = self.kernel(input_state)
+        self.time += 1
 
     def __repr__(self):
         return f"Node(state_dim={self.state_dim}, state={self.state}, time={self.time}, nb_parents={len(self.parents)})"
@@ -311,41 +312,6 @@ def get_batch(nodes: dict[str, Node], batch_size: int, seq_len: int) -> np.ndarr
         nodes["X"].evolve()
         batch[:, t] = nodes["X"].state
     return batch
-
-
-# @contextmanager
-# def dataloader_manager(config: DataConfig, state: DataLoaderState) -> Iterator[tuple[np.ndarray, dict[str, Any]]]:
-#     """
-#     Context manager for the data loader.
-
-#     Parameters
-#     ----------
-#     config:
-#         The configuration of the data loader.
-#     state:
-#         The state of the data loader.
-
-#     Yields
-#     ------
-#     tuple[np.ndarray, dict[str, Any]]
-#         The generated batch of sentences and the state of the random number generator.
-#     """
-#     rng = np.random.default_rng()
-#     rng.bit_generator.state = state.rng_state
-#     nodes = build_gssm(config.gssm, generator=rng)
-#     assert "X" in nodes, "The graph must contain a node named 'X', acting as the observed node."
-
-#     def iterator():
-#         while True:
-#             batch = get_batch(nodes=nodes, batch_size=config.batch_size, seq_len=config.seq_len)
-#             yield batch, rng.bit_generator.state
-
-#     try:
-#         yield iterator()
-
-#     # clearning when exiting context
-#     finally:
-#         pass
 
 
 class DataLoaderManager:
