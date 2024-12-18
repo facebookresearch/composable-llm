@@ -235,10 +235,15 @@ def train(config: TrainingConfig):
             model_time = round(model_time.elapsed_time(model_endtime) * 1e-3, 4)
 
             # -----------------------------------------------------------------
-            # Log metrics
+            # Call managers for garbage collection, checkpointing...
             # -----------------------------------------------------------------
 
+            checkpointer()
             monitor()
+
+            # -----------------------------------------------------------------
+            # Log metrics
+            # -----------------------------------------------------------------
 
             if trigger_update(state, config.monitor.log_period):
                 # For logging we undo that scaling
@@ -251,12 +256,6 @@ def train(config: TrainingConfig):
                     "model_time": model_time,
                 }
                 monitor.report_metrics(metrics)
-
-            # -----------------------------------------------------------------
-            # Checkpointing
-            # -----------------------------------------------------------------
-
-            checkpointer()
 
             # -----------------------------------------------------------------
             # Evaluation
