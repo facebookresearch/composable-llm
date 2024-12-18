@@ -18,6 +18,8 @@ class ClusterConfig:
     mem: str = ""  # amount of memory to allocate per node.
     time: int = -1  # time limit of the job (in minutes).
 
+    signal_time: int = 120  # time between US2 signal and job terminaion (in seconds)
+
     # slurm extra configuration
     slurm_extra: str = ""  # placeholder
     constraint: str = ""  # constraint on the nodes.

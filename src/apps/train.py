@@ -105,12 +105,17 @@ def train(config: TrainingConfig):
 
     preemption_flag = dict(flag=False)
 
-    def set_preemption_flag(signum, frame):
+    def signal_handler(signum, frame):
         logger.warning("Signal handler called with signal " + str(signum))
         preemption_flag["flag"] = True
 
-    signal.signal(signal.SIGUSR2, set_preemption_flag)
-    logger.info("Signal handler installed.")
+    def term_handler(signum, frame):
+        logger.warning("Received termination signal " + str(signum))
+        # do not requeue to avoid requeuing on `scancel`
+
+    signal.signal(signal.SIGUSR1, signal_handler)
+    signal.signal(signal.SIGTERM, term_handler)
+    logger.info("Signal installed.")
 
     with ExitStack() as context_stack:
 

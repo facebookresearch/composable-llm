@@ -119,7 +119,7 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 #SBATCH --distribution=block
 
 # termination handling
-#SBATCH --signal=USR2@120
+#SBATCH --signal=USR1@{signal_time}
 
 # slurm extra commands
 {slurm_extra}
@@ -185,8 +185,9 @@ def launch_job(config: LauncherConfig):
         tasks=nodes * nb_gpus,
         nb_gpus=nb_gpus,
         nb_cpus=config.config.cluster.nb_cpus,
-        time=config.config.cluster.time,
         mem=config.config.cluster.mem,
+        time=config.config.cluster.time,
+        signal_time=config.config.cluster.signal_time,
         slurm_extra=config.config.cluster.slurm_extra,
         script_extra=config.config.cluster.script_extra,
         conda_exe=conda_exe,
