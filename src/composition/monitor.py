@@ -23,7 +23,6 @@ class MonitorConfig:
     dir: str = ""
     overwrite: bool = False  # whether to overwrite logging directory
     log_period: int = 100
-
     wandb: WandbConfig = field(default_factory=WandbConfig)
 
     # reproducibility
@@ -47,8 +46,10 @@ class MonitorConfig:
 class MonitorsManager:
     def __init__(self, config: MonitorConfig):
         torch.manual_seed(config.seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(config.seed)
+        torch.cuda.manual_seed_all(config.seed)
+
+        self.log_dir = Path(config.dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
 
         self.gc_period = config.gc_period
 
@@ -59,7 +60,7 @@ class MonitorsManager:
         self.wandb = None
         if get_global_rank() == 0:
             if config.wandb.active:
-                self.wandb = WandbManager(config.wandb, log_dir=config.dir)
+                self.wandb = WandbManager(config.wandb, log_dir=self.log_dir)
 
     def __enter__(self):
 

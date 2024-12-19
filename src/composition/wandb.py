@@ -15,8 +15,9 @@ import sys
 from dataclasses import dataclass
 from typing import Optional
 
-import wandb
 from omegaconf import OmegaConf
+
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class WandbManager:
         self.entity = config.entity
         self.project = config.project
         self.name = config.name
-        self.id_file = os.path.join(log_dir, "wandb.id")
+        self.id_file = str(log_dir / "wandb.id")
 
     def __enter__(self):
         # Read run id from id file if it exists

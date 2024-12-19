@@ -313,8 +313,8 @@ class DataLoaderState:
 
 def init_dataloader_state(config: DataConfig) -> DataLoaderState:
     # Recover state from seeds
-    graph_rng_state = np.random.default_rng(config.graph_seed).bit_generator.state
-    rng_state = np.random.default_rng(config.seed).bit_generator.state
+    graph_rng_state = default_rng(config.graph_seed).bit_generator.state
+    rng_state = default_rng(config.seed).bit_generator.state
     return DataLoaderState(rng_state=rng_state, graph_rng_state=graph_rng_state)
 
 
@@ -378,7 +378,7 @@ class DataLoaderManager:
         self.state = state
 
         # track randomness
-        self.rng = np.random.default_rng()
+        self.rng = default_rng()
 
         # ensure consistency of transition kernels over restart
         self.rng.bit_generator.state = self.state.graph_rng_state
@@ -418,7 +418,7 @@ if __name__ == "__main__":
         seq_len = 20
         alpha_z = 1e3
         alpha_x = 1e-2
-        rng = np.random.default_rng()
+        rng = default_rng()
 
         hmm_config = GSSMConfig(
             nodes=[
@@ -449,7 +449,7 @@ if __name__ == "__main__":
         seq_len = 20
         alpha_z = 1e3
         alpha_x = 1e-2
-        rng = np.random.default_rng()
+        rng = default_rng()
 
         structured_hmm_config = GSSMConfig(
             nodes=[NodeConfig(name=f"Z{i + 1}", state_dim=state_size, alpha=alpha_z) for i in range(nb_states)]
