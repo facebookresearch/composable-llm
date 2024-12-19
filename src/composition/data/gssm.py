@@ -160,7 +160,7 @@ class Node:
             Batch size
         """
         for parent in self.parents:
-            if parent.state is None:
+            if parent.time is None or parent.time != 0:
                 parent.initialize(bsz)
         self.state = np.zeros(bsz, dtype=int)
         self.time = 0
@@ -387,9 +387,10 @@ class DataLoaderManager:
 
         # ensure randomness consistency
         self.rng.bit_generator.state = self.state.rng_state
+        logger.debug(f"RNG: {self.state}")
 
     def __enter__(self):
-        logger.info(f"Entering dataloader. RNG: {self.state}")
+        logger.info("Entering dataloader.")
 
         def iterator_func():
             while True:
@@ -400,7 +401,7 @@ class DataLoaderManager:
         return iterator_func()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        logger.info(f"Exiting dataloader. RNG: {self.state}")
+        logger.info("Exiting dataloader.")
 
 
 # -------------------------------------------------------------------------------
