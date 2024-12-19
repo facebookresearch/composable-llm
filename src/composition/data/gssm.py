@@ -11,13 +11,11 @@ located in the root directory of this repository.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
-from numpy.random import Generator, default_rng
+from numpy.random import Generator, SeedSequence, default_rng
 from scipy.stats import dirichlet
-
-from .vanilla import DataLoaderState
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +35,7 @@ class TransitionKernel:
         Number of input states.
     fan_out:
         Number of output states.
-    generator:
+    rng:
         Random number generator.
     alphas:
         Dirichlet prior parameter. Can be a float, int, list of floats, or a numpy array of shape (fan_out,).
@@ -49,7 +47,7 @@ class TransitionKernel:
     """
 
     def __init__(
-        self, fan_in: int, fan_out: int, alphas: Union[int, float, list[float], np.ndarray], generator: Generator = None
+        self, fan_in: int, fan_out: int, alphas: Union[int, float, list[float], np.ndarray], rng: Generator = None
     ):
 
         # handle various types
@@ -62,12 +60,12 @@ class TransitionKernel:
         ), "Alphas must be a float, int, list of floats, or a numpy array of shape (fan_out,)."
 
         # set random number generator
-        if generator is None:
-            generator = default_rng()
-        self.generator = generator
+        if rng is None:
+            rng = default_rng()
+        self.rng = rng
 
         self.fan_out = fan_out
-        self.p_transition = dirichlet.rvs(alphas, size=fan_in, random_state=generator)
+        self.p_transition = dirichlet.rvs(alphas, size=fan_in, random_state=rng)
         self._cumulative = np.cumsum(self.p_transition, axis=1)
 
     def __call__(self, state: Union[int, list[int], np.ndarray]) -> Union[int, np.ndarray]:
@@ -85,14 +83,14 @@ class TransitionKernel:
             Next state. If state is a list, it will return a numpy array.
         """
         if isinstance(state, int):
-            return self.generator.choice(self.fan_out, p=self.p_transition[state])
+            return self.rng.choice(self.fan_out, p=self.p_transition[state])
 
         # Convert state to a numpy array if it's a list
         if isinstance(state, list):
             state = np.asarray(state)
 
         # Vectorized sampling
-        random_values = self.generator.random(state.shape)
+        random_values = self.rng.random(state.shape)
         p_cumulative = self._cumulative[state]
         return (random_values[:, None] < p_cumulative).argmax(axis=1)
 
@@ -114,7 +112,7 @@ class Node:
         Dirichlet concentration parameter
     parents:
         List of parent nodes
-    generator:
+    rng:
         Random number generator
 
     Attributes
@@ -134,7 +132,7 @@ class Node:
         state_dim: int,
         alphas: Union[int, float, list[float], np.ndarray],
         parents: Optional[list["Node"]] = None,
-        generator: Generator = None,
+        rng: Generator = None,
     ):
         self.parents = parents if parents is not None else []
 
@@ -147,7 +145,7 @@ class Node:
         self.state_dim = state_dim
         self.size_in = (state_dim, *(parent.state_dim for parent in self.parents))
 
-        self.kernel = TransitionKernel(fan_in=fan_in, fan_out=state_dim, alphas=alphas, generator=generator)
+        self.kernel = TransitionKernel(fan_in=fan_in, fan_out=state_dim, alphas=alphas, rng=rng)
 
         self.state = None
         self.time = None
@@ -230,7 +228,7 @@ class GSSMConfig:
             node.__manual_post_init__()
 
 
-def build_gssm(config: GSSMConfig, generator: Generator = None) -> dict[str, Node]:
+def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
     """
     Build a graph from a configuration.
 
@@ -238,7 +236,8 @@ def build_gssm(config: GSSMConfig, generator: Generator = None) -> dict[str, Nod
     ----------
     config:
         Configuration of the GSSM.
-    generator:
+    rng:
+        Random number generator.
 
     Returns
     -------
@@ -267,7 +266,7 @@ def build_gssm(config: GSSMConfig, generator: Generator = None) -> dict[str, Nod
 
         logger.info(f"Initializing node {node_config.name}")
         nodes[node_config.name] = Node(
-            state_dim=node_config.state_dim, alphas=float(node_config.alpha), parents=parents, generator=generator
+            state_dim=node_config.state_dim, alphas=float(node_config.alpha), parents=parents, rng=rng
         )
 
     logger.info("Graph is built")
@@ -275,7 +274,7 @@ def build_gssm(config: GSSMConfig, generator: Generator = None) -> dict[str, Nod
 
 
 # -------------------------------------------------------------------------------
-# DataLoader Manager
+# DataLoader Manager - State and Configuration
 # -------------------------------------------------------------------------------
 
 
@@ -283,8 +282,45 @@ def build_gssm(config: GSSMConfig, generator: Generator = None) -> dict[str, Nod
 class DataConfig:
     seq_len: int = -1
     batch_size: int = -1
+    graph_seed: Optional[int] = None
     seed: Optional[int] = None
     gssm: GSSMConfig = field(default_factory=GSSMConfig)
+
+    def __manual_post_init__(self):
+        # Ensure decorrelated seeds
+        if self.graph_seed is None and self.seed is None:
+            ss = SeedSequence()
+            seeds = ss.spawn(2)
+            self.graph_seed = seeds[0]
+            self.seed = seeds[1]
+
+
+@dataclass
+class DataLoaderState:
+    rng_state: dict[str, Any]
+    graph_rng_state: dict[str, Any] = field(default_factory=dict)
+
+    def state_dict(self) -> dict[str, Any]:
+        return {
+            "rng_state": self.rng_state,
+            "graph_rng_state": self.graph_rng_state,
+        }
+
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        self.rng_state = state_dict["rng_state"]
+        self.graph_rng_state = state_dict["graph_rng_state"]
+
+
+def init_dataloader_state(config: DataConfig) -> DataLoaderState:
+    # Recover state from seeds
+    graph_rng_state = np.random.default_rng(config.graph_seed).bit_generator.state
+    rng_state = np.random.default_rng(config.seed).bit_generator.state
+    return DataLoaderState(rng_state=rng_state, graph_rng_state=graph_rng_state)
+
+
+# -------------------------------------------------------------------------------
+# DataLoader Manager - Iterator
+# -------------------------------------------------------------------------------
 
 
 def get_batch(nodes: dict[str, Node], batch_size: int, seq_len: int) -> np.ndarray:
@@ -326,6 +362,11 @@ class DataLoaderManager:
     state:
         The state of the data loader.
 
+    Attributes
+    ----------
+    rng:
+        Random number generator.
+
     Yields
     ------
     tuple[np.ndarray, dict[str, Any]]
@@ -335,22 +376,31 @@ class DataLoaderManager:
     def __init__(self, config: DataConfig, state: DataLoaderState):
         self.config = config
         self.state = state
-        self.rng = np.random.default_rng()
-        self.rng.bit_generator.state = self.state.rng_state
 
-        self.nodes = build_gssm(self.config.gssm, generator=self.rng)
+        # track randomness
+        self.rng = np.random.default_rng()
+
+        # ensure consistency of transition kernels over restart
+        self.rng.bit_generator.state = self.state.graph_rng_state
+        self.nodes = build_gssm(self.config.gssm, rng=self.rng)
         assert "X" in self.nodes, "The graph must contain a node named 'X', acting as the observed node."
 
+        # ensure randomness consistency
+        self.rng.bit_generator.state = self.state.rng_state
+
     def __enter__(self):
+        logger.info(f"Entering dataloader. RNG: {self.state}")
+
         def iterator_func():
             while True:
                 batch = get_batch(nodes=self.nodes, batch_size=self.config.batch_size, seq_len=self.config.seq_len)
-                yield batch, self.rng.bit_generator.state
+                self.state.rng_state = self.rng.bit_generator.state
+                yield batch
 
         return iterator_func()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        pass
+        logger.info(f"Exiting dataloader. RNG: {self.state}")
 
 
 # -------------------------------------------------------------------------------
@@ -367,7 +417,7 @@ if __name__ == "__main__":
         seq_len = 20
         alpha_z = 1e3
         alpha_x = 1e-2
-        generator = np.random.default_rng()
+        rng = np.random.default_rng()
 
         hmm_config = GSSMConfig(
             nodes=[
@@ -375,7 +425,7 @@ if __name__ == "__main__":
                 NodeConfig(name="X", state_dim=vocab_size, alpha=alpha_x, parents=["Z"]),
             ]
         )
-        nodes = build_gssm(hmm_config, generator=generator)
+        nodes = build_gssm(hmm_config, rng=rng)
 
         observations = np.zeros((bsz, seq_len), dtype=int)
         states = np.zeros((bsz, seq_len), dtype=int)
@@ -398,7 +448,7 @@ if __name__ == "__main__":
         seq_len = 20
         alpha_z = 1e3
         alpha_x = 1e-2
-        generator = np.random.default_rng()
+        rng = np.random.default_rng()
 
         structured_hmm_config = GSSMConfig(
             nodes=[NodeConfig(name=f"Z{i + 1}", state_dim=state_size, alpha=alpha_z) for i in range(nb_states)]
@@ -408,7 +458,7 @@ if __name__ == "__main__":
                 )
             ]
         )
-        nodes = build_gssm(structured_hmm_config, generator=generator)
+        nodes = build_gssm(structured_hmm_config, rng=rng)
 
         observations = np.zeros((bsz, seq_len), dtype=int)
         states = np.zeros((bsz, seq_len, nb_states), dtype=int)

@@ -29,8 +29,11 @@ from omegaconf import OmegaConf
 
 from ...composition.checkpoint import CheckpointConfig, CheckpointManager
 from ...composition.cluster import ClusterConfig
-from ...composition.data.gssm import DataConfig, DataLoaderManager
-from ...composition.data.vanilla import init_dataloader_state
+from ...composition.data.gssm import (
+    DataConfig,
+    DataLoaderManager,
+    init_dataloader_state,
+)
 from ...composition.model.transfomer import Transformer, TransformerConfig
 from ...composition.monitor import MonitorConfig, MonitorsManager
 from ...composition.optim import (
@@ -151,7 +154,7 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         state = TrainState(
-            data=init_dataloader_state(config.data.seed),
+            data=init_dataloader_state(config.data),
             optim=init_optimizer_state(),
         )
 
@@ -194,7 +197,7 @@ def train(config: TrainingConfig):
             # -----------------------------------------------------------------
 
             dataloader_time = timer()
-            batch, state.data.rng_state = next(dataloader)
+            batch = next(dataloader)
             X_batch = torch.tensor(
                 batch[:, :-1],
                 dtype=torch.long,

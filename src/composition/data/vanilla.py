@@ -27,6 +27,14 @@ class DataConfig:
 class DataLoaderState:
     rng_state: dict[str, Any]
 
+    def state_dict(self) -> dict[str, Any]:
+        return {
+            "rng_state": self.rng_state,
+        }
+
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        self.rng_state = state_dict["rng_state"]
+
 
 def init_dataloader_state(seed: int) -> DataLoaderState:
     rng = np.random.default_rng(seed)

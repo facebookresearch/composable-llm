@@ -1,5 +1,5 @@
 """
-Training State Manager
+Vanilla Training State Manager
 
 License
 -------
@@ -24,13 +24,8 @@ class TrainState(Stateful):
     optim: OptimizerState
 
     def state_dict(self) -> dict[str, Any]:
-        return {
-            "data.rng_state": self.data.rng_state,
-            "optim": {"step": self.optim.step, "acc_step": self.optim.acc_step},
-        }
+        return {"data": self.data.state_dict(), "optim": self.optim.state_dict()}
 
     def load_state_dict(self, state_dict: dict[str, Any]) -> None:
-        self.data.rng_state = state_dict["data.rng_state"]
-        optim_state = state_dict["optim"]
-        self.optim.step = optim_state["step"]
-        self.optim.acc_step = optim_state["acc_step"]
+        self.data.load_state_dict(state_dict["data"])
+        self.optim.load_state_dict(state_dict["optim"])

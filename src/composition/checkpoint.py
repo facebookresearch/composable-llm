@@ -188,4 +188,3 @@ class CheckpointManager:
         for prefix in all_checkpoints[: -self.keep_only]:
             logger.info(f"Removing: {str(prefix)}")
             shutil.rmtree(prefix)
-        logger.info("Old checkpoints cleaned up")

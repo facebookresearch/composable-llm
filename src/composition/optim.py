@@ -65,6 +65,13 @@ class OptimizerState:
     # nb of accumulation steps done since last optimizer step
     acc_step: int
 
+    def state_dict(self) -> dict[str, int]:
+        return {"step": self.step, "acc_step": self.acc_step}
+
+    def load_state_dict(self, state_dict: dict[str, int]) -> None:
+        self.step = state_dict["step"]
+        self.acc_step = state_dict["acc_step"]
+
 
 def init_optimizer_state():
     """
