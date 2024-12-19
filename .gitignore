@@ -8,6 +8,7 @@
 dumps/
 logs/
 savings/
+wandb/
 
 # Personal file and folder
 TODO.md

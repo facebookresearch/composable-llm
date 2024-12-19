@@ -1,6 +1,6 @@
 import gc
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -8,8 +8,10 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
+from .distributed import get_global_rank
 from .train import TrainState
 from .utils import trigger_update
+from .wandb import WandbConfig, WandbManager
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +23,8 @@ class MonitorConfig:
     dir: str = ""
     overwrite: bool = False  # whether to overwrite logging directory
     log_period: int = 100
+
+    wandb: WandbConfig = field(default_factory=WandbConfig)
 
     # reproducibility
     seed: int = 42
@@ -52,10 +56,19 @@ class MonitorsManager:
         self.optimizer = None
         self.scheduler = None
 
+        self.wandb = None
+        if get_global_rank() == 0:
+            if config.wandb.active:
+                self.wandb = WandbManager(config.wandb, log_dir=config.dir)
+
     def __enter__(self):
 
         # disable garbage collection
         gc.disable()
+
+        # enter wandb context
+        if self.wandb is not None:
+            self.wandb.__enter__()
 
         return self
 
@@ -87,5 +100,11 @@ class MonitorsManager:
         logger.info(f"DataLoader time: {metrics['data_time']}, Model time: {metrics['model_time']}")
         logger.info(f"Step: {metrics['step']}, Loss: {metrics['loss']}")
 
+        if self.wandb:
+            self.wandb.report_metrics(metrics, step=metrics["step"])
+
     def __exit__(self, exc_type, exc_value, traceback):
         gc.collect()
+
+        if self.wandb is not None:
+            self.wandb.__exit__(exc_type, exc_value, traceback)

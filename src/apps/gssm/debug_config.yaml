@@ -3,6 +3,11 @@ monitor:
   log_period: 100
   dir: "/private/home/vivc/logs/composition/vanilla"
   overwrite: true
+  wandb:
+    active: true
+    entity: vivc
+    project: llm-wrapper
+    name: debug
 
 cluster:
   time: 1

@@ -110,6 +110,7 @@ def lr_cosine(
     """
     Cosine learning rate scheduler with warmup
     """
+    assert warmup != steps, "Warmup and steps should not be equal"
     if step < warmup:
         lr = float(step) / warmup
     elif step <= steps:

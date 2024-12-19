@@ -25,6 +25,9 @@ dependencies = [
     # argument parsing
     "omegaconf",
 
+    # logging
+    "wandb",
+
     # transformer libraries
     "sentencepiece",
     "tiktoken",
