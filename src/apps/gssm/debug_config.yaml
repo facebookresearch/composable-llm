@@ -1,13 +1,13 @@
 # Debugging configuration
 monitor:
   seed: 100
-  log_period: 1
-  dir: "/private/home/vivc/logs/composition/vanilla2"
+  log_period: 10
+  dir: "/private/home/vivc/logs/composition/debug"
   overwrite: true
   wandb:
-    active: true
+    active: false
     entity: vivc
-    project: llmwrapper
+    project: llm-wrapper
     name: debug
 
 cluster:
@@ -48,7 +48,7 @@ data:
       alpha: 1e-2
 
 optim:
-  steps: 10000
+  steps: 1000
 
 checkpoint:
   period: 1000

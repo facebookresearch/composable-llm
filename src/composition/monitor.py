@@ -1,6 +1,22 @@
+"""
+Monitor class managing:
+- garbage collection
+- logging to file
+- logging to wandb
+
+License
+-------
+This source code is licensed under the terms specified in the `LICENSE` file,
+located in the root directory of this repository.
+
+@ 2024, Meta
+"""
+
 import gc
+import json
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -57,6 +73,8 @@ class MonitorsManager:
         self.optimizer = None
         self.scheduler = None
 
+        # logging
+        self.log_file = self.log_dir / "metrics.jsonl"
         self.wandb = None
         if get_global_rank() == 0:
             if config.wandb.active:
@@ -67,7 +85,8 @@ class MonitorsManager:
         # disable garbage collection
         gc.disable()
 
-        # enter wandb context
+        # open logging file (and wandb api)
+        self.file_handle = open(self.log_file, "a")
         if self.wandb is not None:
             self.wandb.__enter__()
 
@@ -88,7 +107,6 @@ class MonitorsManager:
         logger.info(f"Model built with {self.nb_params:,} parameters")
 
     def __call__(self):
-
         # manual garbage collection
         if trigger_update(self.state, self.gc_period):
             logger.info("garbage collection")
@@ -98,8 +116,8 @@ class MonitorsManager:
         """
         Report the metrics to monitor.
         """
-        logger.info(f"DataLoader time: {metrics['data_time']}, Model time: {metrics['model_time']}")
-        logger.info(f"Step: {metrics['step']}, Loss: {metrics['loss']}")
+        metrics.update({"created_at": datetime.now(timezone.utc).isoformat()})
+        print(json.dumps(metrics), file=self.file_handle, flush=True)
 
         if self.wandb:
             self.wandb.report_metrics(metrics, step=metrics["step"])
@@ -107,5 +125,7 @@ class MonitorsManager:
     def __exit__(self, exc_type, exc_value, traceback):
         gc.collect()
 
+        # close logging file (and wandb api)
+        self.file_handle.close()
         if self.wandb is not None:
             self.wandb.__exit__(exc_type, exc_value, traceback)

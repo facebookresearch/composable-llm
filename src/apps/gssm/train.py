@@ -261,6 +261,9 @@ def train(config: TrainingConfig):
                 }
                 monitor.report_metrics(metrics)
 
+                # log to console
+                logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
+
             # -----------------------------------------------------------------
             # Evaluation
             # -----------------------------------------------------------------
