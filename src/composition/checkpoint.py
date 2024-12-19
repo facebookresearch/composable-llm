@@ -11,6 +11,7 @@ located in the root directory of this repository.
 
 import json
 import logging
+import os
 import re
 import shutil
 from dataclasses import dataclass
@@ -78,7 +79,7 @@ class CheckpointManager:
         self.scheduler = scheduler
         self.state = state
 
-        self.dp_rank = 0
+        self.device_rank = int(os.environ["RANK"])
         self.up_to_date = True
 
     def __enter__(self):
@@ -122,7 +123,7 @@ class CheckpointManager:
         }
         torch.save(state_dict, save_dir / "checkpoint.pth")
 
-        filename = self.state_name.format(self.dp_rank)
+        filename = self.state_name.format(self.device_rank)
         with open(save_dir / filename, "w") as f:
             json.dump(self.state.state_dict(), f)
 
@@ -140,7 +141,7 @@ class CheckpointManager:
         """
 
         logger.info("Reloading train state")
-        file_path = path / self.state_name.format(self.dp_rank)
+        file_path = path / self.state_name.format(self.device_rank)
         with open(file_path, "r") as f:
             train_state_dict = json.load(f)
         self.state.load_state_dict(train_state_dict)
@@ -158,7 +159,7 @@ class CheckpointManager:
         Get last existing checkpoint
         """
         path = None
-        filename = self.state_name.format(self.dp_rank)
+        filename = self.state_name.format(self.device_rank)
         all_checkpoints = self.list_checkpoints()
         for dir_name in reversed(all_checkpoints):
             if (dir_name / filename).is_file():

@@ -26,6 +26,8 @@ from timeit import default_timer as timer
 import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
+from torch.distributed import destroy_process_group, init_process_group
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from ...composition.checkpoint import CheckpointConfig, CheckpointManager
 from ...composition.cluster import ClusterConfig
@@ -135,10 +137,22 @@ def train(config: TrainingConfig):
         # Build and Parallelize model
         # ---------------------------------------------------------------------
 
+        backend = "nccl"
+        init_process_group(backend=backend)
+        ddp_rank = int(os.environ["RANK"])
+        ddp_local_rank = int(os.environ["LOCAL_RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+        device = f"cuda:{ddp_local_rank}"
+        torch.cuda.set_device(device)
+        logger.info(f"Running on ddp rank: {ddp_rank} / {world_size}")
+
         logger.info("Building model")
         model = Transformer(config.model)
         model.to(device=config.cluster.device)
         logger.info("Done building model")
+
+        if world_size > 1:
+            model = DDP(model, device_ids=[ddp_local_rank])
 
         # ---------------------------------------------------------------------
         # Build Optimizer
@@ -154,7 +168,7 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         state = TrainState(
-            data=init_dataloader_state(config.data),
+            data=init_dataloader_state(config.data, rank=ddp_rank),
             optim=init_optimizer_state(),
         )
 
@@ -286,6 +300,9 @@ def train(config: TrainingConfig):
         sys.exit(0)
 
     logger.info("Training finished")
+
+    if world_size > 1:
+        destroy_process_group()
 
 
 def main():

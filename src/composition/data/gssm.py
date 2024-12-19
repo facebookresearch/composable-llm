@@ -282,17 +282,9 @@ def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
 class DataConfig:
     seq_len: int = -1
     batch_size: int = -1
+    seed: int = 0
     graph_seed: Optional[int] = None
-    seed: Optional[int] = None
     gssm: GSSMConfig = field(default_factory=GSSMConfig)
-
-    def __manual_post_init__(self):
-        # Ensure decorrelated seeds
-        if self.graph_seed is None and self.seed is None:
-            ss = SeedSequence()
-            seeds = ss.spawn(2)
-            self.graph_seed = seeds[0]
-            self.seed = seeds[1]
 
 
 @dataclass
@@ -311,10 +303,18 @@ class DataLoaderState:
         self.graph_rng_state = state_dict["graph_rng_state"]
 
 
-def init_dataloader_state(config: DataConfig) -> DataLoaderState:
-    # Recover state from seeds
-    graph_rng_state = default_rng(config.graph_seed).bit_generator.state
-    rng_state = default_rng(config.seed).bit_generator.state
+def init_dataloader_state(config: DataConfig, rank: int) -> DataLoaderState:
+    """
+    Initialize the state of random number generators.
+    """
+    # generate independent seeds
+    ss = SeedSequence(config.seed)
+    seeds = ss.spawn(rank + 1)
+
+    # recover state from seeds
+    # graph should be the same for every process
+    graph_rng_state = default_rng(seeds[0]).bit_generator.state
+    rng_state = default_rng(seeds[-1]).bit_generator.state
     return DataLoaderState(rng_state=rng_state, graph_rng_state=graph_rng_state)
 
 
