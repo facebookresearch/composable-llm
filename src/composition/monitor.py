@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MonitorConfig:
     # logging
-    name: str = "comp_default"
+    name: str = "composition_default"
     dir: str = ""
     overwrite: bool = False  # whether to overwrite logging directory
     log_period: int = 100
@@ -37,7 +37,7 @@ class MonitorConfig:
     def __post_init__(self):
         if not self.dir:
             self.dir = str(Path.home() / "logs" / self.name)
-            logger.info(f"Logging directory set to {self.dir}")
+            print(f"Logging directory set to {self.dir}")
 
 
 class MonitorsManager:

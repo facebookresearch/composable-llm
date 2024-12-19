@@ -29,8 +29,12 @@ from omegaconf import OmegaConf
 
 from ...composition.checkpoint import CheckpointConfig, CheckpointManager
 from ...composition.cluster import ClusterConfig
-from ...composition.data import DataConfig, dataloader_manager, init_dataloader_state
-from ...composition.model import Transformer, TransformerConfig
+from ...composition.data.vanilla import (
+    DataConfig,
+    dataloader_manager,
+    init_dataloader_state,
+)
+from ...composition.model.transfomer import Transformer, TransformerConfig
 from ...composition.monitor import MonitorConfig, MonitorsManager
 from ...composition.optim import (
     OptimizerConfig,

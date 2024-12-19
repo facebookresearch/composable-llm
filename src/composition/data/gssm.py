@@ -17,7 +17,7 @@ import numpy as np
 from numpy.random import Generator, default_rng
 from scipy.stats import dirichlet
 
-from .data import DataLoaderState
+from .vanilla import DataLoaderState
 
 logger = logging.getLogger(__name__)
 

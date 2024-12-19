@@ -1,6 +1,7 @@
 # Debugging configuration
 monitor:
   log_period: 1
+  dir: "/private/home/vivc/log/composition/vanilla"
   overwrite: true
 
 cluster:
