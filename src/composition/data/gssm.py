@@ -402,6 +402,7 @@ class DataLoaderManager:
 
     def __exit__(self, exc_type, exc_value, traceback):
         logger.info("Exiting dataloader.")
+        logger.debug(f"RNG: {self.state}")
 
 
 # -------------------------------------------------------------------------------
