@@ -2,8 +2,9 @@
 monitor:
   seed: 100
   log_period: 10
-  dir: /private/home/vivc/logs/composition/debug
-  overwrite: true
+  dir: /private/home/vivc/logs/composition/debug_multinodes
+  name: multinodes
+  overwrite: false
   wandb:
     active: false
     entity: vivc
@@ -11,10 +12,11 @@ monitor:
     name: debug
 
 cluster:
-  compile_model: false
+  compile_model: true
   slurm:
     partition: scavenge
     mem: 16G
+    nodes: 2
     nb_gpus: 8
     time: 10          # job time in minutes
     signal_time: 60   # alert time in seconds
@@ -53,7 +55,7 @@ data:
       alpha: 1e-2
 
 optim:
-  steps: 3000
+  steps: 10000
 
 checkpoint:
   period: 1000

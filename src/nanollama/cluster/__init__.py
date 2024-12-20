@@ -9,4 +9,5 @@ located in the root directory of this repository.
 @ 2024, Meta
 """
 
-from .cluster import ClusterConfig, ClusterManager, get_rank, is_master_process
+from .cluster import ClusterConfig, ClusterManager
+from .utils import get_rank, is_master_process
