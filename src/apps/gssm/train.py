@@ -23,7 +23,7 @@ import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
 
-from ...nanollama.cluster import ClusterConfig, ClusterManager
+from ...nanollama.cluster import ClusterConfig, ClusterManager, is_master_process
 from ...nanollama.data.gssm import DataConfig, DataLoaderManager, init_dataloader_state
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import (
@@ -126,7 +126,6 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         cluster = context_stack.enter_context(ClusterManager(config.cluster))
-        device_rank = cluster.device_rank
 
         # ---------------------------------------------------------------------
         # Monitor: profiling, probing, logging
@@ -141,7 +140,7 @@ def train(config: TrainingConfig):
         logger.info("Building model")
         model = Transformer(config.model)
         model.to(device=cluster.device)
-        if config.cluster.distributed.compile_model:
+        if config.cluster.compile_model:
             model = torch.compile(model)
         logger.info("Done building model")
 
@@ -162,7 +161,7 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         state = TrainState(
-            data=init_dataloader_state(config.data, rank=device_rank),
+            data=init_dataloader_state(config.data),
             optim=init_optimizer_state(),
         )
 
@@ -276,7 +275,7 @@ def train(config: TrainingConfig):
                 monitor.report_metrics(metrics)
 
                 # log to console
-                if device_rank == 0:
+                if is_master_process():
                     logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
 
             # -----------------------------------------------------------------

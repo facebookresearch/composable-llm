@@ -25,7 +25,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from ..cluster.distributed import get_rank
+from ..cluster import get_rank
 from ..train import TrainState
 from ..utils import trigger_update
 from .wandb import WandbConfig, WandbManager

@@ -11,15 +11,13 @@ monitor:
     name: debug
 
 cluster:
-  distributed:
-    compile_model: true
+  compile_model: false
   slurm:
     partition: "scavenge"
     mem: "16G"
     nb_gpus: 8
-    time: 10
-    signal_time: 10
-    script_extra: "echo 'Running task with SLURM_TASK_ID: $SLURM_TASK_ID'"
+    time: 10          # job time in minutes
+    signal_time: 60   # alert time in seconds
 
 model:
   vocab_size: 32
@@ -55,7 +53,7 @@ data:
       alpha: 1e-2
 
 optim:
-  steps: 1000
+  steps: 3000
 
 checkpoint:
   period: 1000

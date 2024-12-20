@@ -17,6 +17,8 @@ import numpy as np
 from numpy.random import Generator, SeedSequence, default_rng
 from scipy.stats import dirichlet
 
+from ..cluster import get_rank
+
 logger = logging.getLogger(__name__)
 
 
@@ -303,12 +305,13 @@ class DataLoaderState:
         self.graph_rng_state = state_dict["graph_rng_state"]
 
 
-def init_dataloader_state(config: DataConfig, rank: int) -> DataLoaderState:
+def init_dataloader_state(config: DataConfig) -> DataLoaderState:
     """
     Initialize the state of random number generators.
     """
     # generate independent seeds
     ss = SeedSequence(config.seed)
+    rank = get_rank()
     seeds = ss.spawn(rank + 1)
 
     # recover state from seeds
