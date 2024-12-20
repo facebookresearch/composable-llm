@@ -47,7 +47,7 @@ class ClusterManager:
         self.device_rank = int(os.environ.get("RANK", 0))
         self.local_rank = int(os.environ.get("LOCAL_RANK", 0))
         self.world_size = int(os.environ.get("WORLD_SIZE", 1))
-        logger.info(f"Running on ddp rank: {self.device_rank} / {self.world_size}")
+        print(f"Setting up device ranked {self.device_rank + 1} / {self.world_size}")
 
         device = f"cuda:{self.local_rank}"
         torch.cuda.set_device(device)

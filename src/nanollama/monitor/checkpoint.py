@@ -20,6 +20,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
+from ..cluster.utils import get_rank
 from ..train import TrainState
 from ..utils import trigger_update
 
@@ -67,7 +68,6 @@ class CheckpointManager:
         optimizer: Optimizer,
         scheduler: lr_scheduler.LambdaLR,
         state: TrainState,
-        device_rank: int,
     ):
         self.period = config.period
         self.keep_only = config.keep_only
@@ -79,8 +79,8 @@ class CheckpointManager:
         self.scheduler = scheduler
         self.state = state
 
-        self.device_rank = device_rank
-        self.is_master = device_rank == 0
+        self.device_rank = get_rank()
+        self.is_master = self.device_rank == 0
         self.up_to_date = True
 
     def __enter__(self):

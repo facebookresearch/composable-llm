@@ -117,17 +117,21 @@ def train(config: TrainingConfig):
 
     signal.signal(signal.SIGUSR1, signal_handler)
     signal.signal(signal.SIGTERM, term_handler)
-    logger.info("Signal installed.")
 
     with ExitStack() as context_stack:
+
+        # ---------------------------------------------------------------------
+        # Computing Environment
+        # ---------------------------------------------------------------------
+
+        cluster = context_stack.enter_context(ClusterManager(config.cluster))
+        device_rank = cluster.device_rank
 
         # ---------------------------------------------------------------------
         # Monitor: profiling, probing, logging
         # ---------------------------------------------------------------------
 
         monitor = context_stack.enter_context(MonitorsManager(config.monitor))
-        cluster = context_stack.enter_context(ClusterManager(config.cluster))
-        device_rank = cluster.device_rank
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
@@ -168,7 +172,6 @@ def train(config: TrainingConfig):
                 optimizer=optimizer,
                 scheduler=scheduler,
                 state=state,
-                device_rank=device_rank,
             )
         )
 
@@ -177,7 +180,6 @@ def train(config: TrainingConfig):
             optimizer=optimizer,
             scheduler=scheduler,
             state=state,
-            device_rank=device_rank,
             config=config,
         )
 
@@ -297,7 +299,7 @@ def train(config: TrainingConfig):
             logger.warning("Not the master process, no need to requeue.")
         sys.exit(0)
 
-    logger.info("Training finished")
+    logger.info("Training done.")
 
 
 def main():
@@ -327,10 +329,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
-        handlers=[logging.StreamHandler()],
-    )
 
     main()

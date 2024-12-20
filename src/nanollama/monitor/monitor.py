@@ -15,16 +15,17 @@ located in the root directory of this repository.
 import gc
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import Any, Optional
 
 import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from ..cluster.utils import get_global_rank
+from ..cluster.utils import get_rank
 from ..train import TrainState
 from ..utils import trigger_update
 from .wandb import WandbConfig, WandbManager
@@ -39,6 +40,7 @@ class MonitorConfig:
     dir: str = ""
     overwrite: bool = False  # whether to overwrite logging directory
     log_period: int = 100
+    log_level: str = "INFO"
     wandb: WandbConfig = field(default_factory=WandbConfig)
 
     # reproducibility
@@ -53,10 +55,12 @@ class MonitorConfig:
     # probing
     # profiling
 
+    def __post_init__(self):
+        assert self.log_level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
     def __manual_post_init__(self):
         if not self.dir:
             self.dir = str(Path.home() / "logs" / self.name)
-            print(f"Logging directory set to {self.dir}")
 
 
 class MonitorsManager:
@@ -66,9 +70,6 @@ class MonitorsManager:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-        self.log_dir = Path(config.dir)
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-
         self.gc_period = config.gc_period
 
         self.model = None
@@ -76,22 +77,15 @@ class MonitorsManager:
         self.scheduler = None
 
         # logging
-        self.log_file = self.log_dir / "metrics.jsonl"
-        self.wandb = None
-        if get_global_rank() == 0:
-            if config.wandb.active:
-                self.wandb = WandbManager(config.wandb, log_dir=self.log_dir)
+        self.logger = LoggerManager(config)
 
     def __enter__(self):
 
         # disable garbage collection
         gc.disable()
 
-        # open logging file (and wandb api)
-        self.file_handle = open(self.log_file, "a")
-        if self.wandb is not None:
-            self.wandb.__enter__()
-
+        # open logger
+        self.logger.__enter__()
         return self
 
     def report_objects(
@@ -100,7 +94,6 @@ class MonitorsManager:
         optimizer: Optimizer,
         scheduler: lr_scheduler.LambdaLR,
         state: TrainState,
-        device_rank: int,
         config: Any,
     ):
         """
@@ -110,10 +103,9 @@ class MonitorsManager:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.state = state
-        self.device_rank = device_rank
 
-        if self.wandb:
-            self.wandb.report_run_config(config)
+        if self.logger.wandb:
+            self.logger.wandb.report_run_config(config)
 
         self.nb_params = sum([p.numel() for p in model.parameters()])
         logger.info(f"Model built with {self.nb_params:,} parameters")
@@ -128,16 +120,70 @@ class MonitorsManager:
         """
         Report the metrics to monitor.
         """
+        self.logger(metrics)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        gc.collect()
+
+        # close logger
+        self.logger.__exit__(exc_type, exc_value, traceback)
+
+
+class LoggerManager:
+    def __init__(self, config: MonitorConfig):
+        self.log_dir = self.get_log_dir(config.dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self.metric = self.log_dir.parent / "metrics.jsonl"
+        device_rank = get_rank()
+        log_file = self.log_dir / f"device_{device_rank}.log"
+
+        self.wandb = None
+        # the master node gets to log more information
+        if device_rank == 0:
+            # handlers = [logging.StreamHandler(), logging.FileHandler(log_file, "a")]
+            handlers = [logging.StreamHandler()]
+            if config.wandb.active:
+                self.wandb = WandbManager(config.wandb, log_dir=self.log_dir)
+        else:
+            handlers = [logging.FileHandler(log_file, "a")]
+
+        logging.basicConfig(
+            level=getattr(logging, config.log_level),
+            format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
+            handlers=handlers,
+        )
+
+        logger.info(f"Logging to {self.log_dir}")
+
+    def __enter__(self):
+        """
+        Open logging files (and wandb api).
+        """
+        self.metric = open(self.metric, "a")
+        if self.wandb is not None:
+            self.wandb.__enter__()
+
+    def __call__(self, metrics: dict):
+        """
+        Report the metrics to monitor.
+        """
         metrics.update({"created_at": datetime.now(timezone.utc).isoformat()})
-        print(json.dumps(metrics), file=self.file_handle, flush=True)
+        print(json.dumps(metrics), file=self.metric, flush=True)
 
         if self.wandb:
             self.wandb.report_metrics(metrics, step=metrics["step"])
 
     def __exit__(self, exc_type, exc_value, traceback):
-        gc.collect()
-
-        # close logging file (and wandb api)
-        self.file_handle.close()
+        """
+        Close logging files (and wandb api).
+        """
+        self.metric.close()
         if self.wandb is not None:
             self.wandb.__exit__(exc_type, exc_value, traceback)
+
+    @staticmethod
+    def get_log_dir(prefix: str) -> PosixPath:
+        path = Path(prefix) / "logs"
+        if os.environ.get("SLURM_JOB_ID"):
+            return path / os.environ["SLURM_JOB_ID"]
+        return path

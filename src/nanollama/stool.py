@@ -103,8 +103,8 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 
 # Logging configuration
 #SBATCH --job-name={name}
-#SBATCH --output={log_dir}/logs/%j/%t.out
-#SBATCH --error={log_dir}/logs/%j/%t.err
+#SBATCH --output={log_dir}/logs/%j/main.out
+#SBATCH --error={log_dir}/logs/%j/main.err
 #SBATCH --open-mode=append
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
@@ -183,13 +183,10 @@ def launch_job(config: LauncherConfig):
     # define the run command
     if config.launcher == "sbatch":
         if config.torchrun:
-            log_flags = ""
-            # f" > {log_dir}/logs/$SLURM_JOB_ID/$SLURM_TASK_ID.out 2> {log_dir}/logs/$SLURM_JOB_ID/$SLURM_PROCID.err"
             option_flags = f"--nproc_per_node={nb_gpus}"
-            run_command = f"torchrun {option_flags} -m {config.script} config=$LOG_DIR/config.yaml {log_flags}"
+            run_command = f"torchrun {option_flags} -m {config.script} config=$LOG_DIR/config.yaml"
         else:
-            log_flags = f"-o {log_dir}/logs/%j/%t.out -e {log_dir}/logs/%j/%t.err"
-            run_command = f"srun {log_flags} python -u -m {config.script} config=$LOG_DIR/config.yaml"
+            run_command = f"srun python -u -m {config.script} config=$LOG_DIR/config.yaml"
     else:
         if config.torchrun:
             run_command = f"torchrun --nproc-per-node {nb_gpus} -m {config.script} config=$LOG_DIR/config.yaml"
@@ -218,9 +215,8 @@ def launch_job(config: LauncherConfig):
     with open(f"{log_dir}/run.sh", "w") as f:
         f.write(bash_command)
 
-    print(f"Launching job with `{config.launcher}` command ...", end="")
+    print(f"Launching job with `{config.launcher}` command.")
     os.system(f"{config.launcher} {log_dir}/run.sh")
-    print(" Done.")
 
 
 def main():

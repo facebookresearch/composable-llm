@@ -25,7 +25,7 @@ def is_slurm_job() -> bool:
 
 
 @lru_cache()
-def get_global_rank() -> int:
+def get_rank() -> int:
     if is_torchrun_job():
         return int(os.environ["RANK"])
     elif is_slurm_job():
@@ -36,4 +36,4 @@ def get_global_rank() -> int:
 
 @lru_cache()
 def is_master_process() -> bool:
-    return get_global_rank() == 0
+    return get_rank() == 0

@@ -5,14 +5,16 @@ monitor:
   dir: "/private/home/vivc/logs/composition/debug_ddp"
   overwrite: true
   wandb:
-    active: true
+    active: false
     entity: vivc
     project: llm-wrapper
     name: debug
 
 cluster:
-  compile_model: true
+  compile_model: false
   slurm:
+    partition: "scavenge"
+    mem: "16G"
     nb_gpus: 8
     time: 10
     signal_time: 10
@@ -52,7 +54,7 @@ data:
       alpha: 1e-2
 
 optim:
-  steps: 5000
+  steps: 1000
 
 checkpoint:
   period: 1000
