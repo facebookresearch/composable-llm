@@ -121,7 +121,8 @@ class CheckpointManager:
         with open(save_dir / filename, "w") as f:
             json.dump(self.state.state_dict(), f)
 
-        if self.is_master == 0:
+        if self.is_master:
+            logging.info("Saving model, optimizer and scheduler")
             state_dict = {
                 "model": self.model.state_dict(),
                 "optim": self.optimizer.state_dict(),

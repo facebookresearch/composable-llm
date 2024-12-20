@@ -2,7 +2,7 @@
 monitor:
   seed: 100
   log_period: 10
-  dir: "/private/home/vivc/logs/composition/debug_ddp"
+  dir: /private/home/vivc/logs/composition/debug
   overwrite: true
   wandb:
     active: false
@@ -13,8 +13,8 @@ monitor:
 cluster:
   compile_model: false
   slurm:
-    partition: "scavenge"
-    mem: "16G"
+    partition: scavenge
+    mem: 16G
     nb_gpus: 8
     time: 10          # job time in minutes
     signal_time: 60   # alert time in seconds

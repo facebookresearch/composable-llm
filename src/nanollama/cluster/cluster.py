@@ -158,9 +158,6 @@ class ClusterConfig:
             if hasattr(module, "__manual_post_init__"):
                 module.__manual_post_init__()
 
-        # handling type not recognized by OmegaConf
-        self.device = torch.device(self.device)
-
 
 class ClusterManager:
     def __init__(self, config: ClusterConfig):
@@ -180,7 +177,9 @@ class ClusterManager:
             print(f"Setting up device ranked {rank + 1} / {world_size}")
 
             self.device = f"cuda:{local_rank}"
-
+        else:
+            self.device = torch.device(self.device)
+            print(f"Running on {self.device}")
         return self
 
     def parallelize_model(self, model: nn.Module):
