@@ -116,12 +116,13 @@ class CheckpointManager:
         save_dir.mkdir(parents=False, exist_ok=True)
         logger.info(f"Saving checkpoint at step {self.state.optim.step} to {str(save_dir)}")
 
-        state_dict = {
-            "model": self.model.state_dict(),
-            "optim": self.optimizer.state_dict(),
-            "scheduler": self.scheduler.state_dict(),
-        }
-        torch.save(state_dict, save_dir / "checkpoint.pth")
+        if self.device_rank == 0:
+            state_dict = {
+                "model": self.model.state_dict(),
+                "optim": self.optimizer.state_dict(),
+                "scheduler": self.scheduler.state_dict(),
+            }
+            torch.save(state_dict, save_dir / "checkpoint.pth")
 
         filename = self.state_name.format(self.device_rank)
         with open(save_dir / filename, "w") as f:

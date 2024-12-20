@@ -18,7 +18,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 from torch import nn
@@ -53,7 +53,7 @@ class MonitorConfig:
     # probing
     # profiling
 
-    def __post_init__(self):
+    def __manual_post_init__(self):
         if not self.dir:
             self.dir = str(Path.home() / "logs" / self.name)
             print(f"Logging directory set to {self.dir}")
@@ -63,6 +63,8 @@ class MonitorsManager:
     def __init__(self, config: MonitorConfig):
         torch.manual_seed(config.seed)
         torch.cuda.manual_seed_all(config.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
         self.log_dir = Path(config.dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -93,7 +95,13 @@ class MonitorsManager:
         return self
 
     def report_objects(
-        self, model: nn.Module, optimizer: Optimizer, scheduler: lr_scheduler.LambdaLR, state: TrainState
+        self,
+        model: nn.Module,
+        optimizer: Optimizer,
+        scheduler: lr_scheduler.LambdaLR,
+        state: TrainState,
+        device_rank: int,
+        config: Any,
     ):
         """
         Report the objects to monitor.
@@ -102,6 +110,10 @@ class MonitorsManager:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.state = state
+        self.device_rank = device_rank
+
+        if self.wandb:
+            self.wandb.report_run_config(config)
 
         self.nb_params = sum([p.numel() for p in model.parameters()])
         logger.info(f"Model built with {self.nb_params:,} parameters")

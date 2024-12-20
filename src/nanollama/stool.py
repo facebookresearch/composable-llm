@@ -41,6 +41,7 @@ class TrainingConfig:
 class LauncherConfig:
     config: TrainingConfig = field(default_factory=TrainingConfig)
     launcher: str = "sbatch"
+    torchrun: bool = False
     script: str = "apps.train"
     copy_code: bool = True
     python_env: str = "default"
@@ -102,8 +103,8 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 
 # Logging configuration
 #SBATCH --job-name={name}
-#SBATCH --output={log_dir}/logs/%j/main.out
-#SBATCH --error={log_dir}/logs/%j/main.err
+#SBATCH --output={log_dir}/logs/%j/%t.out
+#SBATCH --error={log_dir}/logs/%j/%t.err
 #SBATCH --open-mode=append
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
@@ -144,8 +145,7 @@ def launch_job(config: LauncherConfig):
     """
     # logging directory
     log_dir = config.config.monitor.dir
-    os.makedirs(log_dir, exist_ok=True)
-    if config.config.monitor.overwrite:
+    if os.path.exists(log_dir) and config.config.monitor.overwrite:
         confirm = input(
             f"Are you sure you want to delete the directory '{log_dir}'? This action cannot be undone. (yes/no): "
         )
@@ -155,6 +155,7 @@ def launch_job(config: LauncherConfig):
         else:
             print("Operation cancelled.")
             return
+    os.makedirs(log_dir, exist_ok=True)
 
     # copy code
     if config.copy_code:
@@ -174,16 +175,26 @@ def launch_job(config: LauncherConfig):
     conda_exe = os.environ.get("CONDA_EXE", "conda")
     conda_env_path = str(Path(config.python_env).parent.parent)
 
-    # define the run command
-    if config.launcher == "sbatch":
-        log_flags = f"-o {log_dir}/logs/%j/%t.out -e {log_dir}/logs/%j/%t.err"
-        run_command = f"srun {log_flags} python -u -m {config.script} config=$LOG_DIR/config.yaml"
-    else:
-        run_command = f"python -u -m {config.script} config=$LOG_DIR/config.yaml"
-
+    # aliases
     slurm_cfg = config.config.cluster.slurm
     nodes = slurm_cfg.nodes
     nb_gpus = slurm_cfg.nb_gpus
+
+    # define the run command
+    if config.launcher == "sbatch":
+        if config.torchrun:
+            log_flags = ""
+            # f" > {log_dir}/logs/$SLURM_JOB_ID/$SLURM_TASK_ID.out 2> {log_dir}/logs/$SLURM_JOB_ID/$SLURM_PROCID.err"
+            option_flags = f"--nproc_per_node={nb_gpus}"
+            run_command = f"torchrun {option_flags} -m {config.script} config=$LOG_DIR/config.yaml {log_flags}"
+        else:
+            log_flags = f"-o {log_dir}/logs/%j/%t.out -e {log_dir}/logs/%j/%t.err"
+            run_command = f"srun {log_flags} python -u -m {config.script} config=$LOG_DIR/config.yaml"
+    else:
+        if config.torchrun:
+            run_command = f"torchrun --nproc-per-node {nb_gpus} -m {config.script} config=$LOG_DIR/config.yaml"
+        else:
+            run_command = f"python -u -m {config.script} config=$LOG_DIR/config.yaml"
 
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.config.monitor.name,

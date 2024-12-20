@@ -134,8 +134,10 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         cluster = context_stack.enter_context(ClusterManager(config.cluster))
+
+        # TODO: put the following in cluster.__enter__
         backend = "nccl"
-        # init_process_group(backend=backend)
+        init_process_group(backend=backend)
         ddp_rank = int(os.environ.get("RANK", 0))
         ddp_local_rank = int(os.environ.get("LOCAL_RANK", 0))
         world_size = int(os.environ.get("WORLD_SIZE", 1))
@@ -148,6 +150,7 @@ def train(config: TrainingConfig):
         model.to(device=config.cluster.device)
         logger.info("Done building model")
 
+        # TODO: put the following in cluster.parallelize_model
         if world_size > 1:
             model = DDP(model, device_ids=[ddp_local_rank])
 
@@ -180,7 +183,14 @@ def train(config: TrainingConfig):
             )
         )
 
-        monitor.report_objects(model=model, optimizer=optimizer, scheduler=scheduler, state=state)
+        monitor.report_objects(
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            state=state,
+            device_rank=ddp_rank,
+            config=config,
+        )
 
         # ---------------------------------------------------------------------
         # DataLoader
@@ -299,6 +309,7 @@ def train(config: TrainingConfig):
 
     logger.info("Training finished")
 
+    # TODO: put the following in cluster.__exit__
     if world_size > 1:
         destroy_process_group()
 

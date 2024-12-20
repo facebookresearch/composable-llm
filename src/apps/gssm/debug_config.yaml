@@ -2,18 +2,20 @@
 monitor:
   seed: 100
   log_period: 10
-  dir: "/private/home/vivc/logs/composition/debug"
+  dir: "/private/home/vivc/logs/composition/debug_ddp"
   overwrite: true
   wandb:
-    active: false
+    active: true
     entity: vivc
     project: llm-wrapper
     name: debug
 
 cluster:
   slurm:
-    time: 1
+    nb_gpus: 8
+    time: 10
     signal_time: 10
+    script_extra: "echo 'Running task with SLURM_TASK_ID: $SLURM_TASK_ID'"
 
 model:
   vocab_size: 32

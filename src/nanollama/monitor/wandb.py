@@ -56,7 +56,7 @@ class WandbManager:
                 logger.warning(f"Run with ID: {run_id} is currently active and running.")
                 sys.exit(1)
 
-            run = wandb.init(
+            self.run = wandb.init(
                 project=self.project,
                 entity=self.entity,
                 id=run_id,
@@ -66,22 +66,21 @@ class WandbManager:
 
         else:
             # Starting a new run
-            run = wandb.init(
+            self.run = wandb.init(
                 project=self.project,
                 entity=self.entity,
                 name=self.name,
             )
-            logger.info(f"Starting new run with ID: {run.id}")
+            logger.info(f"Starting new run with ID: {self.run.id}")
 
             # Save run id to id file
             with open(self.id_file, "w") as file:
-                file.write(run.id)
+                file.write(self.run.id)
 
     def report_run_config(self, run_config):
-        if self.run is not None:
-            config_dict = OmegaConf.to_container(OmegaConf.structured(run_config))
-            self.run.config.update(config_dict, allow_val_change=True)
-            logger.info("Run configuration has been logged to wandb.")
+        config_dict = OmegaConf.to_container(OmegaConf.structured(run_config))
+        self.run.config.update(config_dict, allow_val_change=True)
+        logger.info("Run configuration has been logged to wandb.")
 
     def report_metrics(self, metrics: dict, step: int):
         wandb.log(metrics, step=step)
