@@ -29,23 +29,19 @@ from omegaconf import OmegaConf
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from ...composition.checkpoint import CheckpointConfig, CheckpointManager
-from ...composition.cluster import ClusterConfig
-from ...composition.data.gssm import (
-    DataConfig,
-    DataLoaderManager,
-    init_dataloader_state,
-)
-from ...composition.model.transfomer import Transformer, TransformerConfig
-from ...composition.monitor import MonitorConfig, MonitorsManager
-from ...composition.optim import (
+from ...nanollama.cluster import ClusterConfig, ClusterManager
+from ...nanollama.data.gssm import DataConfig, DataLoaderManager, init_dataloader_state
+from ...nanollama.model.transfomer import Transformer, TransformerConfig
+from ...nanollama.monitor import MonitorConfig, MonitorsManager
+from ...nanollama.monitor.checkpoint import CheckpointConfig, CheckpointManager
+from ...nanollama.optim import (
     OptimizerConfig,
     init_optimizer,
     init_optimizer_state,
     init_scheduler,
 )
-from ...composition.train import TrainState
-from ...composition.utils import trigger_update
+from ...nanollama.train import TrainState
+from ...nanollama.utils import trigger_update
 
 logger = logging.getLogger(__name__)
 
@@ -137,11 +133,12 @@ def train(config: TrainingConfig):
         # Build and Parallelize model
         # ---------------------------------------------------------------------
 
+        cluster = context_stack.enter_context(ClusterManager(config.cluster))
         backend = "nccl"
-        init_process_group(backend=backend)
-        ddp_rank = int(os.environ["RANK"])
-        ddp_local_rank = int(os.environ["LOCAL_RANK"])
-        world_size = int(os.environ["WORLD_SIZE"])
+        # init_process_group(backend=backend)
+        ddp_rank = int(os.environ.get("RANK", 0))
+        ddp_local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        world_size = int(os.environ.get("WORLD_SIZE", 1))
         device = f"cuda:{ddp_local_rank}"
         torch.cuda.set_device(device)
         logger.info(f"Running on ddp rank: {ddp_rank} / {world_size}")
@@ -179,6 +176,7 @@ def train(config: TrainingConfig):
                 optimizer=optimizer,
                 scheduler=scheduler,
                 state=state,
+                device_rank=ddp_rank,
             )
         )
 

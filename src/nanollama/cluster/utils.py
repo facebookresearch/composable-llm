@@ -32,3 +32,8 @@ def get_global_rank() -> int:
         return int(os.environ["SLURM_PROCID"])
     else:
         return 0
+
+
+@lru_cache()
+def is_master_process() -> bool:
+    return get_global_rank() == 0

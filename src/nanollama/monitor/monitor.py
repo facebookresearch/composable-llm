@@ -24,9 +24,9 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from .distributed import get_global_rank
-from .train import TrainState
-from .utils import trigger_update
+from ..cluster.utils import get_global_rank
+from ..train import TrainState
+from ..utils import trigger_update
 from .wandb import WandbConfig, WandbManager
 
 logger = logging.getLogger(__name__)

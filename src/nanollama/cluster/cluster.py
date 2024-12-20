@@ -59,7 +59,7 @@ class ClusterConfig:
 
     @staticmethod
     def extract_sinfo() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
-        # retrieve partition max times (a bit slow)
+        # retrieve partition max times (slow but run only once)
 
         sinfo = json.loads(subprocess.check_output("sinfo --json", shell=True))["sinfo"]
         priorities: dict[str, int] = {}
@@ -80,3 +80,14 @@ class ClusterConfig:
                 max_times[partition] = info["partition"]["maximums"]["time"]["number"]  # in minutes
 
         return priorities, max_times, memories
+
+
+class ClusterManager:
+    def __init__(self, config: ClusterConfig):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass

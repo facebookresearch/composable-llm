@@ -11,7 +11,6 @@ located in the root directory of this repository.
 
 import json
 import logging
-import os
 import re
 import shutil
 from dataclasses import dataclass
@@ -21,8 +20,8 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from .train import TrainState
-from .utils import trigger_update
+from ..train import TrainState
+from ..utils import trigger_update
 
 logger = logging.getLogger(__file__)
 
@@ -68,6 +67,7 @@ class CheckpointManager:
         optimizer: Optimizer,
         scheduler: lr_scheduler.LambdaLR,
         state: TrainState,
+        device_rank: int,
     ):
         self.period = config.period
         self.keep_only = config.keep_only
@@ -79,7 +79,7 @@ class CheckpointManager:
         self.scheduler = scheduler
         self.state = state
 
-        self.device_rank = int(os.environ["RANK"])
+        self.device_rank = device_rank
         self.up_to_date = True
 
     def __enter__(self):
