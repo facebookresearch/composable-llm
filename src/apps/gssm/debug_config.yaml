@@ -11,8 +11,9 @@ monitor:
     name: debug
 
 cluster:
-  time: 1
-  signal_time: 10
+  slurm:
+    time: 1
+    signal_time: 10
 
 model:
   vocab_size: 32

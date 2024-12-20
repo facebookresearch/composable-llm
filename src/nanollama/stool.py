@@ -174,9 +174,6 @@ def launch_job(config: LauncherConfig):
     conda_exe = os.environ.get("CONDA_EXE", "conda")
     conda_env_path = str(Path(config.python_env).parent.parent)
 
-    nodes = config.config.cluster.nodes
-    nb_gpus = config.config.cluster.nb_gpus
-
     # define the run command
     if config.launcher == "sbatch":
         log_flags = f"-o {log_dir}/logs/%j/%t.out -e {log_dir}/logs/%j/%t.err"
@@ -184,19 +181,23 @@ def launch_job(config: LauncherConfig):
     else:
         run_command = f"python -u -m {config.script} config=$LOG_DIR/config.yaml"
 
+    slurm_cfg = config.config.cluster.slurm
+    nodes = slurm_cfg.nodes
+    nb_gpus = slurm_cfg.nb_gpus
+
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.config.monitor.name,
         log_dir=log_dir,
-        partition=config.config.cluster.partition,
+        partition=slurm_cfg.partition,
         nodes=nodes,
         tasks=nodes * nb_gpus,
         nb_gpus=nb_gpus,
-        nb_cpus=config.config.cluster.nb_cpus,
-        mem=config.config.cluster.mem,
-        time=config.config.cluster.time,
-        signal_time=config.config.cluster.signal_time,
-        slurm_extra=config.config.cluster.slurm_extra,
-        script_extra=config.config.cluster.script_extra,
+        nb_cpus=slurm_cfg.nb_cpus,
+        mem=slurm_cfg.mem,
+        time=slurm_cfg.time,
+        signal_time=slurm_cfg.signal_time,
+        slurm_extra=slurm_cfg.slurm_extra,
+        script_extra=slurm_cfg.script_extra,
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
         go_to_code_dir=go_to_code_dir,
