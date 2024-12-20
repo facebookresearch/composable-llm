@@ -26,8 +26,6 @@ from timeit import default_timer as timer
 import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
-from torch.distributed import destroy_process_group, init_process_group
-from torch.nn.parallel import DistributedDataParallel as DDP
 
 from ...nanollama.cluster import ClusterConfig, ClusterManager
 from ...nanollama.data.gssm import DataConfig, DataLoaderManager, init_dataloader_state
@@ -128,31 +126,22 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         monitor = context_stack.enter_context(MonitorsManager(config.monitor))
+        cluster = context_stack.enter_context(ClusterManager(config.cluster))
+        device_rank = cluster.device_rank
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
         # ---------------------------------------------------------------------
 
-        cluster = context_stack.enter_context(ClusterManager(config.cluster))
-
-        # TODO: put the following in cluster.__enter__
-        backend = "nccl"
-        init_process_group(backend=backend)
-        ddp_rank = int(os.environ.get("RANK", 0))
-        ddp_local_rank = int(os.environ.get("LOCAL_RANK", 0))
-        world_size = int(os.environ.get("WORLD_SIZE", 1))
-        device = f"cuda:{ddp_local_rank}"
-        torch.cuda.set_device(device)
-        logger.info(f"Running on ddp rank: {ddp_rank} / {world_size}")
-
         logger.info("Building model")
         model = Transformer(config.model)
         model.to(device=config.cluster.device)
+        if config.cluster.compile_model:
+            model = torch.compile(model)
         logger.info("Done building model")
 
-        # TODO: put the following in cluster.parallelize_model
-        if world_size > 1:
-            model = DDP(model, device_ids=[ddp_local_rank])
+        # Parallelize model
+        model = cluster.parallelize_model(model)
 
         # ---------------------------------------------------------------------
         # Build Optimizer
@@ -168,7 +157,7 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         state = TrainState(
-            data=init_dataloader_state(config.data, rank=ddp_rank),
+            data=init_dataloader_state(config.data, rank=device_rank),
             optim=init_optimizer_state(),
         )
 
@@ -179,7 +168,7 @@ def train(config: TrainingConfig):
                 optimizer=optimizer,
                 scheduler=scheduler,
                 state=state,
-                device_rank=ddp_rank,
+                device_rank=device_rank,
             )
         )
 
@@ -188,7 +177,7 @@ def train(config: TrainingConfig):
             optimizer=optimizer,
             scheduler=scheduler,
             state=state,
-            device_rank=ddp_rank,
+            device_rank=device_rank,
             config=config,
         )
 
@@ -284,7 +273,8 @@ def train(config: TrainingConfig):
                 monitor.report_metrics(metrics)
 
                 # log to console
-                logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
+                if device_rank == 0:
+                    logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
 
             # -----------------------------------------------------------------
             # Evaluation
@@ -308,10 +298,6 @@ def train(config: TrainingConfig):
         sys.exit(0)
 
     logger.info("Training finished")
-
-    # TODO: put the following in cluster.__exit__
-    if world_size > 1:
-        destroy_process_group()
 
 
 def main():

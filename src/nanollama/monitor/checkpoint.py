@@ -80,6 +80,7 @@ class CheckpointManager:
         self.state = state
 
         self.device_rank = device_rank
+        self.is_master = device_rank == 0
         self.up_to_date = True
 
     def __enter__(self):
@@ -116,19 +117,18 @@ class CheckpointManager:
         save_dir.mkdir(parents=False, exist_ok=True)
         logger.info(f"Saving checkpoint at step {self.state.optim.step} to {str(save_dir)}")
 
-        if self.device_rank == 0:
+        filename = self.state_name.format(self.device_rank)
+        with open(save_dir / filename, "w") as f:
+            json.dump(self.state.state_dict(), f)
+
+        if self.is_master == 0:
             state_dict = {
                 "model": self.model.state_dict(),
                 "optim": self.optimizer.state_dict(),
                 "scheduler": self.scheduler.state_dict(),
             }
             torch.save(state_dict, save_dir / "checkpoint.pth")
-
-        filename = self.state_name.format(self.device_rank)
-        with open(save_dir / filename, "w") as f:
-            json.dump(self.state.state_dict(), f)
-
-        self.cleaning()
+            self.cleaning()
 
     @torch.no_grad()
     def load(self, path: Path):

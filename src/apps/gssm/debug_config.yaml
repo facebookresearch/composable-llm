@@ -11,6 +11,7 @@ monitor:
     name: debug
 
 cluster:
+  compile_model: true
   slurm:
     nb_gpus: 8
     time: 10
@@ -51,7 +52,7 @@ data:
       alpha: 1e-2
 
 optim:
-  steps: 1000
+  steps: 5000
 
 checkpoint:
   period: 1000
