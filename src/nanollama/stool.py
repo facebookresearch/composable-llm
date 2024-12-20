@@ -31,8 +31,8 @@ class TrainingConfig:
     data: Optional[Any] = None
     model: Optional[Any] = None
     optim: Optional[Any] = None
-    checkpoint: Optional[Any] = None
 
+    checkpoint: Optional[Any] = None
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
 

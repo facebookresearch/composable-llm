@@ -1,5 +1,5 @@
 """
-Initialization of the monitor module
+Initialization of the model module
 
 License
 -------
@@ -9,5 +9,4 @@ located in the root directory of this repository.
 @ 2024, Meta
 """
 
-from .checkpoint import CheckpointConfig, CheckpointManager
-from .monitor import MonitorConfig, MonitorsManager
+from .transfomer import Transformer, TransformerConfig

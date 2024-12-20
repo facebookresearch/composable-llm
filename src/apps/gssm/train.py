@@ -9,10 +9,6 @@ located in the root directory of this repository.
 @ 2024, Meta
 """
 
-# -------------------------------------------------------------------------------
-# Imports
-# -------------------------------------------------------------------------------
-
 import logging
 import os
 import signal
@@ -29,9 +25,13 @@ from omegaconf import OmegaConf
 
 from ...nanollama.cluster import ClusterConfig, ClusterManager
 from ...nanollama.data.gssm import DataConfig, DataLoaderManager, init_dataloader_state
-from ...nanollama.model.transfomer import Transformer, TransformerConfig
-from ...nanollama.monitor import MonitorConfig, MonitorsManager
-from ...nanollama.monitor.checkpoint import CheckpointConfig, CheckpointManager
+from ...nanollama.model import Transformer, TransformerConfig
+from ...nanollama.monitor import (
+    CheckpointConfig,
+    CheckpointManager,
+    MonitorConfig,
+    MonitorsManager,
+)
 from ...nanollama.optim import (
     OptimizerConfig,
     init_optimizer,
@@ -56,6 +56,7 @@ class TrainingConfig:
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
+
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
 
@@ -139,8 +140,8 @@ def train(config: TrainingConfig):
 
         logger.info("Building model")
         model = Transformer(config.model)
-        model.to(device=config.cluster.device)
-        if config.cluster.compile_model:
+        model.to(device=cluster.device)
+        if config.cluster.distributed.compile_model:
             model = torch.compile(model)
         logger.info("Done building model")
 
@@ -214,12 +215,12 @@ def train(config: TrainingConfig):
             X_batch = torch.tensor(
                 batch[:, :-1],
                 dtype=torch.long,
-            ).to(device=config.cluster.device)
+            ).to(device=cluster.device)
 
             y_batch = torch.tensor(
                 batch[:, 1:],
                 dtype=torch.long,
-            ).to(device=config.cluster.device)
+            ).to(device=cluster.device)
             dataloader_time = round(timer() - dataloader_time, 4)
 
             # -----------------------------------------------------------------

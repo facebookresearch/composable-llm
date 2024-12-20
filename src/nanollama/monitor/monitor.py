@@ -1,5 +1,5 @@
 """
-Monitor class managing:
+Generic Orchestrator managing:
 - garbage collection
 - logging to file
 - logging to wandb
@@ -25,12 +25,17 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from ..cluster.utils import get_rank
+from ..cluster.distributed import get_rank
 from ..train import TrainState
 from ..utils import trigger_update
 from .wandb import WandbConfig, WandbManager
 
 logger = logging.getLogger(__name__)
+
+
+# -------------------------------------------------------------------------------
+# Generic Orchestrator
+# -------------------------------------------------------------------------------
 
 
 @dataclass
@@ -127,6 +132,11 @@ class MonitorsManager:
 
         # close logger
         self.logger.__exit__(exc_type, exc_value, traceback)
+
+
+# -------------------------------------------------------------------------------
+# Logging Manager
+# -------------------------------------------------------------------------------
 
 
 class LoggerManager:

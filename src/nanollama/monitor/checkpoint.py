@@ -20,7 +20,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from ..cluster.utils import get_rank
+from ..cluster.distributed import get_rank
 from ..train import TrainState
 from ..utils import trigger_update
 

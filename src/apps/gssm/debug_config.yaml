@@ -11,7 +11,8 @@ monitor:
     name: debug
 
 cluster:
-  compile_model: false
+  distributed:
+    compile_model: true
   slurm:
     partition: "scavenge"
     mem: "16G"
