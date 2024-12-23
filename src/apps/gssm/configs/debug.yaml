@@ -43,7 +43,7 @@ data:
     nodes:
     - name: Z1
       state_dim: 4
-      parents: []
+      parents: [X]
       alpha: 1e3
     - name: Z2
       state_dim: 4
@@ -53,7 +53,7 @@ data:
       alpha: 1e3
     - name: Z4
       state_dim: 4
-      parents: [Z3]
+      parents: [X, Z3]
       alpha: 1e3
     - name: X
       state_dim: 32

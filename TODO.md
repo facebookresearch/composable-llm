@@ -20,9 +20,6 @@
 Improvement for `checkpoint.py`
 1. Add an eval flag to avoid deleting checkpointing that are going to be used for evaluation, and have not been evaluated yet.
 
-Improvement for `data.gssm.py`
-1. Ensure that Z can depend on X.
-
 Improvement for `model.py`
 1. Benchmark FlexAttention and use it if providing gain.
 1. Add a probing mechanism.
