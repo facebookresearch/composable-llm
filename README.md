@@ -34,7 +34,14 @@ pip install -e .
 ## First run
 You can run a debug script with the following command:
 ```
-python -m apps.train config=apps/debug_config.yaml
+python -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
+```
+To run some real experiments:
+```
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/base.yaml
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/sparse.yaml
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/dense.yaml
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/low_entropy.yaml
 ```
 
 ## Development
@@ -43,11 +50,4 @@ Consider automatic formatting when saving files (easy to setup in VSCode, ask Ch
 
 ## Organization
 The main code is in the `src` folder.
-Other folders include:
-- `data`: contains data used in the experiments.
-- `launchers`: contains bash scripts to launch experiments
-- `models`: saves models' weights.
-- `notebooks`: used for exploration and visualization.
-- `scripts`: contains python scripts to run experiments.
-- `tests`: contains tests for the code.
-- `tutorial`: contains tutorial notebooks to get started with LLMs' training.
+The base functions are in `src.nanollama` (supposed not to change much over time) and the application specific code is in `src.apps` (suppose to change for your specific applications).
