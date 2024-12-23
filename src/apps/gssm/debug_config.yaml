@@ -1,7 +1,7 @@
 # Debugging configuration
 monitor:
   name: multinodes
-  dir: /private/home/vivc/logs/composition/debug_multinodes
+  dir: /private/home/vivc/logs/composition/debug
   seed: 100
   overwrite: true
 

@@ -11,6 +11,7 @@ located in the root directory of this repository.
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import getLogger
@@ -41,6 +42,8 @@ class LoggingConfig:
 class LoggingManager:
     def __init__(self, config: LoggingConfig):
         self.dir = Path(config.dir)
+        if os.environ.get("SLURM_JOB_ID"):
+            self.dir = self.dir / os.environ["SLURM_JOB_ID"]
         self.dir.mkdir(parents=True, exist_ok=True)
         self.metric = self.dir.parent / "metrics.jsonl"
         device_rank = get_rank()

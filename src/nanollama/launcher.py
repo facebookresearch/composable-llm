@@ -185,11 +185,7 @@ def launch_job(config: LauncherConfig):
     # define the run command
     if config.launcher == "sbatch":
         if config.torchrun:
-            option_flags = (
-                " --nproc_per_node=$SLURM_NTASKS_PER_NODE"
-                " --nnodes=$SLURM_JOB_NUM_NODES"
-                " --node_rank=$SLURM_NODEID"
-            )
+            option_flags = f" --nproc_per_node={nb_gpus}" f" --nnodes={nodes}" " --node_rank=$SLURM_NODEID"
             run_command = f"torchrun {option_flags} -m {config.script} config=$LOG_DIR/config.yaml"
         else:
             run_command = f"srun python -u -m {config.script} config=$LOG_DIR/config.yaml"

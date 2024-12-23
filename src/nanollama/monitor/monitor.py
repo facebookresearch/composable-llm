@@ -13,7 +13,6 @@ located in the root directory of this repository.
 """
 
 import gc
-import os
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
@@ -73,8 +72,6 @@ class MonitorConfig:
         # logging directory
         if not self.logging.dir:
             path = Path(self.dir) / "logs"
-            if os.environ.get("SLURM_JOB_ID"):
-                path = path / os.environ["SLURM_JOB_ID"]
             self.logging.dir = str(path)
 
         # checkpoint directory

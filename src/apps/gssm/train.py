@@ -227,7 +227,6 @@ def train(config: TrainingConfig):
             # Call managers for garbage collection, checkpointing...
             # -----------------------------------------------------------------
 
-            # checkpointer()
             monitor()
 
             # -----------------------------------------------------------------
@@ -304,5 +303,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
