@@ -13,24 +13,22 @@ located in the root directory of this repository.
 """
 
 import gc
-import json
-import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path, PosixPath
+from logging import getLogger
+from pathlib import Path
 from typing import Any, Optional
 
 import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from ..cluster import get_rank
 from ..train import TrainState
 from ..utils import trigger_update
-from .wandb import WandbConfig, WandbManager
+from .checkpoint import CheckpointConfig, CheckpointManager
+from .logging import LoggingConfig, LoggingManager
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 # -------------------------------------------------------------------------------
@@ -40,13 +38,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MonitorConfig:
-    # logging
-    name: str = "composition_default"
     dir: str = ""
+    name: str = "composition_default"
     overwrite: bool = False  # whether to overwrite logging directory
-    log_period: int = 100
-    log_level: str = "INFO"
-    wandb: WandbConfig = field(default_factory=WandbConfig)
+
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
 
     # reproducibility
     seed: int = 42
@@ -60,37 +57,60 @@ class MonitorConfig:
     # probing
     # profiling
 
-    def __post_init__(self):
-        assert self.log_level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-
     def __manual_post_init__(self):
+        """
+        Check validity of arguments and fill in missing values.
+        """
+        # manual post initialization of all modules
+        for module in self.__dict__.values():
+            if hasattr(module, "__manual_post_init__"):
+                module.__manual_post_init__()
+
+        # directory
         if not self.dir:
             self.dir = str(Path.home() / "logs" / self.name)
 
+        # logging directory
+        if not self.logging.dir:
+            path = Path(self.dir) / "logs"
+            if os.environ.get("SLURM_JOB_ID"):
+                path = path / os.environ["SLURM_JOB_ID"]
+            self.logging.dir = str(path)
 
-class MonitorsManager:
+        # checkpoint directory
+        if self.checkpoint.path == "":
+            self.checkpoint.path = str(Path(self.dir) / "checkpoints")
+
+
+class Orchestrator:
     def __init__(self, config: MonitorConfig):
-        torch.manual_seed(config.seed)
-        torch.cuda.manual_seed_all(config.seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-
+        self.seed = config.seed
         self.gc_period = config.gc_period
 
         self.model = None
         self.optimizer = None
         self.scheduler = None
+        self.state = None
 
         # logging
-        self.logger = LoggerManager(config)
+        self.logger = LoggingManager(config.logging)
+
+        # checkpointing
+        self.checkpointer = CheckpointManager(config.checkpoint)
 
     def __enter__(self):
+        # set seed
+        torch.manual_seed(self.seed)
+        torch.cuda.manual_seed_all(self.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
         # disable garbage collection
         gc.disable()
 
-        # open logger
+        # open managers
         self.logger.__enter__()
+        self.checkpointer.__enter__()
         return self
 
     def report_objects(
@@ -104,11 +124,13 @@ class MonitorsManager:
         """
         Report the objects to monitor.
         """
-        self.model = model
-        self.optimizer = optimizer
-        self.scheduler = scheduler
+        # self.model = model
+        # self.optimizer = optimizer
+        # self.scheduler = scheduler
         self.state = state
 
+        # load checkpoint if it exists
+        self.checkpointer.report_objects(model, optimizer, scheduler, state)
         if self.logger.wandb:
             self.logger.wandb.report_run_config(config)
 
@@ -121,6 +143,9 @@ class MonitorsManager:
             logger.info("garbage collection")
             gc.collect()
 
+        # checkpointing
+        self.checkpointer()
+
     def report_metrics(self, metrics: dict):
         """
         Report the metrics to monitor.
@@ -130,70 +155,6 @@ class MonitorsManager:
     def __exit__(self, exc_type, exc_value, traceback):
         gc.collect()
 
-        # close logger
+        # close manager
         self.logger.__exit__(exc_type, exc_value, traceback)
-
-
-# -------------------------------------------------------------------------------
-# Logging Manager
-# -------------------------------------------------------------------------------
-
-
-class LoggerManager:
-    def __init__(self, config: MonitorConfig):
-        self.log_dir = self.get_log_dir(config.dir)
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.metric = self.log_dir.parent / "metrics.jsonl"
-        device_rank = get_rank()
-        log_file = self.log_dir / f"device_{device_rank}.log"
-
-        self.wandb = None
-        # the master node gets to log more information
-        if device_rank == 0:
-            # handlers = [logging.StreamHandler(), logging.FileHandler(log_file, "a")]
-            handlers = [logging.StreamHandler()]
-            if config.wandb.active:
-                self.wandb = WandbManager(config.wandb, log_dir=self.log_dir)
-        else:
-            handlers = [logging.FileHandler(log_file, "a")]
-
-        logging.basicConfig(
-            level=getattr(logging, config.log_level),
-            format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
-            handlers=handlers,
-        )
-
-        logger.info(f"Logging to {self.log_dir}")
-
-    def __enter__(self):
-        """
-        Open logging files (and wandb api).
-        """
-        self.metric = open(self.metric, "a")
-        if self.wandb is not None:
-            self.wandb.__enter__()
-
-    def __call__(self, metrics: dict):
-        """
-        Report the metrics to monitor.
-        """
-        metrics.update({"created_at": datetime.now(timezone.utc).isoformat()})
-        print(json.dumps(metrics), file=self.metric, flush=True)
-
-        if self.wandb:
-            self.wandb.report_metrics(metrics, step=metrics["step"])
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """
-        Close logging files (and wandb api).
-        """
-        self.metric.close()
-        if self.wandb is not None:
-            self.wandb.__exit__(exc_type, exc_value, traceback)
-
-    @staticmethod
-    def get_log_dir(prefix: str) -> PosixPath:
-        path = Path(prefix) / "logs"
-        if os.environ.get("SLURM_JOB_ID"):
-            return path / os.environ["SLURM_JOB_ID"]
-        return path
+        self.checkpointer.__exit__(exc_type, exc_value, traceback)

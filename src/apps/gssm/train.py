@@ -16,7 +16,6 @@ import socket
 import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
-from pathlib import Path
 from timeit import default_timer as timer
 
 import torch
@@ -26,12 +25,7 @@ from omegaconf import OmegaConf
 from ...nanollama.cluster import ClusterConfig, ClusterManager, is_master_process
 from ...nanollama.data.gssm import DataConfig, DataLoaderManager, init_dataloader_state
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import (
-    CheckpointConfig,
-    CheckpointManager,
-    MonitorConfig,
-    MonitorsManager,
-)
+from ...nanollama.monitor import MonitorConfig, Orchestrator
 from ...nanollama.optim import (
     OptimizerConfig,
     init_optimizer,
@@ -55,8 +49,6 @@ class TrainingConfig:
     model: TransformerConfig = field(default_factory=TransformerConfig)
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
-    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
-
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
 
@@ -77,27 +69,17 @@ class TrainingConfig:
         if self.data.seq_len == -1:
             self.data.seq_len = self.model.seq_len
 
-        # vocabulary size
-
-        # checkpoint directory
-        if self.checkpoint.path == "":
-            dir = self.monitor.dir
-            self.checkpoint.path = str(Path(dir) / "checkpoints")
-
-
-# -------------------------------------------------------------------------------
-# Preemption Handling
-# -------------------------------------------------------------------------------
-
-
-def loss_func(preds, targets):
-    vocab_size = preds.size(-1)
-    return F.cross_entropy(preds.view(-1, vocab_size), targets.view(-1))
+        # TODO: vocabulary size
 
 
 # -----------------------------------------------------------------------------
 # Training loop
 # -----------------------------------------------------------------------------
+
+
+def loss_func(preds, targets):
+    vocab_size = preds.size(-1)
+    return F.cross_entropy(preds.view(-1, vocab_size), targets.view(-1))
 
 
 def train(config: TrainingConfig):
@@ -128,10 +110,10 @@ def train(config: TrainingConfig):
         cluster = context_stack.enter_context(ClusterManager(config.cluster))
 
         # ---------------------------------------------------------------------
-        # Monitor: profiling, probing, logging
+        # Monitor: checkpointing, profiling, probing, logging
         # ---------------------------------------------------------------------
 
-        monitor = context_stack.enter_context(MonitorsManager(config.monitor))
+        monitor = context_stack.enter_context(Orchestrator(config.monitor))
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
@@ -163,16 +145,6 @@ def train(config: TrainingConfig):
         state = TrainState(
             data=init_dataloader_state(config.data),
             optim=init_optimizer_state(),
-        )
-
-        checkpointer = context_stack.enter_context(
-            CheckpointManager(
-                config=config.checkpoint,
-                model=model,
-                optimizer=optimizer,
-                scheduler=scheduler,
-                state=state,
-            )
         )
 
         monitor.report_objects(
@@ -255,14 +227,14 @@ def train(config: TrainingConfig):
             # Call managers for garbage collection, checkpointing...
             # -----------------------------------------------------------------
 
-            checkpointer()
+            # checkpointer()
             monitor()
 
             # -----------------------------------------------------------------
             # Log metrics
             # -----------------------------------------------------------------
 
-            if trigger_update(state, config.monitor.log_period):
+            if trigger_update(state, config.monitor.logging.period):
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
                 metrics = {
@@ -281,6 +253,9 @@ def train(config: TrainingConfig):
             # -----------------------------------------------------------------
             # Evaluation
             # -----------------------------------------------------------------
+
+            # if trigger_update(state, config.monitor.evaluation.period):
+            #     pass
 
             # -----------------------------------------------------------------
             # Handle preemption
@@ -315,12 +290,12 @@ def main():
     """
     # Load config from path specified by the `config` cli argument
     cli_args = OmegaConf.from_cli()
-    file_cfg = OmegaConf.load(cli_args.config)
+    file_config = OmegaConf.load(cli_args.config)
     del cli_args.config
 
     # Default to default arguments for unspecified values
-    default_cfg = OmegaConf.structured(TrainingConfig())
-    config = OmegaConf.merge(default_cfg, file_cfg, cli_args)
+    default_config = OmegaConf.structured(TrainingConfig())
+    config = OmegaConf.merge(default_config, file_config, cli_args)
     config = OmegaConf.to_object(config)
     config.__manual_post_init__()
 

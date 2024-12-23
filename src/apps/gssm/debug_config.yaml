@@ -1,18 +1,24 @@
 # Debugging configuration
 monitor:
-  seed: 100
-  log_period: 10
-  dir: /private/home/vivc/logs/composition/debug_multinodes
   name: multinodes
-  overwrite: false
-  wandb:
-    active: false
-    entity: vivc
-    project: llm-wrapper
-    name: debug
+  dir: /private/home/vivc/logs/composition/debug_multinodes
+  seed: 100
+  overwrite: true
+
+  logging:
+    period: 10
+    wandb:
+      active: false
+      entity: vivc
+      project: llm-wrapper
+      name: debug
+
+  checkpoint:
+    period: 1000
+    keep_only: 3
 
 cluster:
-  compile_model: true
+  compile_model: false
   slurm:
     partition: scavenge
     mem: 16G
@@ -56,7 +62,3 @@ data:
 
 optim:
   steps: 10000
-
-checkpoint:
-  period: 1000
-  keep_only: 3

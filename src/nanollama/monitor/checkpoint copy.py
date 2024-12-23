@@ -64,16 +64,20 @@ class CheckpointManager:
     def __init__(
         self,
         config: CheckpointConfig,
+        model: nn.Module,
+        optimizer: Optimizer,
+        scheduler: lr_scheduler.LambdaLR,
+        state: TrainState,
     ):
         self.period = config.period
         self.keep_only = config.keep_only
         self.path = Path(config.path)
         self.path.mkdir(parents=True, exist_ok=True)
 
-        self.model = None
-        self.optimizer = None
-        self.scheduler = None
-        self.state = None
+        self.model = model
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+        self.state = state
 
         self.device_rank = get_rank()
         self.is_master = self.device_rank == 0
@@ -83,26 +87,10 @@ class CheckpointManager:
         """
         Enter checkpoint context by loading checkpoint if it exists
         """
-        return self
-
-    def report_objects(
-        self,
-        model: nn.Module,
-        optimizer: Optimizer,
-        scheduler: lr_scheduler.LambdaLR,
-        state: TrainState,
-    ):
-        """
-        Report object and load checkpoint if it exists
-        """
-        self.model = model
-        self.optimizer = optimizer
-        self.scheduler = scheduler
-        self.state = state
-
         path = self.get_last_checkpoint_path()
         if path:
             self.load(path)
+        return self
 
     def __call__(self):
         """

@@ -10,4 +10,4 @@ located in the root directory of this repository.
 """
 
 from .checkpoint import CheckpointConfig, CheckpointManager
-from .monitor import MonitorConfig, MonitorsManager
+from .monitor import MonitorConfig, Orchestrator

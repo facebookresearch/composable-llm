@@ -32,7 +32,6 @@ class TrainingConfig:
     model: Optional[Any] = None
     optim: Optional[Any] = None
 
-    checkpoint: Optional[Any] = None
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
 
@@ -143,32 +142,36 @@ def launch_job(config: LauncherConfig):
     """
     Launch a job on a Slurm cluster.
     """
+    # aliases
+    monitor_config = config.config.monitor
+    slurm_config = config.config.cluster.slurm
+
     # logging directory
-    log_dir = config.config.monitor.dir
-    if os.path.exists(log_dir) and config.config.monitor.overwrite:
+    dir = monitor_config.dir
+    if os.path.exists(dir) and monitor_config.overwrite:
         confirm = input(
-            f"Are you sure you want to delete the directory '{log_dir}'? This action cannot be undone. (yes/no): "
+            f"Are you sure you want to delete the directory '{dir}'? This action cannot be undone. (yes/no): "
         )
         if confirm.upper().startswith("Y"):
-            shutil.rmtree(log_dir)
-            print(f"Directory '{log_dir}' has been deleted.")
+            shutil.rmtree(dir)
+            print(f"Directory '{dir}' has been deleted.")
         else:
             print("Operation cancelled.")
             return
-    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(dir, exist_ok=True)
 
     # copy code
     if config.copy_code:
-        os.makedirs(f"{log_dir}/code", exist_ok=True)
-        print(f"Copying code to {log_dir} ...", end="")
-        copy_dir(os.getcwd(), f"{log_dir}/code")
-        go_to_code_dir = f"cd {log_dir}/code"
+        os.makedirs(f"{dir}/code", exist_ok=True)
+        print(f"Copying code to {dir} ...", end="")
+        copy_dir(os.getcwd(), f"{dir}/code")
+        go_to_code_dir = f"cd {dir}/code"
     else:
         go_to_code_dir = ""
     print(" Done.")
 
     # write config
-    with open(f"{log_dir}/config.yaml", "w") as cfg:
+    with open(f"{dir}/config.yaml", "w") as cfg:
         cfg.write(OmegaConf.to_yaml(config.config))
 
     # define proper conda environment
@@ -176,47 +179,51 @@ def launch_job(config: LauncherConfig):
     conda_env_path = str(Path(config.python_env).parent.parent)
 
     # aliases
-    slurm_cfg = config.config.cluster.slurm
-    nodes = slurm_cfg.nodes
-    nb_gpus = slurm_cfg.nb_gpus
+    nodes = slurm_config.nodes
+    nb_gpus = slurm_config.nb_gpus
 
     # define the run command
     if config.launcher == "sbatch":
         if config.torchrun:
-            option_flags = f"--nproc_per_node={nb_gpus}"
+            option_flags = (
+                " --nproc_per_node=$SLURM_NTASKS_PER_NODE"
+                " --nnodes=$SLURM_JOB_NUM_NODES"
+                " --node_rank=$SLURM_NODEID"
+            )
             run_command = f"torchrun {option_flags} -m {config.script} config=$LOG_DIR/config.yaml"
         else:
             run_command = f"srun python -u -m {config.script} config=$LOG_DIR/config.yaml"
     else:
         if config.torchrun:
-            run_command = f"torchrun --nproc-per-node {nb_gpus} -m {config.script} config=$LOG_DIR/config.yaml"
+            option_flags = f"--nproc_per_node={nb_gpus}"
+            run_command = f"torchrun {option_flags} -m {config.script} config=$LOG_DIR/config.yaml"
         else:
             run_command = f"python -u -m {config.script} config=$LOG_DIR/config.yaml"
 
     bash_command = LAUNCHER_SCRIPT.format(
-        name=config.config.monitor.name,
-        log_dir=log_dir,
-        partition=slurm_cfg.partition,
+        name=monitor_config.name,
+        log_dir=dir,
+        partition=slurm_config.partition,
         nodes=nodes,
         tasks=nodes * nb_gpus,
         nb_gpus=nb_gpus,
-        nb_cpus=slurm_cfg.nb_cpus,
-        mem=slurm_cfg.mem,
-        time=slurm_cfg.time,
-        signal_time=slurm_cfg.signal_time,
-        slurm_extra=slurm_cfg.slurm_extra,
-        script_extra=slurm_cfg.script_extra,
+        nb_cpus=slurm_config.nb_cpus,
+        mem=slurm_config.mem,
+        time=slurm_config.time,
+        signal_time=slurm_config.signal_time,
+        slurm_extra=slurm_config.slurm_extra,
+        script_extra=slurm_config.script_extra,
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
         go_to_code_dir=go_to_code_dir,
         run_command=run_command,
     )
 
-    with open(f"{log_dir}/run.sh", "w") as f:
+    with open(f"{dir}/run.sh", "w") as f:
         f.write(bash_command)
 
     print(f"Launching job with `{config.launcher}` command.")
-    os.system(f"{config.launcher} {log_dir}/run.sh")
+    os.system(f"{config.launcher} {dir}/run.sh")
 
 
 def main():
@@ -235,8 +242,8 @@ def main():
     args.config = OmegaConf.load(args.config)
 
     # Default to default arguments for unspecified values
-    default_cfg = OmegaConf.structured(LauncherConfig())
-    config = OmegaConf.merge(default_cfg, args)
+    default_config = OmegaConf.structured(LauncherConfig())
+    config = OmegaConf.merge(default_config, args)
     config = OmegaConf.to_object(config)
     config.__manual_post_init__()
 
