@@ -1,5 +1,5 @@
 """
-Slurm tool script to launch jobs on a Slurm cluster.
+Script to launch jobs on a Slurm cluster.
 
 License
 -------
