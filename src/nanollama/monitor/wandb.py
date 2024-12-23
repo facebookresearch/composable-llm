@@ -28,8 +28,8 @@ class WandbConfig:
 
     # Wandb user and project name
     entity: str = ""
-    project: Optional[str] = "llm"
-    name: Optional[str] = "run"
+    project: str = "composition"
+    name: str = ""
 
 
 class WandbManager:

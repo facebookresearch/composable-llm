@@ -78,6 +78,10 @@ class MonitorConfig:
         if self.checkpoint.path == "":
             self.checkpoint.path = str(Path(self.dir) / "checkpoints")
 
+        # wandb name
+        if self.logging.wandb.name == "":
+            self.logging.wandb.name = self.name
+
 
 class Orchestrator:
     def __init__(self, config: MonitorConfig):
