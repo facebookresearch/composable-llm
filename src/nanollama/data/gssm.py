@@ -162,7 +162,7 @@ class Node:
             Batch size
         """
         for parent in self.parents:
-            if parent.time is None or parent.time != 0:
+            if parent.time != 0 and not isinstance(parent, ObservedNode):
                 parent.initialize(bsz)
         self.state = np.zeros(bsz, dtype=int)
         self.time = 0
@@ -179,17 +179,85 @@ class Node:
             Current states of the parent nodes
         """
         for parent in self.parents:
-            if parent.time != self.time + 1:
+            if parent.time != self.time + 1 and not isinstance(parent, ObservedNode):
                 assert parent.time == self.time, "Parent node time is not correct."
                 parent.evolve()
 
-        input_state = np.vstack((self.state, *(parent.state for parent in self.parents)))
+        input_state = self.get_input_state()
         input_state = np.ravel_multi_index(input_state, self.size_in)
         self.state = self.kernel(input_state)
         self.time += 1
 
+    def get_input_state(self):
+        input_state = np.vstack((self.state, *(parent.state for parent in self.parents)))
+        return input_state
+
     def __repr__(self):
         return f"Node(state_dim={self.state_dim}, state={self.state}, time={self.time}, nb_parents={len(self.parents)})"
+
+
+class ObservedNode(Node):
+    """
+    Observed node in a graph-structured sequential model (GSSM).
+
+    Parameters
+    ----------
+    state_dim:
+        Number of state values the node can take
+    alphas:
+        Dirichlet concentration parameter
+    parents:
+        List of parent nodes
+    rng:
+        Random number generator
+
+    Attributes
+    ----------
+    state:
+        Current state of the node.
+    time:
+        Current time step.
+    """
+
+    def __init__(
+        self,
+        state_dim: int,
+        alphas: Union[int, float, list[float], np.ndarray],
+        parents: Optional[list["Node"]] = None,
+        rng: Generator = None,
+    ):
+        self.reinit(state_dim, alphas, parents, rng)
+
+    def reinit(
+        self,
+        state_dim: int,
+        alphas: Union[int, float, list[float], np.ndarray],
+        parents: Optional[list["Node"]] = None,
+        rng: Generator = None,
+    ):
+        self.parents = parents if parents is not None else []
+
+        # Calculate the fan_in based on the parents
+        fan_in = 1  # Observed node do not take the previous state as input
+        for parent in self.parents:
+            fan_in *= parent.state_dim
+
+        # Useful attributes for raveling multi-dimensional states
+        self.state_dim = state_dim
+        self.size_in = (*(parent.state_dim for parent in self.parents),)
+
+        self.kernel = TransitionKernel(fan_in=fan_in, fan_out=state_dim, alphas=alphas, rng=rng)
+
+        self.state = None
+        self.time = None
+
+    def get_input_state(self):
+        input_state = np.vstack((*(parent.state for parent in self.parents),))
+        return input_state
+
+    def __repr__(self):
+        nbp = len(self.parents)
+        return f"ObservedNode(state_dim={self.state_dim}, state={self.state}, time={self.time}, nb_parents={nbp})"
 
 
 # -------------------------------------------------------------------------------
@@ -247,9 +315,19 @@ def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
         Dictionary of nodes.
     """
     logger.info(f"Building graph from {config}")
-    nodes_to_initialize = config.nodes
-    nodes = {}
+    nodes_to_initialize: list[NodeConfig] = []
+    nodes: dir[str, Node] = {}
 
+    # start by initializing the observed node without parents
+    for node_config in config.nodes:
+        if node_config.name == "X":
+            logger.info("Initializing observed node")
+            observed_config = node_config
+            nodes["X"] = ObservedNode(state_dim=node_config.state_dim, alphas=1, rng=rng)
+        else:
+            nodes_to_initialize.append(node_config)
+
+    # observe all the other nodes
     while nodes_to_initialize:
         node_config = nodes_to_initialize.pop(0)
         parents_name = node_config.parents
@@ -270,6 +348,20 @@ def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
         nodes[node_config.name] = Node(
             state_dim=node_config.state_dim, alphas=float(node_config.alpha), parents=parents, rng=rng
         )
+
+    # set the parents of the observed node
+    node_config = observed_config
+    parents_name = node_config.parents
+    parents = []
+    minimum = True
+    for parent_name in parents_name:
+        assert parent_name in nodes
+        parents.append(nodes[parent_name])
+
+    logger.info("Reinitializing observed node")
+    nodes[node_config.name].reinit(
+        state_dim=node_config.state_dim, alphas=float(node_config.alpha), parents=parents, rng=rng
+    )
 
     logger.info("Graph is built")
     return nodes
