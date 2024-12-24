@@ -43,7 +43,7 @@ class WandbManager:
         # Read run id from id file if it exists
         if os.path.exists(self.id_file):
             resuming = True
-            with open(self.id_file, "r") as file:
+            with open(self.id_file) as file:
                 run_id = file.read().strip()
         else:
             resuming = False

@@ -9,5 +9,4 @@ located in the root directory of this repository.
 @ 2024, Meta
 """
 
-from .checkpoint import CheckpointConfig, CheckpointManager
 from .monitor import MonitorConfig, Orchestrator

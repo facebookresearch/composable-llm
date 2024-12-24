@@ -24,8 +24,8 @@ logger = getLogger(__name__)
 
 
 @dataclass
-class LoggingConfig:
-    dir: str = ""
+class LoggerConfig:
+    path: str = ""
     period: int = 100
     level: str = "INFO"
     wandb: WandbConfig = field(default_factory=WandbConfig)
@@ -39,15 +39,15 @@ class LoggingConfig:
 # -------------------------------------------------------------------------------
 
 
-class LoggingManager:
-    def __init__(self, config: LoggingConfig):
-        self.dir = Path(config.dir)
+class Logger:
+    def __init__(self, config: LoggerConfig):
+        self.path = Path(config.path)
         if os.environ.get("SLURM_JOB_ID"):
-            self.dir = self.dir / os.environ["SLURM_JOB_ID"]
-        self.dir.mkdir(parents=True, exist_ok=True)
-        self.metric = self.dir.parent / "metrics.jsonl"
+            self.path = self.path / os.environ["SLURM_JOB_ID"]
+        self.path.mkdir(parents=True, exist_ok=True)
+        self.metric = self.path.parent / "metrics.jsonl"
         device_rank = get_rank()
-        log_file = self.dir / f"device_{device_rank}.log"
+        log_file = self.path / f"device_{device_rank}.log"
 
         self.wandb = None
         # the master node gets to log more information
@@ -55,7 +55,7 @@ class LoggingManager:
             # handlers = [logging.StreamHandler(), logging.FileHandler(log_file, "a")]
             handlers = [logging.StreamHandler()]
             if config.wandb.active:
-                self.wandb = WandbManager(config.wandb, log_dir=self.dir)
+                self.wandb = WandbManager(config.wandb, log_dir=self.path)
         else:
             handlers = [logging.FileHandler(log_file, "a")]
 
@@ -65,7 +65,7 @@ class LoggingManager:
             handlers=handlers,
         )
 
-        logger.info(f"Logging to {self.dir}")
+        logger.info(f"Logging to {self.path}")
 
     def __enter__(self):
         """

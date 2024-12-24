@@ -34,7 +34,7 @@ class CheckpointConfig:
     path: str = ""
 
 
-class CheckpointManager:
+class Checkpointer:
     """
     Checkpoint manager
 
@@ -156,7 +156,7 @@ class CheckpointManager:
 
         logger.info("Reloading train state")
         file_path = path / self.state_name.format(self.device_rank)
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             train_state_dict = json.load(f)
         self.state.load_state_dict(train_state_dict)
         logger.info("Train state reloaded")

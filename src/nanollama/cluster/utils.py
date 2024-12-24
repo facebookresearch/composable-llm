@@ -13,23 +13,23 @@ import os
 from functools import lru_cache
 
 
-@lru_cache()
+@lru_cache
 def is_torchrun_job() -> bool:
     return os.environ.get("LOCAL_RANK") is not None
 
 
-@lru_cache()
+@lru_cache
 def is_slurm_job() -> bool:
     # torch_run preempts slurm jobs
     return "SLURM_JOB_ID" in os.environ and not is_torchrun_job()
 
 
-@lru_cache()
+@lru_cache
 def is_distributed_job() -> bool:
     return is_torchrun_job() or is_slurm_job()
 
 
-@lru_cache()
+@lru_cache
 def get_rank() -> int:
     if is_torchrun_job():
         return int(os.environ["RANK"])
@@ -39,7 +39,7 @@ def get_rank() -> int:
         return 0
 
 
-@lru_cache()
+@lru_cache
 def get_local_rank() -> int:
     if is_torchrun_job():
         return int(os.environ["LOCAL_RANK"])
@@ -49,7 +49,7 @@ def get_local_rank() -> int:
         return 0
 
 
-@lru_cache()
+@lru_cache
 def get_world_size() -> int:
     if is_torchrun_job():
         return int(os.environ["WORLD_SIZE"])
@@ -59,6 +59,6 @@ def get_world_size() -> int:
         return 1
 
 
-@lru_cache()
+@lru_cache
 def is_master_process() -> bool:
     return get_rank() == 0

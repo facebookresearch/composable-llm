@@ -24,15 +24,11 @@ from torch.optim import Optimizer, lr_scheduler
 
 from ..train import TrainState
 from ..utils import trigger_update
-from .checkpoint import CheckpointConfig, CheckpointManager
-from .logging import LoggingConfig, LoggingManager
+from .checkpoint import CheckpointConfig, Checkpointer
+from .logger import Logger, LoggerConfig
+from .profiler import Profiler, ProfilerConfig
 
 logger = getLogger(__name__)
-
-
-# -------------------------------------------------------------------------------
-# Generic Orchestrator
-# -------------------------------------------------------------------------------
 
 
 @dataclass
@@ -41,20 +37,21 @@ class MonitorConfig:
     name: str = "composition_default"
     overwrite: bool = False  # whether to overwrite logging directory
 
-    logging: LoggingConfig = field(default_factory=LoggingConfig)
-    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
-
     # reproducibility
     seed: int = 42
 
     # garbage collection frequency
     gc_period: int = 1000
 
+    # submanagers
+    logging: LoggerConfig = field(default_factory=LoggerConfig)
+    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
+    profiler: ProfilerConfig = field(default_factory=ProfilerConfig)
+
     # evaluation
     async_eval_gpus: Optional[int] = None
 
     # probing
-    # profiling
 
     def __manual_post_init__(self):
         """
@@ -70,9 +67,9 @@ class MonitorConfig:
             self.dir = str(Path.home() / "logs" / self.name)
 
         # logging directory
-        if not self.logging.dir:
+        if not self.logging.path:
             path = Path(self.dir) / "logs"
-            self.logging.dir = str(path)
+            self.logging.path = str(path)
 
         # checkpoint directory
         if self.checkpoint.path == "":
@@ -81,6 +78,10 @@ class MonitorConfig:
         # wandb name
         if self.logging.wandb.name == "":
             self.logging.wandb.name = self.name
+
+        # profile directory
+        if self.profiler.path == "":
+            self.profiler.path = str(Path(self.dir) / "prolifer" / "trace.json")
 
 
 class Orchestrator:
@@ -93,11 +94,10 @@ class Orchestrator:
         self.scheduler = None
         self.state = None
 
-        # logging
-        self.logger = LoggingManager(config.logging)
-
-        # checkpointing
-        self.checkpointer = CheckpointManager(config.checkpoint)
+        # submanagers
+        self.logger = Logger(config.logging)
+        self.checkpointer = Checkpointer(config.checkpoint)
+        self.profiler = Profiler(config.profiler)
 
     def __enter__(self):
         # set seed
@@ -112,6 +112,7 @@ class Orchestrator:
         # open managers
         self.logger.__enter__()
         self.checkpointer.__enter__()
+        self.profiler.__enter__()
         return self
 
     def report_objects(
@@ -124,6 +125,8 @@ class Orchestrator:
     ):
         """
         Report the objects to monitor.
+
+        This function is useful since we initialize the Monitor before the model is built.
         """
         # self.model = model
         # self.optimizer = optimizer
@@ -144,8 +147,9 @@ class Orchestrator:
             logger.info("garbage collection")
             gc.collect()
 
-        # checkpointing
+        # call managers
         self.checkpointer()
+        self.profiler()
 
     def report_metrics(self, metrics: dict):
         """
@@ -156,6 +160,7 @@ class Orchestrator:
     def __exit__(self, exc_type, exc_value, traceback):
         gc.collect()
 
-        # close manager
+        # close managers
         self.logger.__exit__(exc_type, exc_value, traceback)
         self.checkpointer.__exit__(exc_type, exc_value, traceback)
+        self.profiler.__exit__(exc_type, exc_value, traceback)

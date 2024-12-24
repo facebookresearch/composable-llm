@@ -29,21 +29,19 @@ dependencies = [
     "wandb",
 
     # transformer libraries
-    "sentencepiece",
-    "tiktoken",
-    "transformers",
+    # "sentencepiece",
+    # "tiktoken",
+    # "transformers",
 
     # visualization
     "ipykernel",
     "ipywidgets",
     "matplotlib",
     "plotly",
+    "viztracer",
 
     # formatting
-    "black",
-    "flake8",
-    "flake8-pyproject",
-    "isort",
+    "ruff",
 ]
 
 [project.urls]
@@ -54,19 +52,21 @@ dependencies = [
 where = ["src"]
 exclude = ["src.apps"]
 
-[tool.black]
+[tool.ruff]
 line-length = 120
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",  # Default rules
+  # "ANN001",     # Function arguments should annotate types
+  # "ANN201",     # Public function should annotate return type
+  "B",            # Common bugs
+  "DTZ",          # Timezone issues
+  "I",            # Sort inputs
+  "PLE",          # Common errors
+  "RUF100",       # Remove unused noqa
+  "UP",           # Modern syntax
+]
 
-[tool.flake8]
-max-line-length = 120
-ignore = [
-    "E203",  # whitespace before ':'
-    "E722",  # do not use bare 'except'
-    "W503",  # line break before binary operator
-]
-per-file-ignores = [
-    '__init__.py:F401',
-]
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
