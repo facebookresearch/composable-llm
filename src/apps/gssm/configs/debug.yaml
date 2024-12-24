@@ -17,13 +17,16 @@ monitor:
     period: 1000
     keep_only: 3
 
+  profiler:
+    active: true
+
 cluster:
   compile_model: false
   slurm:
     partition: scavenge
     mem: 16G
-    nodes: 2
-    nb_gpus: 8
+    nodes: 1
+    nb_gpus: 2
     time: 10          # job time in minutes
     signal_time: 60   # alert time in seconds
 
@@ -61,4 +64,4 @@ data:
       alpha: 1e-2
 
 optim:
-  steps: 10000
+  steps: 100
