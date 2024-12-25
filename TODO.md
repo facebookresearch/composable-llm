@@ -1,11 +1,17 @@
 # TODOS
 
+- [ ] Profiling: Make sure to understand if we are IO, GPU and CPU bound
+     - Visualize Memory footprint
+          - Try with Tensorboard
+          - Try the MemorySnapshot from xformers profiler
+     - Visualize GPU utilization
+          - Log memory, GPU utilization...
+
 - [ ] Async creation of the next batch as forward and backward passes are being done.
      - We could do it manually with multiprocessing.
      - We could also use pytorch native dataloader. This is simpler, we should go for this solution.
      - To optimize the data loading process we need to look at computing performance metrics.
 
-- [ ] Profiling.
 - [ ] Probing.
 
 - [ ] Slurm array option to cross-validate learning rates.
@@ -21,6 +27,9 @@
 
 - [ ] GSSM:
 Add a special argument that can take 4 arguments. `None`: keep the same logic as now. `transition`: transition matrix change for each generation. `slow` the argmax of the transition is the diagonal (argmax p(y | x) = x). `dead` the argmax of the transition is a column (argmax p(y | x) = c).
+
+- Script to upload all metrics to wandb. 
+Profiler traces to wandb
 
 
 #### Further improvements
@@ -54,13 +63,13 @@ python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm
 
 
 #### Debug
-python -m src.apps.gssm.train config=src/apps/gssm/debug_config.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/debug_config.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/debug_config.yaml launcher=bash
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/debug_config.yaml torchrun=True
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/debug_config.yaml torchrun=True launcher=bash
-OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/debug_config.yaml
-OMP_NUM_THREADS=1 torchrun --nproc-per-node 8 -m src.apps.gssm.train config=src/apps/gssm/debug_config.yaml
+python -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml launcher=bash
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml torchrun=True
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml torchrun=True launcher=bash
+OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
+OMP_NUM_THREADS=1 torchrun --nproc-per-node 8 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
 
 ## Longer term project
 
