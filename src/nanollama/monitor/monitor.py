@@ -81,7 +81,7 @@ class MonitorConfig:
 
         # profile directory
         if self.profiler.path == "":
-            self.profiler.path = str(Path(self.dir) / "prolifer" / "trace.json")
+            self.profiler.path = str(Path(self.dir) / "prolifer")
 
 
 class Orchestrator:

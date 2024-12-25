@@ -6,11 +6,12 @@ monitor:
   overwrite: true
 
   logging:
-    period: 10
+    period: 1
+    level: debug
     wandb:
       active: false
       entity: vivc
-      project: llm-wrapper
+      project: composition
       name: debug
 
   checkpoint:
@@ -19,6 +20,9 @@ monitor:
 
   profiler:
     active: true
+    path: /private/home/vivc/code/composable-llm/tmp_profiler
+    wait: 10
+    steps: 10
 
 cluster:
   compile_model: false

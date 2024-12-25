@@ -31,6 +31,7 @@ class LoggerConfig:
     wandb: WandbConfig = field(default_factory=WandbConfig)
 
     def __post_init__(self):
+        self.level = self.level.upper()
         assert self.level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
