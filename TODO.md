@@ -12,6 +12,12 @@
      - We could also use pytorch native dataloader. This is simpler, we should go for this solution.
      - To optimize the data loading process we need to look at computing performance metrics.
 
+- [ ] GSSM:
+Add a special argument that can take 4 arguments. `None`: keep the same logic as now. `transition`: transition matrix change for each generation. `slow` the argmax of the transition is the diagonal (argmax p(y | x) = x). `dead` the argmax of the transition is a column (argmax p(y | x) = c).
+
+- [ ] Dataloader: split between train and test. (Probably write to file a train and test set, and read these).
+
+
 - [ ] Probing.
 
 - [ ] Slurm array option to cross-validate learning rates.
@@ -22,13 +28,8 @@
 - [ ] Model parallelism
 
 - [ ] Clean the arguments in manual_post_init. (vocab_size = X.state_dim)
-
-- [ ] Dataloader: split between train and test. (Probably write to file a train and test set, and read these).
-
-- [ ] GSSM:
-Add a special argument that can take 4 arguments. `None`: keep the same logic as now. `transition`: transition matrix change for each generation. `slow` the argmax of the transition is the diagonal (argmax p(y | x) = x). `dead` the argmax of the transition is a column (argmax p(y | x) = c).
-
 - Script to upload all metrics to wandb. 
+
 Profiler traces to wandb
 
 
