@@ -1,6 +1,7 @@
 
 # configurations and caches
 .vscode/
+.ruff_cache
 *.egg-info
 *__pycache__
 

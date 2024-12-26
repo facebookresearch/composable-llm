@@ -1,11 +1,14 @@
+import json
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import torch
 import torch.profiler as profiler
 
-from ..cluster.utils import is_master_process
+from ..cluster.utils import get_rank
 
 logger = logging.getLogger(__name__)
 
@@ -15,91 +18,157 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------------------------------------
 
 
-class TimelineProfiler:
+class PytorchProfiler:
+    """
+    Wrapper around Pytorch Profiler, highly detailed, yet heavy weight.
+    """
+
     ACTIVITIES = [
         torch.profiler.ProfilerActivity.CPU,
         torch.profiler.ProfilerActivity.CUDA,
     ]
 
-    def __init__(self, path: str, wait: int, steps: int):
+    def __init__(self, path: PosixPath, wait: int, steps: int):
         self.path = path
         self.profiler = profiler.profile(
             activities=self.ACTIVITIES,
             schedule=torch.profiler.schedule(
                 skip_first=0,
-                wait=0,
-                warmup=wait,
+                wait=max(wait - 1, 0),
+                warmup=min(wait, 1),
                 active=steps,
                 repeat=1,
             ),
             on_trace_ready=self._on_trace,
-            profile_memory=False,
-            record_shapes=False,
+            profile_memory=True,
+            record_shapes=True,
             with_stack=True,
-            with_flops=False,
+            with_flops=True,
         )
 
     def __enter__(self):
         self.profiler.__enter__()
-        logger.info(f"Profiling active. Traces will be saved at {self.path}")
+        logger.info(f"Pytorch profiler active. Traces will be saved at {self.path}")
 
     def _on_trace(self, prof: profiler.profile):
         prof.export_chrome_trace(str(self.path))
-        logger.info(f"Timeline traces saved to {self.path}")
+        logger.info(f"Pytorch profiler traces saved to {self.path}")
+        self.profiler.__exit__(None, None, None)
+        self.profiler = None
 
     def __call__(self):
-        self.profiler.step()
+        if self.profiler:
+            self.profiler.step()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.profiler.__exit__(exc_type, exc_val, exc_tb)
-        logger.info("Exiting Timeline Profiler")
+        if self.profiler:
+            self.profiler.__exit__(exc_type, exc_val, exc_tb)
 
 
-class MemoryProfiler:
-    def __init__(self, path: str, wait: int, steps: int) -> None:
+class LightProfiler:
+    """
+    Minimal profiler.
+    """
+
+    def __init__(self, path: PosixPath, wait: int, steps: int) -> None:
         self.path = path
         self.start_step = wait
         self.end_step = wait + steps
         self.step = 0
-        # flag to manually trigger context entering and exiting
         self.active = False
 
+        # various placeholder
+        self.device = None
+        self.device_capacity = None
+        self.times = {}
+
     def __enter__(self):
-        if not self.active:
-            return
-        torch.cuda.memory._record_memory_history(
-            True,
-            # keep 100,000 alloc/free events from before the snapshot
-            trace_alloc_max_entries=100000,
-            # record stack information for the trace events
-            trace_alloc_record_context=True,
-        )
-        logger.info(f"Memory Profiler active. Traces will be saved at {self.path}")
+        logger.info(f"Light profiler active. Traces will be saved at {self.path}")
+        self.device = torch.device(get_rank())
+        self.device_capacity = torch.cuda.get_device_properties(self.device).total_memory
+        self.file = open(self.path, "a")
+        self.file.write("[\n")  # Start the JSON array
+        self.start_timer()
+        self.active = True
+
+        self.async_executor = ThreadPoolExecutor(max_workers=1)
+
+    def start_timer(self):
+        """Start a timer"""
+        if self.active:
+            self.time = time.time()
+
+    def end_timer(self, name: str):
+        """End timer and report time"""
+        if self.active and self.time:
+            self.times[name] = time.time() - self.time
 
     def __call__(self):
         if self.step == self.start_step:
-            self.active = True
             self.__enter__()
+
         if self.step == self.end_step:
             self.__exit__(None, None, None)
-            self.active = False
+
+        if self.active:
+            cuda_info = torch.cuda.memory_stats(self.device)
+
+            max_mem = cuda_info["active_bytes.all.peak"]
+            mem_reserved = cuda_info["reserved_bytes.all.peak"]
+
+            event = {
+                "name": "light",
+                "ph": "C",
+                "ts": round(time.time() * 1e6),  # Convert to microseconds
+                "pid": 0,
+                "tid": 0,
+                "args": self.times
+                | {
+                    "step": self.step,
+                    "mem_gib": self.to_gib(max_mem),
+                    "mem_ratio": self.to_ratio(max_mem),
+                    "mem_reserved_gib": self.to_gib(mem_reserved),
+                    "mem_reserved_ratio": self.to_ratio(mem_reserved),
+                    "num_alloc_retries": cuda_info["num_alloc_retries"],
+                    "num_ooms": cuda_info["num_ooms"],
+                },
+            }
+
+            # async write
+            self.async_executor.submit(self._writing, event)
+
+            torch.cuda.reset_peak_memory_stats()
+
         self.step += 1
+
+    def _writing(self, event):
+        json.dump(event, self.file, indent=2)
+        if self.step < self.end_step - 1:
+            self.file.write(",\n")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.active:
             return
-        snapshot = torch.cuda.memory._snapshot()
-        torch.cuda.memory._record_memory_history(False)
+        self.file.write("\n]\n")
+        self.file.close()
 
-        # No data was recorded - avoids a `ValueError` in `trace_plot`
-        if all(len(t) == 0 for t in snapshot["device_traces"]):
-            logger.info("No memory allocation recorded.")
-            return
+        self.async_executor.shutdown(wait=True)
 
-        # Dump to disk
-        with open(self.path, "w") as f:
-            f.write(torch.cuda._memory_viz.trace_plot(snapshot, device=None, plot_segments=False))
-        logger.info(f"Memory snapshot saved to {self.path}")
+        logger.info(f"Light profiler traces saved to {self.path}")
+
+        # free placeholders
+        self.device = None
+        self.device_capacity = None
+        self.events = []
+        self.times = {}
+        self.active = False
+
+    @staticmethod
+    def to_gib(memory):
+        return memory / (1024**3)
+
+    def to_ratio(self, memory):
+        return memory / self.device_capacity
 
 
 # -------------------------------------------------------------------------------
@@ -109,30 +178,32 @@ class MemoryProfiler:
 
 @dataclass
 class ProfilerConfig:
-    active: bool = False
+    active: bool = True
     path: str = ""
     wait: int = 1
-    steps: int = 10
-    repeat: int = 1
-    export_to_wandb: bool = False
+    steps: int = 0
+    pytorch: bool = False
+    light: bool = True
 
 
 class Profiler:
     def __init__(self, config: ProfilerConfig):
-        self.active = config.active and is_master_process()
-
-        self.path = Path(config.path)
-        self.wandb = config.export_to_wandb
-
-        self.profiler = []
-        if not self.active:
+        self.profilers = []
+        if not config.active:
             return
 
+        self.path = Path(config.path)
+        rank = get_rank()
+
         self.path.mkdir(parents=True, exist_ok=True)
-        self.profilers = [
-            TimelineProfiler(self.path / "timeline.json", config.wait, config.steps),
-            MemoryProfiler(self.path / "memory.json", config.wait, config.steps),
-        ]
+        if config.pytorch:
+            self.pytorch = PytorchProfiler(self.path / f"pytorch_{rank}.pt.trace.json", config.wait, config.steps)
+            self.profilers.append(self.pytorch)
+        if config.light:
+            self.light = LightProfiler(self.path / f"light_{rank}.json", config.wait, config.steps)
+            self.profilers.append(self.light)
+        else:
+            self.light = None
 
     def __enter__(self):
         for prof in self.profilers:
@@ -147,83 +218,10 @@ class Profiler:
         for prof in self.profilers:
             prof.__exit__(exc_type, exc_val, exc_tb)
 
+    def start_timer(self):
+        if self.light:
+            self.light.start_timer()
 
-# from dataclasses import namedtuple
-
-# GPUMemStats = namedtuple(
-#     "GPUMemStats",
-#     [
-#         "max_active_gib",
-#         "max_active_pct",
-#         "max_reserved_gib",
-#         "max_reserved_pct",
-#         "num_alloc_retries",
-#         "num_ooms",
-#         "power_draw",
-#     ],
-# )
-
-# class GPUProfiler:
-#     """Profiler that monitors GPU memory usage."""
-
-#     def __init__(self, main_profiler: "_Profiler", device: str = "cuda:0") -> None:
-#         self.main_profiler = main_profiler
-#         self.device = torch.device(device)
-#         self.device_name = torch.cuda.get_device_name(self.device)
-#         self.device_index = torch.cuda.current_device()
-#         self.device_capacity = torch.cuda.get_device_properties(self.device).total_memory
-#         self.device_capacity_gib = self._to_gib(self.device_capacity)
-#         torch.cuda.reset_peak_memory_stats()
-#         torch.cuda.empty_cache()
-#         logger.info(
-#             f"GPU capacity: {self.device_name} ({self.device_index}) "
-#             f"with {self.device_capacity_gib:.2f} GiB memory"
-#         )
-
-#     def _to_gib(self, memory_in_bytes):
-#         _gib_in_bytes = 1024 * 1024 * 1024
-#         return memory_in_bytes / _gib_in_bytes
-
-#     def _to_pct(self, memory):
-#         return 100 * memory / self.device_capacity
-
-#     def get_peak_stats(self):
-#         cuda_info = torch.cuda.memory_stats(self.device)
-#         max_active = cuda_info["active_bytes.all.peak"]
-#         max_active_gib = self._to_gib(max_active)
-#         max_active_pct = self._to_pct(max_active)
-#         max_reserved = cuda_info["reserved_bytes.all.peak"]
-#         max_reserved_gib = self._to_gib(max_reserved)
-#         max_reserved_pct = self._to_pct(max_reserved)
-#         num_retries = cuda_info["num_alloc_retries"]
-#         num_ooms = cuda_info["num_ooms"]
-#         power_draw = torch.cuda.power_draw()
-
-#         if num_retries > 0:
-#             logger.warning(f"{num_retries} CUDA memory allocation retries.")
-#         if num_ooms > 0:
-#             logger.warning(f"{num_ooms} CUDA OOM errors thrown.")
-
-#         return GPUMemStats(
-#             max_active_gib,
-#             max_active_pct,
-#             max_reserved_gib,
-#             max_reserved_pct,
-#             num_retries,
-#             num_ooms,
-#             power_draw=power_draw,
-#         )
-
-#     def __enter__(self):
-#         logger.info(f"Starting GPUProfiler for {self.device_name}")
-#         return self
-
-#     def __exit__(self, exc_type, exc_val, exc_tb):
-#         stats = self.get_peak_stats()
-#         logger.info(f"GPU Memory Stats: {stats}")
-#         self.main_profiler.summary.append(("GPU Memory Stats", str(stats)))
-
-#     def step(self) -> None:
-#         # Check if the current step is the last one in the schedule
-#         if self.main_profiler.done_steps >= self.main_profiler.last_step:
-#             self.__exit__(None, None, None)
+    def end_timer(self, *args, **kwargs):
+        if self.light:
+            self.light.end_timer(*args, **kwargs)

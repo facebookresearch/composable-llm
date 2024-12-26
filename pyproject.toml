@@ -28,6 +28,9 @@ dependencies = [
     # logging
     "wandb",
 
+    # profiling,
+    "torch_tb_profiler",
+
     # transformer libraries
     # "sentencepiece",
     # "tiktoken",

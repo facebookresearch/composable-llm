@@ -16,7 +16,6 @@ import socket
 import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
-from timeit import default_timer as timer
 
 import torch
 import torch.nn.functional as F
@@ -83,7 +82,6 @@ def loss_func(preds, targets):
 
 
 def train(config: TrainingConfig):
-
     # -------------------------------------------------------------------------
     # Handle preemption
     # -------------------------------------------------------------------------
@@ -102,7 +100,6 @@ def train(config: TrainingConfig):
     signal.signal(signal.SIGTERM, term_handler)
 
     with ExitStack() as context_stack:
-
         # ---------------------------------------------------------------------
         # Computing Environment
         # ---------------------------------------------------------------------
@@ -172,6 +169,9 @@ def train(config: TrainingConfig):
 
         model.train()
 
+        # poor man's profiler
+        timer = monitor.profiler
+
         while state.optim.step < config.optim.steps:
             # accumulation step
             state.optim.acc_step += 1
@@ -181,7 +181,8 @@ def train(config: TrainingConfig):
             # Batch of data
             # -----------------------------------------------------------------
 
-            dataloader_time = timer()
+            timer.start_timer()
+
             batch = next(dataloader)
             X_batch = torch.tensor(
                 batch[:, :-1],
@@ -192,15 +193,14 @@ def train(config: TrainingConfig):
                 batch[:, 1:],
                 dtype=torch.long,
             ).to(device=cluster.device)
-            dataloader_time = round(timer() - dataloader_time, 4)
+
+            timer.end_timer("data_time")
 
             # -----------------------------------------------------------------
             # Forward and backward pass
             # -----------------------------------------------------------------
 
-            model_time = torch.cuda.Event(enable_timing=True)
-            model_endtime = torch.cuda.Event(enable_timing=True)
-            model_time.record()
+            timer.start_timer()
 
             # forward propagation
             preds = model(X_batch)
@@ -219,19 +219,23 @@ def train(config: TrainingConfig):
                 optimizer.zero_grad()
                 state.optim.step += 1
 
-            model_endtime.record()
-            torch.cuda.synchronize()
-            model_time = round(model_time.elapsed_time(model_endtime) * 1e-3, 4)
+            timer.end_timer("model_time")
 
             # -----------------------------------------------------------------
             # Call managers for garbage collection, checkpointing...
             # -----------------------------------------------------------------
 
+            timer.start_timer()
+
             monitor()
+
+            timer.end_timer("monitor_time")
 
             # -----------------------------------------------------------------
             # Log metrics
             # -----------------------------------------------------------------
+
+            timer.start_timer()
 
             if trigger_update(state, config.monitor.logging.period):
                 # For logging we undo that scaling
@@ -240,14 +244,14 @@ def train(config: TrainingConfig):
                     "loss": loss.item(),
                     "step": state.optim.step,
                     "acc_step": state.optim.acc_step,
-                    "data_time": dataloader_time,
-                    "model_time": model_time,
                 }
                 monitor.report_metrics(metrics)
 
                 # log to console
                 if is_master_process():
                     logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
+
+            timer.end_timer("log_time")
 
             # -----------------------------------------------------------------
             # Evaluation
