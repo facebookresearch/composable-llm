@@ -1,13 +1,5 @@
 # TODOS
 
-- [ ] Profiling: Make sure to understand if we are IO, GPU and CPU bound
-     - Switch from html to perfetto for the MemoryProfiler.
-     - Visualize Memory footprint with TensorBoard.
-     - Visualize what xformers profiler provide us.
-
-     - Visualize GPU utilization
-          - Log memory, GPU utilization...
-
 - [ ] Async creation of the next batch as forward and backward passes are being done.
      - We could do it manually with multiprocessing.
      - We could also use pytorch native dataloader. This is simpler, we should go for this solution.

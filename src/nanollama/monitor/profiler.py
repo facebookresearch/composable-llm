@@ -187,6 +187,7 @@ class ProfilerConfig:
 class Profiler:
     def __init__(self, config: ProfilerConfig):
         self.profilers = []
+        self.light = None
         if not config.active:
             return
 
@@ -202,8 +203,6 @@ class Profiler:
                 self.path / f"light_{rank}.json", config.wait, config.steps, perfetto=config.perfetto
             )
             self.profilers.append(self.light)
-        else:
-            self.light = None
 
     def __enter__(self):
         for prof in self.profilers:

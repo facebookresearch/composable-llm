@@ -184,17 +184,16 @@ def train(config: TrainingConfig):
             timer.start_timer()
 
             batch = next(dataloader)
-            X_batch = torch.tensor(
-                batch[:, :-1],
-                dtype=torch.long,
-            ).to(device=cluster.device)
+            X_batch = torch.tensor(batch[:, :-1], dtype=torch.long)
+            y_batch = torch.tensor(batch[:, 1:], dtype=torch.long)
 
-            y_batch = torch.tensor(
-                batch[:, 1:],
-                dtype=torch.long,
-            ).to(device=cluster.device)
+            timer.end_timer("data_cpu_time")
+            timer.start_timer()
 
-            timer.end_timer("data_time")
+            X_batch = X_batch.to(device=cluster.device)
+            y_batch = y_batch.to(device=cluster.device)
+
+            timer.end_timer("data_io_time")
 
             # -----------------------------------------------------------------
             # Forward and backward pass
