@@ -1,9 +1,10 @@
 # TODOS
 
 - [ ] Profiling: Make sure to understand if we are IO, GPU and CPU bound
-     - Visualize Memory footprint
-          - Try with Tensorboard
-          - Try the MemorySnapshot from xformers profiler
+     - Switch from html to perfetto for the MemoryProfiler.
+     - Visualize Memory footprint with TensorBoard.
+     - Visualize what xformers profiler provide us.
+
      - Visualize GPU utilization
           - Log memory, GPU utilization...
 

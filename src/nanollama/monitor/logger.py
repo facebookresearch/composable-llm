@@ -12,6 +12,7 @@ located in the root directory of this repository.
 import json
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import getLogger
@@ -76,13 +77,18 @@ class Logger:
         if self.wandb is not None:
             self.wandb.__enter__()
 
+        # async writing
+        self.async_executor = ThreadPoolExecutor(max_workers=1)
+
     def __call__(self, metrics: dict):
         """
         Report the metrics to monitor.
         """
         metrics.update({"created_at": datetime.now(timezone.utc).isoformat()})
-        print(json.dumps(metrics), file=self.metric, flush=True)
+        self.async_executor.submit(self._write, metrics)
 
+    def _write(self, metrics: dict):
+        print(json.dumps(metrics), file=self.metric, flush=True)
         if self.wandb:
             self.wandb.report_metrics(metrics, step=metrics["step"])
 
@@ -91,5 +97,6 @@ class Logger:
         Close logging files (and wandb api).
         """
         self.metric.close()
+        self.async_executor.shutdown(wait=True)
         if self.wandb is not None:
             self.wandb.__exit__(exc_type, exc_value, traceback)
