@@ -51,7 +51,6 @@ class TransitionKernel:
     def __init__(
         self, fan_in: int, fan_out: int, alphas: Union[int, float, list[float], np.ndarray], rng: Generator = None
     ):
-
         # handle various types
         if isinstance(alphas, float) or isinstance(alphas, int):
             alphas = np.full(fan_out, alphas)
@@ -377,7 +376,6 @@ class DataConfig:
     seq_len: int = -1
     batch_size: int = -1
     seed: int = 0
-    graph_seed: Optional[int] = None
     gssm: GSSMConfig = field(default_factory=GSSMConfig)
 
 

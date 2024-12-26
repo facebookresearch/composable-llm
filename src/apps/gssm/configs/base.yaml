@@ -36,7 +36,6 @@ data:
   seq_len: 2048
   batch_size: 128
   seed: 42
-  graph_seed: 0
   gssm:
     nodes:
     - name: Z1

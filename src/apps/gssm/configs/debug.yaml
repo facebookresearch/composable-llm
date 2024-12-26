@@ -20,9 +20,8 @@ monitor:
 
   profiler:
     active: true
-    path: /private/home/vivc/code/composable-llm/tmp_profiler
-    wait: 10
-    steps: 10
+    wait: 1
+    steps: 0
 
 cluster:
   compile_model: false
@@ -45,7 +44,6 @@ data:
   seq_len: 2048
   batch_size: 128
   seed: 42
-  graph_seed: 0
   gssm:
     nodes:
     - name: Z1
