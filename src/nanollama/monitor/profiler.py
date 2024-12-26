@@ -69,15 +69,12 @@ class LightProfiler:
     Minimal profiler.
     """
 
-    def __init__(self, path: PosixPath, wait: int, steps: int, perfetto: bool = False) -> None:
+    def __init__(self, path: PosixPath, wait: int, steps: int):
         self.path = path
         self.start_step = wait
         self.end_step = wait + steps
         self.step = 0
         self.active = False
-
-        # wether to use perfetto format
-        self.perfetto = perfetto
 
         # various placeholder
         self.device = None
@@ -116,26 +113,23 @@ class LightProfiler:
             max_mem = cuda_info["active_bytes.all.peak"]
             mem_reserved = cuda_info["reserved_bytes.all.peak"]
 
-            event = self.times | {
-                "step": self.step,
-                "mem_gib": self.to_gib(max_mem),
-                "mem_ratio": self.to_ratio(max_mem),
-                "mem_reserved_gib": self.to_gib(mem_reserved),
-                "mem_reserved_ratio": self.to_ratio(mem_reserved),
-                "num_alloc_retries": cuda_info["num_alloc_retries"],
-                "num_ooms": cuda_info["num_ooms"],
+            event = {
+                "name": "light",
+                "ph": "C",
+                "ts": round(time.time() * 1e6),  # Convert to microseconds
+                "pid": 0,
+                "tid": 0,
+                "args": self.times
+                | {
+                    "step": self.step,
+                    "mem_gib": self.to_gib(max_mem),
+                    "mem_ratio": self.to_ratio(max_mem),
+                    "mem_reserved_gib": self.to_gib(mem_reserved),
+                    "mem_reserved_ratio": self.to_ratio(mem_reserved),
+                    "num_alloc_retries": cuda_info["num_alloc_retries"],
+                    "num_ooms": cuda_info["num_ooms"],
+                },
             }
-            if self.perfetto:
-                event = {
-                    "name": "light",
-                    "ph": "C",
-                    "ts": round(time.time() * 1e6),  # Convert to microseconds
-                    "pid": 0,
-                    "tid": 0,
-                    "args": event,
-                }
-            else:
-                event["timestamp"] = time.time()
 
             json.dump(event, self.file, indent=2)
             if self.step < self.end_step - 1:
@@ -181,7 +175,6 @@ class ProfilerConfig:
     steps: int = 0
     pytorch: bool = False
     light: bool = True
-    perfetto: bool = False
 
 
 class Profiler:
@@ -199,9 +192,7 @@ class Profiler:
             self.pytorch = PytorchProfiler(self.path / f"pytorch_{rank}.pt.trace.json", config.wait, config.steps)
             self.profilers.append(self.pytorch)
         if config.light:
-            self.light = LightProfiler(
-                self.path / f"light_{rank}.json", config.wait, config.steps, perfetto=config.perfetto
-            )
+            self.light = LightProfiler(self.path / f"light_{rank}.json", config.wait, config.steps)
             self.profilers.append(self.light)
 
     def __enter__(self):
