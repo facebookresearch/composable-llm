@@ -21,7 +21,7 @@ monitor:
   profiler:
     active: true
     wait: 1
-    steps: 0
+    steps: 50
 
 cluster:
   compile_model: false

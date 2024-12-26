@@ -21,7 +21,7 @@ import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
 
-from ...nanollama.cluster import ClusterConfig, ClusterManager, is_master_process
+from ...nanollama.cluster import ClusterConfig, ClusterManager, get_rank, is_master_process
 from ...nanollama.data.gssm import DataConfig, DataLoaderManager, init_dataloader_state
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import MonitorConfig, Orchestrator
@@ -105,6 +105,7 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         cluster = context_stack.enter_context(ClusterManager(config.cluster))
+        rank = get_rank()
 
         # ---------------------------------------------------------------------
         # Monitor: checkpointing, profiling, probing, logging
@@ -218,10 +219,11 @@ def train(config: TrainingConfig):
                 optimizer.zero_grad()
                 state.optim.step += 1
 
+            torch.cuda.synchronize(rank)
             timer.end_timer("model_time")
 
             # -----------------------------------------------------------------
-            # Call managers for garbage collection, checkpointing...
+            # Call monitor for garbage collection, checkpointing...
             # -----------------------------------------------------------------
 
             timer.start_timer()

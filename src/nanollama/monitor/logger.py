@@ -80,7 +80,7 @@ class Logger:
         """
         Report the metrics to monitor.
         """
-        metrics.update({"created_at": datetime.now(timezone.utc).isoformat()})
+        metrics.update({"ts": datetime.now(timezone.utc).isoformat()})
         print(json.dumps(metrics), file=self.metric, flush=True)
         if self.wandb:
             self.wandb.report_metrics(metrics, step=metrics["step"])
