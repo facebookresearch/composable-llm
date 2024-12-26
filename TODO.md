@@ -48,6 +48,12 @@ Improvement for `visualization`
 1. script to cast local logging to wandb.
 1. notebook to visualize logging with plotly.
 
+Improvement for `profiler`
+1. Make the `light` profiler work when pausing and restarting a run (create a ProfilerState).
+     - Initializing the step from train_state.step.
+     - Log as jsonl rather than perfetto style.
+     - If nb_steps is not provided, infer it from the number of optimization and accumulation steps.
+
 
 ## Commands
 python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/base.yaml
