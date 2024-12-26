@@ -7,7 +7,7 @@ from pathlib import Path, PosixPath
 import torch
 import torch.profiler as profiler
 
-from ..cluster.utils import get_rank
+from ..cluster import get_rank
 
 logger = logging.getLogger(__name__)
 
@@ -88,26 +88,19 @@ class LightProfiler:
         self.file = open(self.path, "a")
         self.file.write("[\n")  # Start the JSON array
         self.start_timer()
-        self.active = True
 
     def start_timer(self):
         """Start a timer"""
-        if self.active:
+        if self.device:  # act as an active flag
             self.time = time.time()
 
     def end_timer(self, name: str):
         """End timer and report time"""
-        if self.active and self.time:
+        if self.device:  # act as an active flag
             self.times[name] = time.time() - self.time
 
     def __call__(self):
-        if self.step == self.start_step:
-            self.__enter__()
-
-        if self.step == self.end_step:
-            self.__exit__(None, None, None)
-
-        if self.active:
+        if self.step >= self.start_step and self.step < self.end_step:
             cuda_info = torch.cuda.memory_stats(self.device)
 
             max_mem = cuda_info["active_bytes.all.peak"]
@@ -137,10 +130,13 @@ class LightProfiler:
 
             torch.cuda.reset_peak_memory_stats()
 
+        if self.step == self.end_step:
+            self.__exit__(None, None, None)
+
         self.step += 1
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if not self.active:
+        if self.device is None:
             return
         self.file.write("\n]\n")
         self.file.close()
@@ -150,9 +146,7 @@ class LightProfiler:
         # free placeholders
         self.device = None
         self.device_capacity = None
-        self.events = []
         self.times = {}
-        self.active = False
 
     @staticmethod
     def to_gib(memory):
@@ -172,7 +166,7 @@ class ProfilerConfig:
     active: bool = True
     path: str = ""
     wait: int = 1
-    steps: int = 0
+    steps: int = 10
     pytorch: bool = False
     light: bool = True
 
