@@ -40,7 +40,7 @@ class HeavyProfiler:
                 active=steps,
                 repeat=1,
             ),
-            on_trace_ready=self._on_trace,
+            on_trace_ready=self.report_metrics,
             profile_memory=True,
             record_shapes=True,
             with_stack=True,
@@ -51,7 +51,7 @@ class HeavyProfiler:
         self.profiler.__enter__()
         logger.info(f"Pytorch profiler active. Traces will be saved at {self.path}")
 
-    def _on_trace(self, prof: profiler.profile):
+    def report_metrics(self, prof: profiler.profile):
         prof.export_chrome_trace(str(self.path))
         logger.info(f"Pytorch profiler traces saved to {self.path}")
         self.profiler.__exit__(None, None, None)
