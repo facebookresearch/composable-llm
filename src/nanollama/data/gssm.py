@@ -520,7 +520,6 @@ class DataLoaderManager:
             # if the buffer is full, wait until it is filled
             except Empty:
                 logger.debug("Buffer is empty. Waiting for data.")
-        raise StopIteration("Data loader process has stopped.")
 
     def __next__(self):
         if self.asynchronous:
