@@ -66,6 +66,7 @@ class MonitorConfig:
         # directory
         if not self.dir:
             self.dir = str(Path.home() / "logs" / self.name)
+            print(f"No logging directory set. Setting it to {self.dir}")
 
         # logging directory
         if not self.logging.path:
