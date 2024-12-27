@@ -178,7 +178,7 @@ def train(config: TrainingConfig):
             state.optim.acc_step = state.optim.acc_step % config.optim.grad_acc_steps
 
             # -----------------------------------------------------------------
-            # Batch of data
+            # Batch of data (with random state for reproducibility)
             # -----------------------------------------------------------------
 
             timer.start_timer()

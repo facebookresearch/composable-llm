@@ -1,14 +1,17 @@
 # TODOS
 
-- [ ] Async creation of the next batch as forward and backward passes are being done.
-     - Try to wrap it around the pytorch native dataloader.
-
+#### Finish a first codebase
 - [ ] GSSM:
 Add a special argument that can take 4 arguments. `None`: keep the same logic as now. `transition`: transition matrix change for each generation. `slow` the argmax of the transition is the diagonal (argmax p(y | x) = x). `dead` the argmax of the transition is a column (argmax p(y | x) = c).
 
+#### Scaling law with respect to model size
+
+
+#### Scaling law with respect to the number of data
 - [ ] Dataloader: split between train and test. (Probably write to file a train and test set, and read these).
+     - Wrap it around the pytorch native dataloader.
 
-
+#### Additional features
 - [ ] Probing.
 
 - [ ] Slurm array option to cross-validate learning rates.
@@ -37,6 +40,7 @@ Improvement for `model.py`
 
 Improvement for `train.py`
 1. Add gradient clipping.
+1. Add mix precision `torch.amp`.
 
 Improvement for `logging`
 1. Log the hostname to be able to check defected nodes.
