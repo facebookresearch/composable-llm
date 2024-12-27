@@ -76,9 +76,9 @@ class TrainingConfig:
 # -----------------------------------------------------------------------------
 
 
-def loss_func(preds, targets):
+def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     vocab_size = preds.size(-1)
-    return F.cross_entropy(preds.view(-1, vocab_size), targets.view(-1))
+    return F.cross_entropy(preds.reshape(-1, vocab_size), targets.reshape(-1))
 
 
 def train(config: TrainingConfig):
@@ -182,17 +182,13 @@ def train(config: TrainingConfig):
             # -----------------------------------------------------------------
 
             timer.start_timer()
-
-            batch = next(dataloader)
-            X_batch = torch.tensor(batch[:, :-1], dtype=torch.long)
-            y_batch = torch.tensor(batch[:, 1:], dtype=torch.long)
-
+            batch = next(dataloader).pin_memory()
             timer.end_timer("data_cpu_time")
+
             timer.start_timer()
-
-            X_batch = X_batch.to(device=cluster.device)
-            y_batch = y_batch.to(device=cluster.device)
-
+            batch = batch.to(device=cluster.device, non_blocking=True)
+            X_batch = batch[:, :-1]
+            y_batch = batch[:, 1:]
             timer.end_timer("data_io_time")
 
             # -----------------------------------------------------------------
@@ -225,9 +221,7 @@ def train(config: TrainingConfig):
             # -----------------------------------------------------------------
 
             timer.start_timer()
-
             monitor()
-
             timer.end_timer("monitor_time")
 
             # -----------------------------------------------------------------

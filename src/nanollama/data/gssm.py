@@ -16,6 +16,7 @@ from queue import Empty, Full
 from typing import Any, Optional, Union
 
 import numpy as np
+import torch
 from numpy.random import Generator, SeedSequence, default_rng
 from scipy.stats import dirichlet
 
@@ -486,6 +487,10 @@ class DataLoaderManager:
 
         # keep track of randomness
         rng_state = self.rng.bit_generator.state
+
+        # convert to torch tensor
+        batch = torch.from_numpy(batch).long()
+
         return batch, rng_state
 
     def async_create_batch(self):
