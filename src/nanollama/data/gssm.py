@@ -11,6 +11,8 @@ located in the root directory of this repository.
 
 import logging
 from dataclasses import dataclass, field
+from multiprocessing import Event, Process, Queue
+from queue import Empty, Full
 from typing import Any, Optional, Union
 
 import numpy as np
@@ -377,6 +379,8 @@ class DataConfig:
     batch_size: int = -1
     seed: int = 0
     gssm: GSSMConfig = field(default_factory=GSSMConfig)
+    asynchronous: bool = True  # asynchronous data loading
+    buffer_size: int = 4  # number of batches to bufferize asynchronously for data loading
 
 
 @dataclass
@@ -416,34 +420,6 @@ def init_dataloader_state(config: DataConfig) -> DataLoaderState:
 # -------------------------------------------------------------------------------
 
 
-def get_batch(nodes: dict[str, Node], batch_size: int, seq_len: int) -> np.ndarray:
-    """
-    Generate batches of sentences.
-
-    Parameters
-    ----------
-    nodes:
-        Nodes of the graph-structured sequential model (GSSM).
-    batch_size:
-        The size of the batch.
-    seq_len:
-        The length of the sequence to generate.
-
-    Yields
-    ------
-    np.ndarray
-        The generated batch of sentences.
-    """
-    batch = np.empty((batch_size, seq_len), dtype=int)
-    nodes["X"].initialize(batch_size)
-
-    for t in range(seq_len):
-        assert nodes["X"].time == t, f"Discrepancy in time: {nodes["X"].time} and {t}."
-        nodes["X"].evolve()
-        batch[:, t] = nodes["X"].state
-    return batch
-
-
 class DataLoaderManager:
     """
     Context manager for the data loader.
@@ -467,7 +443,9 @@ class DataLoaderManager:
     """
 
     def __init__(self, config: DataConfig, state: DataLoaderState):
-        self.config = config
+        self.batch_size = config.batch_size
+        self.seq_len = config.seq_len
+        self.asynchronous = config.asynchronous
         self.state = state
 
         # track randomness
@@ -475,24 +453,84 @@ class DataLoaderManager:
 
         # ensure consistency of transition kernels over restart
         self.rng.bit_generator.state = self.state.graph_rng_state
-        self.nodes = build_gssm(self.config.gssm, rng=self.rng)
+        self.nodes = build_gssm(config.gssm, rng=self.rng)
         assert "X" in self.nodes, "The graph must contain a node named 'X', acting as the observed node."
 
         # ensure randomness consistency
         self.rng.bit_generator.state = self.state.rng_state
         logger.debug(f"RNG: {self.state}")
 
+        if self.asynchronous:
+            self.buffer = Queue(maxsize=config.buffer_size)
+            self.stop_event = Event()
+            self.process = Process(target=self.async_create_batch)
+
     def __enter__(self):
         logger.info("Entering dataloader.")
+        if self.asynchronous:
+            self.process.start()
+        return self
 
-        def iterator_func():
-            while True:
-                batch = get_batch(nodes=self.nodes, batch_size=self.config.batch_size, seq_len=self.config.seq_len)
-                self.state.rng_state = self.rng.bit_generator.state
-                yield batch
+    def get_batch(self):
+        """
+        Generate a batch of sentences.
+        """
+        batch = np.empty((self.batch_size, self.seq_len), dtype=int)
+        self.nodes["X"].initialize(self.batch_size)
 
-        return iterator_func()
+        for t in range(self.seq_len):
+            assert self.nodes["X"].time == t, f"Discrepancy in time: {self.nodes["X"].time} and {t}."
+            self.nodes["X"].evolve()
+            batch[:, t] = self.nodes["X"].state
+
+        # keep track of randomness
+        rng_state = self.rng.bit_generator.state
+        return batch, rng_state
+
+    def async_create_batch(self):
+        """
+        Asynchronous batch creation.
+        """
+        # loop on batch creation
+        while not self.stop_event.is_set():
+            output = self.get_batch()
+            # put it in the buffer
+            while not self.stop_event.is_set():
+                try:
+                    self.buffer.put(output, timeout=0.1)
+                    break
+                # if the buffer is full, wait until there is space
+                except Full:
+                    logger.debug("Buffer is full. Waiting for data comsumption.")
+            logger.debug("New batch put in the buffer.")
+
+    def async_get_batch(self):
+        """
+        Asynchronous batch reading.
+        """
+        # read batch from the buffer
+        while not self.stop_event.is_set():
+            try:
+                return self.buffer.get(timeout=0.1)
+            # if the buffer is full, wait until it is filled
+            except Empty:
+                logger.debug("Buffer is empty. Waiting for data.")
+        raise StopIteration("Data loader process has stopped.")
+
+    def __next__(self):
+        if self.asynchronous:
+            batch, rng_state = self.async_get_batch()
+        else:
+            batch, rng_state = self.get_batch()
+
+        # update the current random state
+        self.state.rng_state = rng_state
+        return batch
 
     def __exit__(self, exc_type, exc_value, traceback):
         logger.info("Exiting dataloader.")
+        if self.asynchronous:
+            self.stop_event.set()
+            self.process.kill()
+            self.buffer.close()
         logger.debug(f"RNG: {self.state}")
