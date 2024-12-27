@@ -41,8 +41,8 @@ model:
   nb_layers: 2
 
 data:
-  seq_len: 2048
-  batch_size: 128
+  seq_len: 32
+  batch_size: 16
   seed: 42
   gssm:
     nodes:
