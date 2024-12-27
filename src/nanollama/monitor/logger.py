@@ -83,7 +83,7 @@ class Logger:
         metrics.update({"ts": datetime.now(timezone.utc).isoformat()})
         print(json.dumps(metrics), file=self.metric, flush=True)
         if self.wandb:
-            self.wandb.report_metrics(metrics, step=metrics["step"])
+            self.wandb(metrics, step=metrics["step"])
 
     def __exit__(self, exc_type, exc_value, traceback):
         """

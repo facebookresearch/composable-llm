@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from dataclasses import dataclass
@@ -8,6 +7,7 @@ import torch
 import torch.profiler as profiler
 
 from ..cluster import get_rank
+from ..train import TrainState
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------------------------------------
 
 
-class PytorchProfiler:
+class HeavyProfiler:
     """
-    Wrapper around Pytorch Profiler, highly detailed, yet heavy weight.
+    Wrapper around Pytorch Profiler, highly detailed, yet heavy.
     """
 
     ACTIVITIES = [
@@ -78,15 +78,15 @@ class LightProfiler:
 
         # various placeholder
         self.device = None
-        self.device_capacity = None
+        self.capacity = None
         self.times = {}
+        self.state = None
 
     def __enter__(self):
         logger.info(f"Light profiler active. Traces will be saved at {self.path}")
         self.device = torch.device(get_rank())
-        self.device_capacity = torch.cuda.get_device_properties(self.device).total_memory
-        self.file = open(self.path, "a")
-        self.file.write("[\n")  # Start the JSON array
+        self.capacity = torch.cuda.get_device_properties(self.device).total_memory
+        self.file = open(self.path, "w")
         self.start_timer()
 
     def start_timer(self):
@@ -94,39 +94,45 @@ class LightProfiler:
         if self.device:  # act as an active flag
             self.time = time.time()
 
-    def end_timer(self, name: str):
+    def end_timer(self, name: str, sync=False):
         """End timer and report time"""
         if self.device:  # act as an active flag
+            if sync:
+                torch.cuda.synchronize(get_rank())
             self.times[name] = time.time() - self.time
+
+    def report_objects(self, train_state: TrainState):
+        self.state = train_state
 
     def __call__(self):
         if self.step >= self.start_step and self.step < self.end_step:
+            # write csv header
+            if self.step == self.start_step:
+                header = list(self.times.keys()) + [
+                    "ts",
+                    "step",
+                    "acc_step",
+                    "mem",
+                    "mem_reserved",
+                    "num_alloc_retries",
+                    "num_ooms",
+                    "mem_capacity",
+                ]
+                self.file.write(",".join(header) + "\n")
+
             cuda_info = torch.cuda.memory_stats(self.device)
 
-            max_mem = cuda_info["active_bytes.all.peak"]
-            mem_reserved = cuda_info["reserved_bytes.all.peak"]
-
-            event = {
-                "name": "light",
-                "ph": "C",
-                "ts": round(time.time() * 1e6),  # Convert to microseconds
-                "pid": 0,
-                "tid": 0,
-                "args": self.times
-                | {
-                    "step": self.step,
-                    "mem_gib": self.to_gib(max_mem),
-                    "mem_ratio": self.to_ratio(max_mem),
-                    "mem_reserved_gib": self.to_gib(mem_reserved),
-                    "mem_reserved_ratio": self.to_ratio(mem_reserved),
-                    "num_alloc_retries": cuda_info["num_alloc_retries"],
-                    "num_ooms": cuda_info["num_ooms"],
-                },
-            }
-
-            json.dump(event, self.file, indent=2)
-            if self.step < self.end_step - 1:
-                self.file.write(",\n")
+            data = list(self.times.values()) + [
+                round(time.time(), 6),
+                self.state.optim.step,
+                self.state.optim.acc_step,
+                cuda_info["active_bytes.all.peak"],
+                cuda_info["reserved_bytes.all.peak"],
+                cuda_info["num_alloc_retries"],
+                cuda_info["num_ooms"],
+                self.capacity,
+            ]
+            self.file.write(",".join([str(x) for x in data]) + "\n")
 
             torch.cuda.reset_peak_memory_stats()
 
@@ -138,22 +144,23 @@ class LightProfiler:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.device is None:
             return
-        self.file.write("\n]\n")
-        self.file.close()
 
+        self.file.close()
         logger.info(f"Light profiler traces saved to {self.path}")
 
         # free placeholders
         self.device = None
-        self.device_capacity = None
+        self.capacity = None
         self.times = {}
+        self.state = None
 
     @staticmethod
     def to_gib(memory):
         return memory / (1024**3)
 
-    def to_ratio(self, memory):
-        return memory / self.device_capacity
+    @staticmethod
+    def to_ratio(memory, device_capacity):
+        return memory / device_capacity
 
 
 # -------------------------------------------------------------------------------
@@ -167,11 +174,18 @@ class ProfilerConfig:
     path: str = ""
     wait: int = 1
     steps: int = 10
-    pytorch: bool = False
-    light: bool = True
+    heavy: bool = False
 
 
 class Profiler:
+    """
+    Profiler Context
+
+    Note
+    ----
+    Implementation is compatible with the simultaneous usage of multiple profilers
+    """
+
     def __init__(self, config: ProfilerConfig):
         self.profilers = []
         self.light = None
@@ -180,13 +194,15 @@ class Profiler:
 
         self.path = Path(config.path)
         rank = get_rank()
+        ts = time.strftime("%Y%m%d_%H%M%S")
 
         self.path.mkdir(parents=True, exist_ok=True)
-        if config.pytorch:
-            self.pytorch = PytorchProfiler(self.path / f"pytorch_{rank}.pt.trace.json", config.wait, config.steps)
-            self.profilers.append(self.pytorch)
-        if config.light:
-            self.light = LightProfiler(self.path / f"light_{rank}.json", config.wait, config.steps)
+        if config.heavy:
+            self.profilers.append(
+                HeavyProfiler(self.path / f"heavy_{rank}_{ts}.pt.trace.json", config.wait, config.steps)
+            )
+        else:
+            self.light = LightProfiler(self.path / f"light_{rank}_{ts}.csv", config.wait, config.steps)
             self.profilers.append(self.light)
 
     def __enter__(self):
@@ -209,3 +225,7 @@ class Profiler:
     def end_timer(self, *args, **kwargs):
         if self.light:
             self.light.end_timer(*args, **kwargs)
+
+    def report_objects(self, train_state: TrainState):
+        if self.light:
+            self.light.report_objects(train_state)

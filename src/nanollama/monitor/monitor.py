@@ -16,6 +16,7 @@ import gc
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
+from types import TracebackType
 from typing import Any, Optional
 
 import torch
@@ -136,10 +137,13 @@ class Orchestrator:
         # load checkpoint if it exists
         self.checkpointer.report_objects(model, optimizer, scheduler, state)
         if self.logger.wandb:
-            self.logger.wandb.report_run_config(config)
+            self.logger.wandb.report_objects(config)
 
         self.nb_params = sum([p.numel() for p in model.parameters()])
         logger.info(f"Model built with {self.nb_params:,} parameters")
+
+        # report objects to submanagers
+        self.profiler.report_objects(state)
 
     def __call__(self):
         # manual garbage collection
@@ -157,7 +161,12 @@ class Orchestrator:
         """
         self.logger(metrics)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
         gc.collect()
 
         # close managers
