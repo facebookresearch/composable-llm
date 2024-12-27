@@ -1,9 +1,7 @@
 # TODOS
 
 - [ ] Async creation of the next batch as forward and backward passes are being done.
-     - We could do it manually with multiprocessing.
-     - We could also use pytorch native dataloader. This is simpler, we should go for this solution.
-     - To optimize the data loading process we need to look at computing performance metrics.
+     - Try to wrap it around the pytorch native dataloader.
 
 - [ ] GSSM:
 Add a special argument that can take 4 arguments. `None`: keep the same logic as now. `transition`: transition matrix change for each generation. `slow` the argmax of the transition is the diagonal (argmax p(y | x) = x). `dead` the argmax of the transition is a column (argmax p(y | x) = c).
@@ -51,7 +49,7 @@ Improvement for `visualization`
 Improvement for `profiler`
 1. Make the `light` profiler work when pausing and restarting a run (create a ProfilerState).
      - Initializing the step from train_state.step.
-     - Log as jsonl rather than perfetto style.
+     - Log as csv rather than perfetto style.
      - If nb_steps is not provided, infer it from the number of optimization and accumulation steps.
 
 
@@ -71,10 +69,16 @@ python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm
 OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
 OMP_NUM_THREADS=1 torchrun --nproc-per-node 8 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
 
+python -m src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml launcher=bash
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml torchrun=True
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml torchrun=True launcher=bash
+OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
+OMP_NUM_THREADS=1 torchrun --nproc-per-node 8 -m src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
+
 ## Longer term project
 
 Formal math:
 xlean
 Metagen -> Lean formal ...
-
-

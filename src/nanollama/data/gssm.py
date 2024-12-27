@@ -460,6 +460,7 @@ class DataLoaderManager:
         self.rng.bit_generator.state = self.state.rng_state
         logger.debug(f"RNG: {self.state}")
 
+        # asynchronous data loader: a worker writes batches in a buffer, that a reader consumes
         if self.asynchronous:
             self.buffer = Queue(maxsize=config.buffer_size)
             self.stop_event = Event()
