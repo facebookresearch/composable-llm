@@ -28,8 +28,9 @@ This should print "True".
 ```bash
 git clone <repo url>
 cd <repo path>
-pip install -e .
+pip install -e . [dev,visu]
 ```
+Here the `dev` and `visu` options are optional and install the development and visualization dependencies.
 
 ## First run
 You can run a debug script with the following command:

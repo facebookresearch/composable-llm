@@ -17,7 +17,6 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    # essential
     "numpy",
     "scipy",
     "torch",
@@ -25,26 +24,31 @@ dependencies = [
     # argument parsing
     "omegaconf",
 
-    # logging
-    "wandb",
-
-    # profiling,
-    "torch_tb_profiler",
-
     # transformer libraries
     # "sentencepiece",
     # "tiktoken",
     # "transformers",
+]
 
-    # visualization
+[project.optional-dependencies]
+# development
+dev = [
+    # logging
+    "wandb",
+
+    # formatting
+    "ruff",
+
+    # profiling,
+    "torch_tb_profiler",
+    "viztracer",
+]
+# visualization
+visu = [
     "ipykernel",
     "ipywidgets",
     "matplotlib",
     "plotly",
-    "viztracer",
-
-    # formatting
-    "ruff",
 ]
 
 [project.urls]
