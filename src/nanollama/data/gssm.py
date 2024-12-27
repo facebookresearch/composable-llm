@@ -11,7 +11,7 @@ located in the root directory of this repository.
 
 import logging
 from dataclasses import dataclass, field
-from multiprocessing import Event, Process, Queue
+from multiprocessing import Process, Queue
 from queue import Empty, Full
 from typing import Any, Optional, Union
 
@@ -464,7 +464,6 @@ class DataLoaderManager:
         # asynchronous data loader: a worker writes batches in a buffer, that a reader consumes
         if self.asynchronous:
             self.buffer = Queue(maxsize=config.buffer_size)
-            self.stop_event = Event()
             self.process = Process(target=self.async_create_batch)
 
     def __enter__(self):
@@ -498,10 +497,10 @@ class DataLoaderManager:
         Asynchronous batch creation.
         """
         # loop on batch creation
-        while not self.stop_event.is_set():
+        while True:
             output = self.get_batch()
             # put it in the buffer
-            while not self.stop_event.is_set():
+            while True:
                 try:
                     self.buffer.put(output, timeout=0.1)
                     break
@@ -515,7 +514,7 @@ class DataLoaderManager:
         Asynchronous batch reading.
         """
         # read batch from the buffer
-        while not self.stop_event.is_set():
+        while True:
             try:
                 return self.buffer.get(timeout=0.1)
             # if the buffer is full, wait until it is filled
@@ -536,7 +535,6 @@ class DataLoaderManager:
     def __exit__(self, exc_type, exc_value, traceback):
         logger.info("Exiting dataloader.")
         if self.asynchronous:
-            self.stop_event.set()
             self.process.kill()
             self.buffer.close()
         logger.debug(f"RNG: {self.state}")
