@@ -74,7 +74,10 @@ class LightProfiler:
     def __init__(self, path: PosixPath, wait: int, steps: int):
         self.path = path
         self.start_step = wait
-        self.end_step = wait + steps
+        if steps < 0:
+            self.end_step = float("inf")
+        else:
+            self.end_step = wait + steps
         self.step = 0
         self.active = False
 
@@ -107,7 +110,7 @@ class LightProfiler:
         self.state = train_state
 
     def __call__(self):
-        if self.step >= self.start_step and self.step < self.end_step:
+        if self.step >= self.start_step and self.step <= self.end_step:
             # write csv header
             if self.step == self.start_step:
                 header = list(self.times.keys()) + [
@@ -223,7 +226,7 @@ class ProfilerConfig:
     active: bool = True
     path: str = ""
     wait: int = 1
-    steps: int = 10
+    steps: int = -1
     heavy: bool = False
 
 
