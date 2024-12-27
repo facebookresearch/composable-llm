@@ -182,7 +182,8 @@ def train(config: TrainingConfig):
             # -----------------------------------------------------------------
 
             timer.start_timer()
-            batch = next(dataloader).pin_memory()
+            batch, rng_state = next(dataloader)
+            batch = batch.pin_memory()
             timer.end_timer("data_cpu_time")
 
             timer.start_timer()
@@ -212,6 +213,7 @@ def train(config: TrainingConfig):
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
+                state.data.rng_state = rng_state
                 state.optim.step += 1
 
             timer.end_timer("model_time", sync=True)

@@ -523,13 +523,9 @@ class DataLoaderManager:
 
     def __next__(self):
         if self.asynchronous:
-            batch, rng_state = self.async_get_batch()
+            return self.async_get_batch()
         else:
-            batch, rng_state = self.get_batch()
-
-        # update the current random state
-        self.state.rng_state = rng_state
-        return batch
+            return self.get_batch()
 
     def __exit__(self, exc_type, exc_value, traceback):
         logger.info("Exiting dataloader.")
