@@ -2,10 +2,11 @@
 
 #### Finish a first codebase
 - [ ] GSSM:
-Add a special argument that can take 4 arguments. `None`: keep the same logic as now. `transition`: transition matrix change for each generation. `slow` the argmax of the transition is the diagonal (argmax p(y | x) = x). `dead` the argmax of the transition is a column (argmax p(y | x) = c).
+Add a special argument that can take 4 arguments. `None`: keep the same logic as now. `context`: transition matrix change for each generation. `slow` the argmax of the transition is the diagonal (argmax p(y | x) = x). `dead` the argmax of the transition is a column (argmax p(y | x) = c).
+- I have to implement the `slow` mode, which requires a bit of care due to the index raveling (the other modes have been implemented)
 
 #### Scaling law with respect to model size
-
+- [ ] Slurm array option to cross-validate learning rates.
 
 #### Scaling law with respect to the number of data
 - [ ] Dataloader: split between train and test. (Probably write to file a train and test set, and read these).
@@ -14,16 +15,12 @@ Add a special argument that can take 4 arguments. `None`: keep the same logic as
 #### Additional features
 - [ ] Probing.
 
-- [ ] Slurm array option to cross-validate learning rates.
-
 - [ ] Evaluation : can probing recover the hidden state.
 - [ ] Generation: Implement caching mechanisms from meta-lingua.
 
-- [ ] Model parallelism
-
 - [ ] Clean the arguments in manual_post_init. (vocab_size = X.state_dim)
-- Script to upload all metrics to wandb. 
 
+- Script to upload all metrics to wandb. 
 Profiler traces to wandb
 
 
@@ -83,6 +80,10 @@ OMP_NUM_THREADS=1 torchrun --nproc-per-node 8 -m src.apps.gssm.train config=src/
 
 ## Longer term project
 
+- Model parallelism
+
 Formal math:
 xlean
 Metagen -> Lean formal ...
+
+- Subsampling / Mamba Hybrid

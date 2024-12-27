@@ -40,10 +40,12 @@ class TransitionKernel:
         Number of input states.
     fan_out:
         Number of output states.
-    rng:
-        Random number generator.
     alphas:
         Dirichlet prior parameter. Can be a float, int, list of floats, or a numpy array of shape (fan_out,).
+    mode:
+        Mode of the transition kernel. Can be 'default', 'slow', 'dead', or 'context'.
+    rng:
+        Random number generator.
 
     Attributes
     ----------
@@ -52,9 +54,14 @@ class TransitionKernel:
     """
 
     def __init__(
-        self, fan_in: int, fan_out: int, alphas: Union[int, float, list[float], np.ndarray], rng: Generator = None
+        self,
+        fan_in: int,
+        fan_out: int,
+        alphas: Union[int, float, list[float], np.ndarray],
+        mode: str = "default",
+        rng: Generator = None,
     ):
-        # handle various types
+        # handle various types for concentration parameters
         if isinstance(alphas, float) or isinstance(alphas, int):
             alphas = np.full(fan_out, alphas)
         if isinstance(alphas, list):
@@ -68,8 +75,30 @@ class TransitionKernel:
             rng = default_rng()
         self.rng = rng
 
-        self.fan_out = fan_out
+        self.mode = mode.lower()
+
+        # in the `context` mode, the transition matrix change each time
+        if self.mode == "context":
+            self.p_transition = None
+            self.alphas = alphas
+            self.fan_in = fan_in
+            return
+
         self.p_transition = dirichlet.rvs(alphas, size=fan_in, random_state=rng)
+
+        # in the `slow` mode, argmax p(state[t+1] | state[t], parents) = x
+        if self.mode == "slow":
+            raise NotImplementedError("Slow mode is not implemented yet.")
+        # in the `dead` mode, argmax p(state[t+1] | ...) = 0
+        elif self.mode == "dead":
+            index = np.arange(fan_in)
+            argmax_val = self.p_transition.argmax(axis=1)
+            max_val = self.p_transition[index, argmax_val]
+            self.p_transition[index, argmax_val] = self.p_transition[:, 0]
+            self.p_transition[:, 0] = max_val
+        else:
+            assert self.mode == "default", f"Unknown mode: {mode}."
+
         self._cumulative = np.cumsum(self.p_transition, axis=1)
 
     def __call__(self, state: Union[int, list[int], np.ndarray]) -> Union[int, np.ndarray]:
@@ -95,7 +124,13 @@ class TransitionKernel:
 
         # Vectorized sampling
         random_values = self.rng.random(state.shape)
-        p_cumulative = self._cumulative[state]
+
+        # in-context learning mode
+        if self.p_transition is None:
+            p_transition = dirichlet.rvs(self.alphas, size=self.fan_in, random_state=self.rng)
+            p_cumulative = np.cumsum(p_transition, axis=1)[state]
+        else:
+            p_cumulative = self._cumulative[state]
         return (random_values[:, None] < p_cumulative).argmax(axis=1)
 
 
@@ -136,6 +171,7 @@ class Node:
         state_dim: int,
         alphas: Union[int, float, list[float], np.ndarray],
         parents: Optional[list["Node"]] = None,
+        mode: str = "default",
         rng: Generator = None,
     ):
         self.parents = parents if parents is not None else []
@@ -149,7 +185,7 @@ class Node:
         self.state_dim = state_dim
         self.size_in = (state_dim, *(parent.state_dim for parent in self.parents))
 
-        self.kernel = TransitionKernel(fan_in=fan_in, fan_out=state_dim, alphas=alphas, rng=rng)
+        self.kernel = TransitionKernel(fan_in=fan_in, fan_out=state_dim, alphas=alphas, mode=mode, rng=rng)
 
         self.state = None
         self.time = None
@@ -195,7 +231,15 @@ class Node:
         return input_state
 
     def __repr__(self):
-        return f"Node(state_dim={self.state_dim}, state={self.state}, time={self.time}, nb_parents={len(self.parents)})"
+        return "Node(" + " ,".join(
+            [
+                f"state_dim={self.state_dim}",
+                f"state={self.state}",
+                f"time={self.time}",
+                f"nb_parents={len(self.parents)}",
+                f"mode={self.kernel.mode}",
+            ]
+        )
 
 
 class ObservedNode(Node):
@@ -226,15 +270,17 @@ class ObservedNode(Node):
         state_dim: int,
         alphas: Union[int, float, list[float], np.ndarray],
         parents: Optional[list["Node"]] = None,
+        mode: str = "default",
         rng: Generator = None,
     ):
-        self.reinit(state_dim, alphas, parents, rng)
+        self.reinit(state_dim, alphas, parents, mode, rng)
 
     def reinit(
         self,
         state_dim: int,
         alphas: Union[int, float, list[float], np.ndarray],
         parents: Optional[list["Node"]] = None,
+        mode: str = "default",
         rng: Generator = None,
     ):
         self.parents = parents if parents is not None else []
@@ -248,7 +294,7 @@ class ObservedNode(Node):
         self.state_dim = state_dim
         self.size_in = (*(parent.state_dim for parent in self.parents),)
 
-        self.kernel = TransitionKernel(fan_in=fan_in, fan_out=state_dim, alphas=alphas, rng=rng)
+        self.kernel = TransitionKernel(fan_in=fan_in, fan_out=state_dim, alphas=alphas, mode=mode, rng=rng)
 
         self.state = None
         self.time = None
@@ -258,8 +304,15 @@ class ObservedNode(Node):
         return input_state
 
     def __repr__(self):
-        nbp = len(self.parents)
-        return f"ObservedNode(state_dim={self.state_dim}, state={self.state}, time={self.time}, nb_parents={nbp})"
+        return "ObservedNode(" + " ,".join(
+            [
+                f"state_dim={self.state_dim}",
+                f"state={self.state}",
+                f"time={self.time}",
+                f"nb_parents={len(self.parents)}",
+                f"mode={self.kernel.mode}",
+            ]
+        )
 
 
 # -------------------------------------------------------------------------------
@@ -272,6 +325,7 @@ class NodeConfig:
     name: str = ""
     state_dim: int = 0
     alpha: float = 0
+    mode: str = "default"
     parents: list[str] = field(default_factory=list)
 
     def __manual_post_init__(self):
@@ -325,7 +379,7 @@ def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
         if node_config.name == "X":
             logger.info("Initializing observed node")
             observed_config = node_config
-            nodes["X"] = ObservedNode(state_dim=node_config.state_dim, alphas=1, rng=rng)
+            nodes["X"] = ObservedNode(state_dim=node_config.state_dim, alphas=1)
         else:
             nodes_to_initialize.append(node_config)
 
@@ -348,7 +402,11 @@ def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
 
         logger.info(f"Initializing node {node_config.name}")
         nodes[node_config.name] = Node(
-            state_dim=node_config.state_dim, alphas=float(node_config.alpha), parents=parents, rng=rng
+            state_dim=node_config.state_dim,
+            alphas=float(node_config.alpha),
+            parents=parents,
+            mode=node_config.mode,
+            rng=rng,
         )
 
     # set the parents of the observed node
@@ -362,7 +420,11 @@ def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
 
     logger.info("Reinitializing observed node")
     nodes[node_config.name].reinit(
-        state_dim=node_config.state_dim, alphas=float(node_config.alpha), parents=parents, rng=rng
+        state_dim=node_config.state_dim,
+        alphas=float(node_config.alpha),
+        parents=parents,
+        mode=node_config.mode,
+        rng=rng,
     )
 
     logger.info("Graph is built")
