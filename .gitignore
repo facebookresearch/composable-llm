@@ -13,7 +13,6 @@ wandb/
 
 # Personal file and folder
 # TODO.md
-src/apps/gssm/configs/experiments
 tmp_*
 tests/
 *.ipynb

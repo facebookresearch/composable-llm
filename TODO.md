@@ -52,9 +52,8 @@ Improvement for `visualization`
 
 Improvement for `profiler`
 1. Make the `light` profiler work when pausing and restarting a run (create a ProfilerState).
-     - Initializing the step from train_state.step.
-     - Log as csv rather than perfetto style.
-     - If nb_steps is not provided, infer it from the number of optimization and accumulation steps.
+     - Check if file already exists, and if so, just append to it without writing the header.
+1. Add option to log HFU, MFU...
 
 
 ## Commands
@@ -73,6 +72,7 @@ python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm
 OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
 OMP_NUM_THREADS=1 torchrun --nproc-per-node 8 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
 
+#### Personal Debug
 python -m src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
 python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
 python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml launcher=bash
