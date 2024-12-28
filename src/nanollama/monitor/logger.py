@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
 
-from ..cluster import get_rank, is_master_process
+from ..cluster import get_hostname, get_rank, is_master_process
 from .wandb import WandbConfig, WandbManager
 
 logger = getLogger(__name__)
@@ -68,6 +68,7 @@ class Logger:
             handlers=handlers,
         )
 
+        logger.info(f"Running on machine {get_hostname()}")
         logger.info(f"Logging to {self.path}")
 
     def __enter__(self):

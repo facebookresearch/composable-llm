@@ -10,6 +10,7 @@ located in the root directory of this repository.
 """
 
 import os
+import socket
 from functools import lru_cache
 
 
@@ -62,3 +63,8 @@ def get_world_size() -> int:
 @lru_cache
 def is_master_process() -> bool:
     return get_rank() == 0
+
+
+@lru_cache
+def get_hostname() -> str:
+    return socket.gethostname()

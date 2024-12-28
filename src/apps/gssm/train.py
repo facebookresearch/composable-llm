@@ -12,7 +12,6 @@ located in the root directory of this repository.
 import logging
 import os
 import signal
-import socket
 import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
@@ -21,7 +20,7 @@ import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
 
-from ...nanollama.cluster import ClusterConfig, ClusterManager, is_master_process
+from ...nanollama.cluster import ClusterConfig, ClusterManager, get_hostname, is_master_process
 from ...nanollama.data.gssm import DataConfig, DataLoaderManager, init_dataloader_state
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import MonitorConfig, Orchestrator
@@ -202,7 +201,7 @@ def train(config: TrainingConfig):
             preds = model(X_batch)
             loss = loss_func(preds, y_batch)
 
-            # rescale when using gradient accumulation
+            # rescale when using gradient accumulation (backprop on mean, not sum)
             loss = loss / config.optim.grad_acc_steps
 
             # backward propagation
@@ -264,7 +263,7 @@ def train(config: TrainingConfig):
 
     if preemption_flag["flag"]:
         prod_id = int(os.environ["SLURM_PROCID"])
-        logger.warning(f"Host: {socket.gethostname()} - Global rank: {prod_id}")
+        logger.warning(f"Host: {get_hostname()} - Global rank: {prod_id}")
         if prod_id == 0:
             logger.warning("Requeuing job " + os.environ["SLURM_JOB_ID"])
             os.system("scontrol requeue " + os.environ["SLURM_JOB_ID"])

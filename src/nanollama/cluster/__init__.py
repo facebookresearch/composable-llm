@@ -10,4 +10,4 @@ located in the root directory of this repository.
 """
 
 from .cluster import ClusterConfig, ClusterManager
-from .utils import get_rank, is_master_process
+from .utils import get_hostname, get_rank, is_master_process
