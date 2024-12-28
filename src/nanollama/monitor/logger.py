@@ -11,12 +11,12 @@ located in the root directory of this repository.
 
 import json
 import logging
+import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from logging import getLogger
 from pathlib import Path
 
-from ..cluster import get_rank
+from ..cluster import get_rank, is_master_process
 from .wandb import WandbConfig, WandbManager
 
 logger = getLogger(__name__)
@@ -25,6 +25,7 @@ logger = getLogger(__name__)
 @dataclass
 class LoggerConfig:
     path: str = ""
+    metric_path: str = ""
     period: int = 100
     level: str = "INFO"
     wandb: WandbConfig = field(default_factory=WandbConfig)
@@ -32,6 +33,8 @@ class LoggerConfig:
     def __post_init__(self):
         self.level = self.level.upper()
         assert self.level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if self.metric_path == "":
+            self.metric_path = str(Path(self.path) / "metrics.json")
 
 
 # -------------------------------------------------------------------------------
@@ -43,14 +46,16 @@ class Logger:
     def __init__(self, config: LoggerConfig):
         self.path = Path(config.path)
         self.path.mkdir(parents=True, exist_ok=True)
-        self.metric = self.path.parent / "metrics.jsonl"
         device_rank = get_rank()
         log_file = self.path / f"device_{device_rank}.log"
 
+        self.metric = Path(config.metric_path)
+        self.metric.parent.mkdir(parents=True, exist_ok=True)
         self.wandb = None
-        # the master node gets to log more information
-        if device_rank == 0:
-            # handlers = [logging.StreamHandler(), logging.FileHandler(log_file, "a")]
+
+        # Initialize logging stream
+        if is_master_process():
+            # the master node gets to log more information
             handlers = [logging.StreamHandler()]
             if config.wandb.active:
                 self.wandb = WandbManager(config.wandb, log_dir=self.path)
@@ -77,7 +82,7 @@ class Logger:
         """
         Report the metrics to monitor.
         """
-        metrics.update({"ts": datetime.now(timezone.utc).isoformat()})
+        metrics |= {"ts": time.time()}
         print(json.dumps(metrics), file=self.metric, flush=True)
         if self.wandb:
             self.wandb(metrics, step=metrics["step"])

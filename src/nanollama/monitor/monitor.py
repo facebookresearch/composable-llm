@@ -96,9 +96,11 @@ class MonitorConfig:
         # add discriminative information if array job
         task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
         if task_id:
-            self.logging.wandb.name += f"_{task_id}"
-            self.checkpoint.path = str(Path(self.checkpoint.path) / task_id)
-            self.profiler.path = str(Path(self.profiler.path) / task_id)
+            suffix = f"task_{task_id}"
+            self.logging.wandb.name += suffix
+            self.checkpoint.path = str(Path(self.checkpoint.path) / suffix)
+            self.profiler.path = str(Path(self.profiler.path) / suffix)
+            self.logging.metric_path = str(path / "metrics" / f"{suffix}.json")
 
             # keep a mapping of job_id to task_id
             if is_master_process():
