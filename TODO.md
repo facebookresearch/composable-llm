@@ -1,10 +1,5 @@
 # TODOS
 
-#### Finish a first codebase
-- [ ] GSSM:
-Add a special argument that can take 4 arguments. `None`: keep the same logic as now. `context`: transition matrix change for each generation. `slow` the argmax of the transition is the diagonal (argmax p(y | x) = x). `dead` the argmax of the transition is a column (argmax p(y | x) = c).
-- I have to implement the `slow` mode, which requires a bit of care due to the index raveling (the other modes have been implemented)
-
 #### Scaling law with respect to model size
 - [ ] Slurm array option to cross-validate learning rates.
 
