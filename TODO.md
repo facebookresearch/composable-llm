@@ -1,7 +1,6 @@
 # TODOS
 
 #### Scaling law with respect to model size
-- [ ] Slurm array option to cross-validate learning rates.
 
 #### Scaling law with respect to the number of data
 - [ ] Dataloader: split between train and test. (Probably write to file a train and test set, and read these).

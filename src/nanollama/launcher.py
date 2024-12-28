@@ -342,7 +342,9 @@ def main():
     # Load config from path specified by the `config` cli argument
     args = OmegaConf.from_cli()
     args.config = OmegaConf.load(args.config)
-    grid = asdict(args.config.pop("grid", None))
+    grid = args.config.pop("grid", None)
+    if grid:
+        grid = OmegaConf.to_object(grid)
 
     # Default to default arguments for unspecified values
     default_config = OmegaConf.structured(LauncherConfig())
