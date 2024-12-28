@@ -288,8 +288,7 @@ def main():
     """
     # Load config from path specified by the `config` cli argument
     cli_args = OmegaConf.from_cli()
-    file_config = OmegaConf.load(cli_args.config)
-    del cli_args.config
+    file_config = OmegaConf.load(cli_args.pop("config", None))
 
     # Default to default arguments for unspecified values
     default_config = OmegaConf.structured(TrainingConfig())

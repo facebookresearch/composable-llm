@@ -9,10 +9,11 @@ located in the root directory of this repository.
 @ 2024, Meta
 """
 
+import itertools
 import os
 import shutil
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
@@ -94,6 +95,95 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
 
 
 # -------------------------------------------------------------------------------
+# Grid job utilities
+# -------------------------------------------------------------------------------
+
+
+def flatten_config(config: dict[str, Any], _parent_key="") -> dict[str, Any]:
+    """
+    Flatten a nested configuration into a dot-separated format.
+
+    Parameters
+    ----------
+    config:
+        A nested configuration.
+
+    Returns
+    -------
+    A flattened configuration.
+    """
+    items = []
+    for k, v in config.items():
+        new_key = f"{_parent_key}.{k}" if _parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_config(v, new_key).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def unflatten_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    Convert a flat configuration into a nested configuration.
+
+    Parameters
+    ----------
+    config:
+        A flat configuration.
+
+    Returns
+    -------
+    A nested configuration.
+    """
+    nested = {}
+    for key, value in config.items():
+        keys = key.split(".")
+        d = nested
+        for k in keys[:-1]:
+            d = d.setdefault(k, {})
+        d[keys[-1]] = value
+    return nested
+
+
+def write_configs_from_grid(config: dict, grid_config: dict, path: str) -> int:
+    """
+    Write a set of configurations from a grid configuration.
+
+    Parameters
+    ----------
+    config:
+        The base configuration.
+    grid_config:
+        The grid configuration to launch a grid job.
+    path:
+        The path to write the configurations.
+
+    Returns
+    -------
+    The number of configurations written.
+    """
+
+    # get grid configurations as a list of flatten configs
+    flatten_grid = flatten_config(grid_config)
+    keys, all_values = zip(*flatten_grid.items())
+    all_configs = [dict(zip(keys, v)) for v in itertools.product(*all_values)]
+
+    # merge on flatten config for simplicity
+    config = flatten_config(config)
+
+    for i, new_config in enumerate(all_configs, start=1):
+        # update base configuration
+        config |= new_config
+        nested_config = unflatten_config(config)
+
+        config_path = os.path.join(path, f"config_{i}.yaml")
+        with open(config_path, "w") as f:
+            f.write(OmegaConf.to_yaml(nested_config))
+
+    return i
+
+
+# -------------------------------------------------------------------------------
 # Job Launcher
 # -------------------------------------------------------------------------------
 
@@ -138,9 +228,16 @@ export LOG_DIR={log_dir}
 """
 
 
-def launch_job(config: LauncherConfig):
+def launch_job(config: LauncherConfig, grid: Optional[dict] = None) -> None:
     """
     Launch a job on a Slurm cluster.
+
+    Parameters
+    ----------
+    config:
+        The configuration to launch the job.
+    grid:
+        A grid configuration to launch a grid job.
     """
     # aliases
     monitor_config = config.config.monitor
@@ -170,9 +267,18 @@ def launch_job(config: LauncherConfig):
         go_to_code_dir = ""
     print(" Done.")
 
-    # write config
-    with open(f"{dir}/config.yaml", "w") as cfg:
-        cfg.write(OmegaConf.to_yaml(config.config))
+    # handling potential grid run
+    if grid:
+        print("Writing grid configurations ...", end="")
+        nb_configs = write_configs_from_grid(asdict(config.config), grid, dir)
+        slurm_extra = f"#SBATCH --array=1-{nb_configs}\n"
+        config_path = "$LOG_DIR/config_$SLURM_ARRAY_TASK_ID.yaml"
+    else:
+        # write config
+        with open(f"{dir}/config.yaml", "w") as cfg:
+            cfg.write(OmegaConf.to_yaml(config.config))
+        slurm_extra = ""
+        config_path = "$LOG_DIR/config.yaml"
 
     # define proper conda environment
     conda_exe = os.environ.get("CONDA_EXE", "conda")
@@ -186,9 +292,9 @@ def launch_job(config: LauncherConfig):
     if config.launcher == "sbatch":
         if config.torchrun:
             option_flags = f" --nproc_per_node={nb_gpus}" f" --nnodes={nodes}" " --node_rank=$SLURM_NODEID"
-            run_command = f"torchrun {option_flags} -m {config.script} config=$LOG_DIR/config.yaml"
+            run_command = f"torchrun {option_flags} -m {config.script} config={config_path}"
         else:
-            run_command = f"srun python -u -m {config.script} config=$LOG_DIR/config.yaml"
+            run_command = f"srun python -u -m {config.script} config={config_path}"
     else:
         if config.torchrun:
             option_flags = f"--nproc_per_node={nb_gpus}"
@@ -207,7 +313,7 @@ def launch_job(config: LauncherConfig):
         mem=slurm_config.mem,
         time=slurm_config.time,
         signal_time=slurm_config.signal_time,
-        slurm_extra=slurm_config.slurm_extra,
+        slurm_extra=slurm_extra + slurm_config.slurm_extra,
         script_extra=slurm_config.script_extra,
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
@@ -236,6 +342,7 @@ def main():
     # Load config from path specified by the `config` cli argument
     args = OmegaConf.from_cli()
     args.config = OmegaConf.load(args.config)
+    grid = args.config.pop("grid", None)
 
     # Default to default arguments for unspecified values
     default_config = OmegaConf.structured(LauncherConfig())
@@ -244,7 +351,7 @@ def main():
     config.__manual_post_init__()
 
     # Launch job
-    launch_job(config)
+    launch_job(config, grid)
 
 
 if __name__ == "__main__":

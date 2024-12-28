@@ -13,6 +13,7 @@ located in the root directory of this repository.
 """
 
 import gc
+import os
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
@@ -23,6 +24,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
+from ..cluster import is_master_process
 from ..train import TrainState
 from ..utils import trigger_update
 from .checkpoint import CheckpointConfig, Checkpointer
@@ -63,6 +65,10 @@ class MonitorConfig:
             if hasattr(module, "__manual_post_init__"):
                 module.__manual_post_init__()
 
+        # wandb name
+        if self.logging.wandb.name == "":
+            self.logging.wandb.name = self.name
+
         # directory
         if not self.dir:
             self.dir = str(Path.home() / "logs" / self.name)
@@ -77,13 +83,28 @@ class MonitorConfig:
         if self.checkpoint.path == "":
             self.checkpoint.path = str(Path(self.dir) / "checkpoints")
 
-        # wandb name
-        if self.logging.wandb.name == "":
-            self.logging.wandb.name = self.name
-
         # profile directory
         if self.profiler.path == "":
             self.profiler.path = str(Path(self.dir) / "profiler")
+
+        # add information about the slurm job id
+        job_id = os.environ.get("SLURM_JOB_ID")
+        if job_id:
+            path = Path(self.logging.path)
+            self.logging.path = str(path / job_id)
+
+        # add discriminative information if array job
+        task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
+        if task_id:
+            self.logging.wandb.name += f"_{task_id}"
+            self.checkpoint.path = str(Path(self.checkpoint.path) / task_id)
+            self.profiler.path = str(Path(self.profiler.path) / task_id)
+
+            # keep a mapping of job_id to task_id
+            if is_master_process():
+                path.mkdir(parents=True, exist_ok=True)
+                with open(path / "id_mapping", "a") as f:
+                    f.write(f"task {task_id}: {job_id}\n")
 
 
 class Orchestrator:
