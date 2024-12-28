@@ -88,14 +88,22 @@ class TransitionKernel:
 
         # in the `slow` mode, argmax p(state[t+1] | state[t], parents) = x
         if self.mode == "slow":
-            raise NotImplementedError("Slow mode is not implemented yet.")
+            index = np.arange(fan_in)
+            size_in = (fan_out, fan_in // fan_out)
+            new_argmax = np.unravel_index(index, size_in)[0]
+            argmax = self.p_transition.argmax(axis=1)
+            max_val = self.p_transition[index, argmax]
+            self.p_transition[index, argmax] = self.p_transition[index, new_argmax]
+            self.p_transition[index, new_argmax] = max_val
+
         # in the `dead` mode, argmax p(state[t+1] | ...) = 0
         elif self.mode == "dead":
             index = np.arange(fan_in)
-            argmax_val = self.p_transition.argmax(axis=1)
-            max_val = self.p_transition[index, argmax_val]
-            self.p_transition[index, argmax_val] = self.p_transition[:, 0]
+            argmax = self.p_transition.argmax(axis=1)
+            max_val = self.p_transition[index, argmax]
+            self.p_transition[index, argmax] = self.p_transition[:, 0]
             self.p_transition[:, 0] = max_val
+
         else:
             assert self.mode == "default", f"Unknown mode: {mode}."
 
@@ -190,6 +198,11 @@ class Node:
         self.state = None
         self.time = None
 
+        # set random number generator
+        if rng is None:
+            rng = default_rng()
+        self.rng = rng
+
     def initialize(self, bsz: int):
         """
         Initialize the state of the node.
@@ -202,6 +215,7 @@ class Node:
         for parent in self.parents:
             if parent.time != 0 and not isinstance(parent, ObservedNode):
                 parent.initialize(bsz)
+        # self.state = self.rng.integers(0, self.state_dim, bsz, dtype=int)
         self.state = np.zeros(bsz, dtype=int)
         self.time = 0
 
@@ -298,6 +312,11 @@ class ObservedNode(Node):
 
         self.state = None
         self.time = None
+
+        # set random number generator
+        if rng is None:
+            rng = default_rng()
+        self.rng = rng
 
     def get_input_state(self):
         input_state = np.vstack((*(parent.state for parent in self.parents),))
