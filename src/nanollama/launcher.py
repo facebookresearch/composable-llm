@@ -228,7 +228,7 @@ export LOG_DIR={log_dir}
 """
 
 
-def launch_job(config: LauncherConfig, grid: Optional[dict] = None) -> None:
+def launch_job(config: LauncherConfig, grid: Optional[dict[str, Any]] = None) -> None:
     """
     Launch a job on a Slurm cluster.
 
@@ -342,7 +342,7 @@ def main():
     # Load config from path specified by the `config` cli argument
     args = OmegaConf.from_cli()
     args.config = OmegaConf.load(args.config)
-    grid = args.config.pop("grid", None)
+    grid = asdict(args.config.pop("grid", None))
 
     # Default to default arguments for unspecified values
     default_config = OmegaConf.structured(LauncherConfig())
