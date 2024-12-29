@@ -76,15 +76,16 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
         # configuration and cache
         "--exclude .gitignore "
         "--exclude .vscode "
+        "--exclude .ruff_cache "
         "--exclude '*.egg-info' "
         "--exclude '__pycache__' "
         "--exclude '*.md' "
         "--exclude '*.toml' "
         "--exclude '*.yaml' "
         # checkpoints and runs
-        "--exclude dumps/ "
         "--exclude logs/ "
         "--exclude savings/ "
+        "--exclude wandb/ "
         # personal files and folders
         "--exclude '*.ipynb' "
         "--exclude 'tmp_*' "

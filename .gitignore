@@ -6,13 +6,12 @@
 *__pycache__
 
 # Checkpointing and runs
-dumps/
 logs/
 savings/
 wandb/
 
 # Personal file and folder
 # TODO.md
+*.ipynb
 tmp_*
 tests/
-*.ipynb

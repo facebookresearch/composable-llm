@@ -32,8 +32,9 @@ class SlurmConfig:
     def __post_init__(self):
         assert self.slurm_extra == "", "slurm_extra is a placeholder and should not be set"
         for name in ["exclude", "qos", "account", "constraint"]:
-            if getattr(self, name):
-                self.slurm_extra += f"#SBATCH --{name}={getattr(self, name)}\n"
+            val = getattr(self, name)
+            if val:
+                self.slurm_extra += f"#SBATCH --{name}={val}\n"
 
     def __manual_post_init__(self):
         """
