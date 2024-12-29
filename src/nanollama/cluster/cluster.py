@@ -81,5 +81,5 @@ class ClusterManager:
         rank = get_rank()
         world_size = get_world_size()
         logger.info(f"Exiting distributed environment {rank + 1} / {world_size}")
-        if world_size > 1:
+        if is_distributed_job():
             dist.destroy_process_group()

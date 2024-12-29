@@ -20,7 +20,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from ..cluster import get_rank
+from ..cluster import get_rank, is_master_process
 from ..train import TrainState
 from ..utils import trigger_update
 
@@ -76,7 +76,6 @@ class Checkpointer:
         self.state = None
 
         self.device_rank = get_rank()
-        self.is_master = self.device_rank == 0
         self.up_to_date = True
 
     def __enter__(self):
@@ -133,7 +132,7 @@ class Checkpointer:
         with open(save_dir / filename, "w") as f:
             json.dump(self.state.state_dict(), f)
 
-        if self.is_master:
+        if is_master_process():
             logging.info("Saving model, optimizer and scheduler")
             state_dict = {
                 "model": self.model.state_dict(),

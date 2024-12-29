@@ -33,7 +33,7 @@ class LoggerConfig:
     def __post_init__(self):
         self.level = self.level.upper()
         assert self.level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        if self.metric_path == "":
+        if self.metric_path == "" and self.path != "":
             self.metric_path = str(Path(self.path) / "metrics.json")
 
 
