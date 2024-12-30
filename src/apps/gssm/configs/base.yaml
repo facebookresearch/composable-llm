@@ -8,7 +8,7 @@ monitor:
     period: 10
     wandb:
       active: true
-      entity: vivc
+      entity: ${oc.env:USER}
       project: composition
 
   checkpoint:
