@@ -5,6 +5,7 @@
 base:
   seq_len: 2048
   seed: 42
+  chunk_size: 10_000
   gssm:
     nodes:
     - name: Z1
@@ -17,13 +18,14 @@ base:
       alpha: 1e-2
   sets:
   - n_data: 1_000_000
-    path: ${oc.env:HOME}/data/composition/base/trainset.pt
+    path: ${oc.env:HOME}/data/composition/base/trainset.h5
   - n_data: 10_000
-    path: ${oc.env:HOME}/data/composition/base/testset.pt
+    path: ${oc.env:HOME}/data/composition/base/testset.h5
 
 sparse:
   seq_len: 2048
   seed: 42
+  chunk_size: 10_000
   gssm:
     nodes:
     - name: Z1
@@ -48,13 +50,14 @@ sparse:
       alpha: 1e-2
   sets:
   - n_data: 1_000_000
-    path: ${oc.env:HOME}/data/composition/sparse/trainset.pt
+    path: ${oc.env:HOME}/data/composition/sparse/trainset.h5
   - n_data: 10_000
-    path: ${oc.env:HOME}/data/composition/sparse/testset.pt
+    path: ${oc.env:HOME}/data/composition/sparse/testset.h5
 
 dense:
   seq_len: 2048
   seed: 42
+  chunk_size: 10_000
   gssm:
     nodes:
     - name: Z1
@@ -86,6 +89,7 @@ dense:
 low_entropy:
   seq_len: 2048
   seed: 42
+  chunk_size: 10_000
   gssm:
     nodes:
     - name: Z1
@@ -117,6 +121,7 @@ low_entropy:
 slow_evolving:
   seq_len: 2048
   seed: 42
+  chunk_size: 10_000
   gssm:
     nodes:
     - name: Z1
@@ -152,6 +157,7 @@ slow_evolving:
 dead_mode_env:
   seq_len: 2048
   seed: 42
+  chunk_size: 10_000
   gssm:
     nodes:
     - name: Z1

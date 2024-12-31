@@ -564,13 +564,7 @@ class DataLoaderManager:
             self.nodes["X"].evolve()
             batch[:, t] = self.nodes["X"].state
 
-        # keep track of randomness
-        rng_state = self.rng.bit_generator.state
-
-        # convert to torch tensor
-        batch = torch.from_numpy(batch).long()
-
-        return batch, rng_state
+        return batch
 
     def async_create_batch(self):
         """
@@ -578,11 +572,16 @@ class DataLoaderManager:
         """
         # loop on batch creation
         while True:
-            output = self.get_batch()
+            batch = self.get_batch()
+            # convert to torch tensor
+            batch = torch.from_numpy(batch).long()
+            # keep track of randomness
+            rng_state = self.rng.bit_generator.state
+
             # put it in the buffer
             while True:
                 try:
-                    self.buffer.put(output, timeout=0.1)
+                    self.buffer.put((batch, rng_state), timeout=0.1)
                     break
                 # if the buffer is full, wait until there is space
                 except Full:
@@ -605,7 +604,10 @@ class DataLoaderManager:
         if self.asynchronous:
             return self.async_get_batch()
         else:
-            return self.get_batch()
+            batch = self.get_batch()
+            batch = torch.from_numpy(batch).long()
+            rng_state = self.rng.bit_generator.state
+            return (batch, rng_state)
 
     def __exit__(self, exc_type, exc_value, traceback):
         logger.info("Exiting dataloader.")

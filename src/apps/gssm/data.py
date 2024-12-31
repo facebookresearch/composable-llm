@@ -15,7 +15,7 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import torch
+import h5py
 from omegaconf import OmegaConf
 
 from nanollama.data.gssm import DataLoaderManager, GSSMConfig, init_dataloader_state
@@ -44,6 +44,7 @@ class DatasetConfig:
 class DataGenerationConfig:
     seq_len: int = 0
     seed: int = 0
+    chunk_size: int = 0
     gssm: GSSMConfig = field(default_factory=GSSMConfig)
     sets: list[DatasetConfig] = field(default_factory=list)
 
@@ -76,22 +77,42 @@ def create_dataset(config: DataGenerationConfig):
         Configuration of the data loader.
         The `batch_size` arguments is used as the total number of data to generate.
     """
-    # Initialize the data loader state
     state = init_dataloader_state(config)
+    chunk_size = config.chunk_size
+    seq_len = config.seq_len
 
-    # Create a DataLoaderManager instance
     with DataLoaderManager(config, state) as dataloader:
+        # iterate over the datasets to create
         for set_config in config.sets:
-            # create dataset with `n_data` point
             n_data = set_config.n_data
-            dataloader.batch_size = n_data
-            dataset, _ = dataloader.get_batch()
+            logger.info(f"Creating dataset with {n_data:,} points.")
 
-            # Save the dataset to a file
+            # we create the dataset by chunks
+            if chunk_size:
+                batch_size = chunk_size
+            else:
+                batch_size = n_data
+                logger.info("Chunk size not specified. Saving dataset within chunking.")
+            dataloader.batch_size = batch_size
+            nb_chunks = n_data // batch_size
+
+            # saving in hdf5 format
             path = Path(set_config.path)
             path.parent.mkdir(parents=True, exist_ok=True)
-            torch.save(dataset, path)
-            logger.info(f"Dataset with {n_data} points saved to {path}")
+            with h5py.File(path, "w") as f:
+                dset = f.create_dataset("data", shape=(n_data, seq_len), dtype=int, chunks=(chunk_size, seq_len))
+
+                for i in range(nb_chunks):
+                    logger.info(f"Creating chunk {i + 1}/{nb_chunks}")
+                    begin, end = i * chunk_size, (i + 1) * chunk_size
+                    dset[begin:end] = dataloader.get_batch()
+
+                dataloader.batch_size = n_data % chunk_size
+                if dataloader.batch_size:
+                    logger.info("Creating residual chunk")
+                    dset[end:] = dataloader.get_batch()
+
+            logger.info(f"Dataset saved to {path}")
 
 
 def main():
