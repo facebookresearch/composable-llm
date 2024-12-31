@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from omegaconf import OmegaConf
 
 from ...nanollama.cluster import ClusterConfig, ClusterManager, get_hostname, is_master_process
-from ...nanollama.data.gssm import DataConfig, DataLoaderManager, init_dataloader_state
+from ...nanollama.data.gssm import DataConfig, OnlineDataLoaderManager, init_dataloader_state
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import MonitorConfig, Orchestrator
 from ...nanollama.optim import (
@@ -156,7 +156,7 @@ def train(config: TrainingConfig):
         # ---------------------------------------------------------------------
 
         dataloader = context_stack.enter_context(
-            DataLoaderManager(
+            OnlineDataLoaderManager(
                 config=config.data,
                 state=state.data,
             )
@@ -181,7 +181,7 @@ def train(config: TrainingConfig):
             # -----------------------------------------------------------------
 
             timer.start_timer()
-            batch, rng_state = next(dataloader)
+            batch, restart_info = next(dataloader)
             batch = batch.pin_memory()
             timer.end_timer("data_cpu_time")
 
@@ -212,7 +212,7 @@ def train(config: TrainingConfig):
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
-                state.data.rng_state = rng_state
+                state.data.report_restart_info(restart_info)
                 state.optim.step += 1
 
             timer.end_timer("model_time", sync=True)

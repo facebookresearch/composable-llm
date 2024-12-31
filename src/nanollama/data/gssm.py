@@ -481,6 +481,12 @@ class DataLoaderState:
         self.rng_state = state_dict["rng_state"]
         self.graph_rng_state = state_dict["graph_rng_state"]
 
+    def report_restart_info(self, rng_state: dict[str, Any]):
+        """
+        Report the restart information to the state.
+        """
+        self.rng_state = rng_state
+
 
 def init_dataloader_state(config: DataConfig) -> DataLoaderState:
     """
@@ -503,7 +509,7 @@ def init_dataloader_state(config: DataConfig) -> DataLoaderState:
 # -------------------------------------------------------------------------------
 
 
-class DataLoaderManager:
+class OnlineDataLoaderManager:
     """
     Context manager for the online data loader.
 
@@ -565,7 +571,9 @@ class DataLoaderManager:
             self.nodes["X"].evolve()
             batch[:, t] = self.nodes["X"].state
 
-        return batch
+        restart_info = self.rng.bit_generator.state
+
+        return batch, restart_info
 
     def async_create_batch(self):
         """
@@ -573,16 +581,14 @@ class DataLoaderManager:
         """
         # loop on batch creation
         while True:
-            batch = self.get_batch()
+            batch, restart_info = self.get_batch()
             # convert to torch tensor
             batch = torch.from_numpy(batch).long()
-            # keep track of randomness
-            rng_state = self.rng.bit_generator.state
 
             # put it in the buffer
             while True:
                 try:
-                    self.buffer.put((batch, rng_state), timeout=0.1)
+                    self.buffer.put((batch, restart_info), timeout=0.1)
                     break
                 # if the buffer is full, wait until there is space
                 except Full:
@@ -605,10 +611,9 @@ class DataLoaderManager:
         if self.asynchronous:
             return self.async_get_batch()
         else:
-            batch = self.get_batch()
+            batch, restart_info = self.get_batch()
             batch = torch.from_numpy(batch).long()
-            rng_state = self.rng.bit_generator.state
-            return (batch, rng_state)
+            return (batch, restart_info)
 
     def __exit__(self, exc_type, exc_value, traceback):
         logger.info("Exiting dataloader.")

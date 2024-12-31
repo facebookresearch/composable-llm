@@ -18,9 +18,10 @@ class DataLoaderState:
     rng_state: dict[str, Any]
 
     def state_dict(self) -> dict[str, Any]:
-        return {
-            "rng_state": self.rng_state,
-        }
+        raise NotImplementedError("This is an abstract method and should be implemented by the child class.")
 
     def load_state_dict(self, state_dict: dict[str, Any]) -> None:
-        self.rng_state = state_dict["rng_state"]
+        raise NotImplementedError("This is an abstract method and should be implemented by the child class.")
+
+    def report_restart_info(self, restart_info: Any) -> None:
+        raise NotImplementedError("This is an abstract method and should be implemented by the child class.")
