@@ -60,11 +60,6 @@ class MonitorConfig:
         """
         Check validity of arguments and fill in missing values.
         """
-        # manual post initialization of all modules
-        for module in self.__dict__.values():
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
-
         # wandb name
         if self.logging.wandb.name == "":
             self.logging.wandb.name = self.name
@@ -107,6 +102,11 @@ class MonitorConfig:
                 path.mkdir(parents=True, exist_ok=True)
                 with open(path / "id_mapping", "a") as f:
                     f.write(f"task {task_id}: {job_id}\n")
+
+        # manual post initialization of all modules
+        for module in self.__dict__.values():
+            if hasattr(module, "__manual_post_init__"):
+                module.__manual_post_init__()
 
 
 class Orchestrator:
