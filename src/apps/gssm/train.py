@@ -280,7 +280,7 @@ def main():
 
     Read argument from a config file specified by the `config` cli argument. E.g.,
     ```bash
-    python -m apps.train config=apps/debug.yaml
+    python -m apps.gssm.train config=apps/gssm/configs/debug.yaml
     ```
 
     Non-specified arguments will be filled with the default values of the Config classes.

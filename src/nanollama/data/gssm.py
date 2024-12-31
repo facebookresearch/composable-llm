@@ -504,7 +504,7 @@ def init_dataloader_state(config: DataConfig) -> DataLoaderState:
 
 class DataLoaderManager:
     """
-    Context manager for the data loader.
+    Context manager for the online data loader.
 
     Parameters
     ----------
@@ -528,24 +528,23 @@ class DataLoaderManager:
         self.batch_size = config.batch_size
         self.seq_len = config.seq_len
         self.asynchronous = config.asynchronous
-        self.state = state
 
         # track randomness
         self.rng = default_rng()
 
         # ensure consistency of transition kernels over restart
-        self.rng.bit_generator.state = self.state.graph_rng_state
+        self.rng.bit_generator.state = state.graph_rng_state
         self.nodes = build_gssm(config.gssm, rng=self.rng)
         assert "X" in self.nodes, "The graph must contain a node named 'X', acting as the observed node."
 
         # ensure randomness consistency
-        self.rng.bit_generator.state = self.state.rng_state
-        logger.debug(f"RNG: {self.state}")
+        self.rng.bit_generator.state = state.rng_state
+        logger.debug(f"RNG: {state}")
 
         # asynchronous data loader: a worker writes batches in a buffer, that a reader consumes
         if self.asynchronous:
-            self.buffer = Queue(maxsize=config.buffer_size)
             self.process = Process(target=self.async_create_batch)
+            self.buffer = Queue(maxsize=config.buffer_size)
 
     def __enter__(self):
         logger.info("Entering dataloader.")
@@ -575,7 +574,7 @@ class DataLoaderManager:
 
     def async_create_batch(self):
         """
-        Asynchronous batch creation.
+        Asynchronous batch generation, writting batches to the buffer.
         """
         # loop on batch creation
         while True:
@@ -592,7 +591,7 @@ class DataLoaderManager:
 
     def async_get_batch(self):
         """
-        Asynchronous batch reading.
+        Asynchronous batch acquisition, reading batches from the buffer.
         """
         # read batch from the buffer
         while True:
@@ -613,4 +612,3 @@ class DataLoaderManager:
         if self.asynchronous:
             self.process.kill()
             self.buffer.close()
-        logger.debug(f"RNG: {self.state}")
