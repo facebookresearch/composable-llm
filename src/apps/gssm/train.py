@@ -1,5 +1,5 @@
 """
-Vanilla Transformer Training Script.
+Training Script.
 
 License
 -------

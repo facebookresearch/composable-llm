@@ -92,7 +92,7 @@ def create_dataset(config: DataGenerationConfig):
                 batch_size = chunk_size
             else:
                 batch_size = n_data
-                logger.info("Chunk size not specified. Saving dataset within chunking.")
+                logger.info("Chunk size not specified. Saving dataset without chunking.")
             dataloader.batch_size = batch_size
             nb_chunks = n_data // batch_size
 

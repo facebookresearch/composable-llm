@@ -15,9 +15,8 @@ import sys
 from dataclasses import dataclass
 from typing import Optional
 
-from omegaconf import OmegaConf
-
 import wandb
+from omegaconf import OmegaConf
 
 logger = logging.getLogger(__name__)
 
