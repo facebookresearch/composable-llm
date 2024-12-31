@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from multiprocessing import Process, Queue
 from queue import Empty, Full
 from typing import Any, Optional, Union
+import zlib
 
 import numpy as np
 import torch
@@ -180,7 +181,7 @@ class Node:
         alphas: Union[int, float, list[float], np.ndarray],
         parents: Optional[list["Node"]] = None,
         mode: str = "default",
-        rng: Generator = None,
+        rng: Optional[Generator] = None,
     ):
         self.parents = parents if parents is not None else []
 
@@ -391,7 +392,7 @@ def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
     """
     logger.info(f"Building graph from {config}")
     nodes_to_initialize: list[NodeConfig] = []
-    nodes: dir[str, Node] = {}
+    nodes: dict[str, Node] = {}
 
     # start by initializing the observed node without parents
     for node_config in config.nodes:
@@ -614,3 +615,40 @@ class DataLoaderManager:
         if self.asynchronous:
             self.process.kill()
             self.buffer.close()
+
+def estimate_seq_entropy_by_compression(batch : np.ndarray):
+    """
+    Estimates the entropy of a batch (np.ndarray) via zlib compression.
+
+    Parameters:
+    - batch: NumPy ndarray of shape (batch_size, sequence_length)
+
+    Returns:
+    - entropy_estimates: NumPy array of shape (batch_size,)
+    """
+    entropy_estimates = []
+    for seq in batch:
+        # Compress the seq
+        seq = seq.tobytes()
+        compressed_data = zlib.compress(seq, level=9)
+
+        # Calculate entropy as compressed size / original size
+        original_size = len(seq)
+        entropy = len(compressed_data) / original_size if original_size > 0 else 0
+        entropy_estimates.append(entropy)
+
+    return np.array(entropy_estimates)
+
+
+if __name__ == "__main__":
+  # Example usage
+  batch = np.array([
+      [1, 1, 1, 1, 1, 1, 1],
+      [1, 2, 3, 4, 5, 6, 7],
+      [0, 0, 0, 0, 0, 0, 0],
+      [1, 0, 1, 0, 1, 0, 1],
+      [1, 5, 1, 2, 8, 3, 6]
+  ])
+
+  entropy_estimates = estimate_seq_entropy_by_compression(batch)
+  print(entropy_estimates)
