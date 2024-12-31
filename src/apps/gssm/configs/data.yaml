@@ -1,0 +1,62 @@
+# Debugging configuration
+env1:
+  seq_len: 2048
+  seed: 42
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: []
+      alpha: 1
+    - name: Z2
+      state_dim: 4
+      parents: [Z1]
+      alpha: 1
+    - name: Z3
+      state_dim: 4
+      parents: [Z1, Z2]
+      alpha: 1
+    - name: Z4
+      state_dim: 4
+      parents: [Z1, Z2, Z3]
+      alpha: 1
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+  sets:
+  - n_data: 10_000
+    path: '/private/home/vivc/code/composable-llm/savings/data/trainset.pt'
+  - n_data: 6_000
+    path: '/private/home/vivc/code/composable-llm/savings/data/testset.pt'
+
+env2:
+  seq_len: 2048
+  seed: 42
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: []
+      alpha: 1
+    - name: Z2
+      state_dim: 4
+      parents: [Z1]
+      alpha: 1
+    - name: Z3
+      state_dim: 4
+      parents: [Z1, Z2]
+      alpha: 1
+    - name: Z4
+      state_dim: 4
+      parents: [Z1, Z2, Z3]
+      alpha: 1
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+  sets:
+  - n_data: 1_000
+    path: '/private/home/vivc/code/composable-llm/savings/data/tmp/trainset.pt'
+  - n_data: 600
+    path: '/private/home/vivc/code/composable-llm/savings/data/tmp/testset.pt'
