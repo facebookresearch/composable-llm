@@ -1,10 +1,15 @@
 # TODOS
 
+- Training with dataloading from file
+- Check determinism if training if stopped and restart
+- Ensure training online still works fine and is deterministic
+
+Add an option to choose whether we train online or from a file.
+
+
 #### Scaling law with respect to model size
 
 #### Scaling law with respect to the number of data
-- [ ] Dataloader: split between train and test. (Probably write to file a train and test set, and read these).
-     - Wrap it around the pytorch native dataloader.
 
 #### Additional features
 - [ ] Probing.
@@ -45,6 +50,9 @@ Improvement for `profiler`
 1. Make the `light` profiler work when pausing and restarting a run (create a ProfilerState).
      - Check if file already exists, and if so, just append to it without writing the header.
 1. Add option to log HFU, MFU...
+
+Improvement to `wanbd`
+1. Do not log to wanbd, first log to local file, and have a asynchronous process casting the logs to wandb (or to another visualizer).
 
 
 ## Commands
