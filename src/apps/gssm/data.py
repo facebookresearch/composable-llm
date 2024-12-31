@@ -37,7 +37,6 @@ class DatasetConfig:
             if hasattr(module, "__manual_post_init__"):
                 module.__manual_post_init__()
         assert self.path, "Path to save the dataset must be specified."
-        assert self.seq_len, "seq_len must be specified."
         assert self.n_data, "n_data must be specified."
 
 
@@ -59,7 +58,7 @@ class DataGenerationConfig:
         Check validity of arguments and fill in missing values.
         """
         # manual post initialization of all modules
-        for module in self.__dict__.values():
+        for module in self.sets + [self.gssm]:
             if hasattr(module, "__manual_post_init__"):
                 module.__manual_post_init__()
 
