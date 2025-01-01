@@ -75,12 +75,12 @@ class HeavyProfiler:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        tb: TracebackType,
     ):
         if self.profiler:
-            self.profiler.__exit__(exc_type, exc_value, traceback)
+            self.profiler.__exit__(exc, value, tb)
 
 
 class LightProfiler:
@@ -165,9 +165,9 @@ class LightProfiler:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        tb: TracebackType,
     ):
         if self.device is None:
             return
@@ -291,12 +291,12 @@ class Profiler:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        tb: TracebackType,
     ):
         for prof in self.profilers:
-            prof.__exit__(exc_type, exc_value, traceback)
+            prof.__exit__(exc, value, tb)
 
     def start_timer(self) -> None:
         if self.light:

@@ -85,9 +85,9 @@ class ClusterManager:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        tb: TracebackType,
     ):
         """
         Exit distributed environment

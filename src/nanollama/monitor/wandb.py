@@ -16,8 +16,9 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import Optional
 
-import wandb
 from omegaconf import OmegaConf
+
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -87,13 +88,13 @@ class WandbManager:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        tb: TracebackType,
     ):
         # Handle exception
         try:
-            if exc_type is not None:
+            if exc is not None:
                 # Log exception in wandb
                 wandb.finish(exit_code=1)
             else:

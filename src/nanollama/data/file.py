@@ -42,7 +42,7 @@ class DataLoaderState:
     rng_state: dict[str, Any]
     epoch: int = 0
     step: int = 0  # batch step
-    residual_idx: Optional[np.ndarray[int]] = None  # residual batch
+    residual_idx: Optional[np.ndarray[int]] = None  # residual data from the previous epoch
 
     def __post_init__(self):
         if self.residual_idx is None:
@@ -62,6 +62,14 @@ class DataLoaderState:
         self.step = state_dict["step"]
         self.residual_idx = state_dict["residual_idx"]
 
+    def report_restart_info(
+        self, rng_state: dict[str, Any], epoch: int, step: int, residual_idx: np.ndarray[int]
+    ) -> None:
+        self.rng_state = rng_state
+        self.epoch = epoch
+        self.step = step
+        self.residual_idx = residual_idx
+
 
 def init_dataloader_state(config: DataConfig) -> DataLoaderState:
     """
@@ -77,9 +85,9 @@ def init_dataloader_state(config: DataConfig) -> DataLoaderState:
     return DataLoaderState(rng_state=rng_state)
 
 
-class OnlineDataLoaderManager:
+class FileDataLoaderManager:
     """
-    Context manager for the online data loader.
+    Context manager for the data loader from file.
 
     Parameters
     ----------
@@ -118,7 +126,9 @@ class OnlineDataLoaderManager:
             self.buffer = Queue(maxsize=config.buffer_size)
 
         # track data processing state
-        self.state = state
+        self.epoch = state.epoch
+        self.step = state.step
+        self.residual_idx = state.residual_idx
 
     def __enter__(self):
         logger.info("Entering dataloader.")
@@ -138,9 +148,9 @@ class OnlineDataLoaderManager:
         """
         # restart information
         rng_state = self.rng.bit_generator.state
-        epoch = self.state.epoch
-        step = self.state.step
-        residual_idx = self.state.residual_idx
+        epoch = self.epoch
+        step = self.step
+        residual_idx = self.residual_idx
 
         # iterate over epochs
         while True:
@@ -182,7 +192,7 @@ class OnlineDataLoaderManager:
                     batch = batch[ind]
 
                 step += 1
-                restart_info = (epoch, step, batch_idx, rng_state)
+                restart_info = (rng_state, epoch, step, batch_idx)
                 yield batch, restart_info
 
     def async_create_batch(self) -> None:
@@ -227,9 +237,9 @@ class OnlineDataLoaderManager:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        tb: TracebackType,
     ):
         logger.info("Exiting dataloader.")
         if self.asynchronous:

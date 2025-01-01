@@ -93,13 +93,13 @@ class Logger:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        trace: TracebackType,
     ):
         """
         Close logging files (and wandb api).
         """
         self.metric.close()
         if self.wandb is not None:
-            self.wandb.__exit__(exc_type, exc_value, traceback)
+            self.wandb.__exit__(exc, value, trace)

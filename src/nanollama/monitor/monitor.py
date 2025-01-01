@@ -187,13 +187,19 @@ class Orchestrator:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        tb: TracebackType,
     ):
         gc.collect()
 
         # close managers
-        self.logger.__exit__(exc_type, exc_value, traceback)
-        self.checkpointer.__exit__(exc_type, exc_value, traceback)
-        self.profiler.__exit__(exc_type, exc_value, traceback)
+        self.logger.__exit__(exc, value, tb)
+        self.checkpointer.__exit__(exc, value, tb)
+        self.profiler.__exit__(exc, value, tb)
+
+        if exc is not None:
+            logger.error(f"Exception: {value}")
+            import traceback
+
+            logger.info("".join(traceback.format_exception(exc, value, tb)))

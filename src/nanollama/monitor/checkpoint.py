@@ -116,9 +116,9 @@ class Checkpointer:
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        traceback: TracebackType,
+        exc: type[BaseException],
+        value: BaseException,
+        tb: TracebackType,
     ):
         """
         Exit checkpoint context by saving checkpoint if needed
@@ -136,7 +136,7 @@ class Checkpointer:
 
         filename = self.state_name.format(self.device_rank)
         with open(save_dir / filename, "w") as f:
-            json.dump(self.state.state_dict(), f)
+            json.dump(self.state.state_dict(), f, indent=2)
 
         if is_master_process():
             logging.info("Saving model, optimizer and scheduler")
@@ -177,26 +177,10 @@ class Checkpointer:
         """
         Get last existing checkpoint
         """
-        path = None
-        filename = self.state_name.format(self.device_rank)
-        all_checkpoints = self.list_checkpoints()
-        for dir_name in reversed(all_checkpoints):
-            if (dir_name / filename).is_file():
-                path = dir_name
-                break
-        return path
-
-    def list_checkpoints(self) -> list[PosixPath]:
-        """
-        List all existing checkpoints
-        """
-        folders = [p for p in self.path.iterdir() if p.is_dir() and re.match(self.re_folder, p.name)]
-        folders.sort(key=lambda p: self._get_key_step(p.name))
-        return folders
-
-    @classmethod
-    def _get_key_step(cls, name: str) -> int:
-        return int(re.findall(cls.re_digits, name)[-1])
+        folders = self.list_checkpoints()
+        if folders:
+            return max(folders, key=lambda p: self._get_key_step(p.name))
+        return ""
 
     def cleaning(self) -> None:
         """
@@ -205,6 +189,17 @@ class Checkpointer:
         if self.keep_only == -1:
             return
         all_checkpoints = self.list_checkpoints()
+        all_checkpoints.sort(key=lambda p: self._get_key_step(p.name))
         for prefix in all_checkpoints[: -self.keep_only]:
             logger.info(f"Removing: {str(prefix)}")
             shutil.rmtree(prefix)
+
+    def list_checkpoints(self) -> list[PosixPath]:
+        """
+        List all existing checkpoints
+        """
+        return [p for p in self.path.iterdir() if p.is_dir() and re.match(self.re_folder, p.name)]
+
+    @classmethod
+    def _get_key_step(cls, name: str) -> int:
+        return int(re.findall(cls.re_digits, name)[-1])
