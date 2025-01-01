@@ -73,7 +73,7 @@ class ClusterManager:
         Initialize the model by casting it to the device, compiling and parallelizing it according to configuration.
         """
         model = model.to(device=self.device)
-        if self.cluster.compile_model:
+        if self.compile:
             model = torch.compile(model)
         logger.info("Done building model")
         local_rank = get_local_rank()
