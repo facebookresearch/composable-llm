@@ -350,7 +350,7 @@ def main() -> None:
     # Default to default arguments for unspecified values
     default_config = OmegaConf.structured(LauncherConfig())
     config = OmegaConf.merge(default_config, args)
-    config = OmegaConf.to_object(config)
+    config: LauncherConfig = OmegaConf.to_object(config)
     config.__manual_post_init__()
 
     # Launch job

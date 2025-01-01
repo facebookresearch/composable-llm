@@ -48,6 +48,7 @@ class ClusterManager:
     def __init__(self, config: ClusterConfig):
         self.backend = config.backend
         self.device = config.device
+        self.compile = config.compile_model
         set_os_environment(config.os_environment)
 
     def __enter__(self):
@@ -67,7 +68,14 @@ class ClusterManager:
             print(f"Running on {self.device}")
         return self
 
-    def parallelize_model(self, model: nn.Module) -> nn.Module:
+    def initialize_model(self, model: nn.Module) -> nn.Module:
+        """
+        Initialize the model by casting it to the device, compiling and parallelizing it according to configuration.
+        """
+        model = model.to(device=self.device)
+        if self.cluster.compile_model:
+            model = torch.compile(model)
+        logger.info("Done building model")
         local_rank = get_local_rank()
         world_size = get_world_size()
         if world_size > 1:

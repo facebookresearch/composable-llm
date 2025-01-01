@@ -15,6 +15,8 @@ import signal
 import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
+from signal import Signals
+from types import FrameType
 
 import torch
 import torch.nn.functional as F
@@ -80,18 +82,18 @@ def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     return F.cross_entropy(preds.reshape(-1, vocab_size), targets.reshape(-1))
 
 
-def train(config: TrainingConfig):
+def train(config: TrainingConfig) -> None:
     # -------------------------------------------------------------------------
     # Handle preemption
     # -------------------------------------------------------------------------
 
     preemption_flag = dict(flag=False)
 
-    def signal_handler(signum, frame):
+    def signal_handler(signum: Signals, frame: FrameType):
         logger.warning("Signal handler called with signal " + str(signum))
         preemption_flag["flag"] = True
 
-    def term_handler(signum, frame):
+    def term_handler(signum: Signals, frame: FrameType):
         logger.warning("Received termination signal " + str(signum))
         # do not requeue to avoid requeuing on `scancel`
 
@@ -103,13 +105,13 @@ def train(config: TrainingConfig):
         # Computing Environment
         # ---------------------------------------------------------------------
 
-        cluster = context_stack.enter_context(ClusterManager(config.cluster))
+        cluster: ClusterManager = context_stack.enter_context(ClusterManager(config.cluster))
 
         # ---------------------------------------------------------------------
         # Monitor: checkpointing, profiling, probing, logging
         # ---------------------------------------------------------------------
 
-        monitor = context_stack.enter_context(Orchestrator(config.monitor))
+        monitor: Orchestrator = context_stack.enter_context(Orchestrator(config.monitor))
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
@@ -117,13 +119,7 @@ def train(config: TrainingConfig):
 
         logger.info("Building model")
         model = Transformer(config.model)
-        model.to(device=cluster.device)
-        if config.cluster.compile_model:
-            model = torch.compile(model)
-        logger.info("Done building model")
-
-        # Parallelize model
-        model = cluster.parallelize_model(model)
+        model = cluster.initialize_model(model)
 
         # ---------------------------------------------------------------------
         # Build Optimizer
@@ -274,7 +270,7 @@ def train(config: TrainingConfig):
     logger.info("Training done.")
 
 
-def main():
+def main() -> None:
     """
     Command line interface using OmegaConf
 
@@ -292,7 +288,7 @@ def main():
     # Default to default arguments for unspecified values
     default_config = OmegaConf.structured(TrainingConfig())
     config = OmegaConf.merge(default_config, file_config, cli_args)
-    config = OmegaConf.to_object(config)
+    config: TrainingConfig = OmegaConf.to_object(config)
     config.__manual_post_init__()
 
     # Launch training with the config

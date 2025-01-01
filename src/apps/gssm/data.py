@@ -67,7 +67,7 @@ class DataGenerationConfig:
         assert self.sets, "At least one dataset configuration must be specified."
 
 
-def create_dataset(config: DataGenerationConfig):
+def create_dataset(config: DataGenerationConfig) -> None:
     """
     Create a dataset according to the configuration.
 
@@ -115,7 +115,7 @@ def create_dataset(config: DataGenerationConfig):
             logger.info(f"Dataset saved to {path}")
 
 
-def main():
+def main() -> None:
     """
     Create a dataset from configuration file
 
@@ -142,7 +142,7 @@ def main():
     for env, file_config in file_configs.items():
         logger.info(f"Creating datasets for environment {env}")
         config = OmegaConf.merge(default_config, file_config, cli_args)
-        config = OmegaConf.to_object(config)
+        config: DataGenerationConfig = OmegaConf.to_object(config)
         config.__manual_post_init__()
 
         create_dataset(config)
