@@ -335,7 +335,7 @@ def main() -> None:
 
     Read argument from a config file specified by the `config` cli argument. E.g.,
     ```bash
-    python -m launchers.stool script=src.apps.train config=src/apps/debug.yaml
+    python -m launchers.stool script=src.apps.my_app.train config=src/apps/my_app/debug.yaml
     ```
 
     Non-specified arguments will be filled with the default values of the Config classes.

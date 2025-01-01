@@ -64,6 +64,26 @@ You equally run experiments on multi-gpu locally with torchrun, e.g.,
 ```bash
 OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
 ```
+You can equally run an array job is you specify a grid to iterate over in your config file.
+
+#### Command summary
+To summarize the commands, for training while generating data on the fly:
+```bash
+python -m src.apps.gssm_onfly.train config=src/apps/gssm_onfly/configs/debug.yaml
+```
+For generating data first, and then training from them:
+```bash
+python -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
+python -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
+```
+For launching a run on a Slurm cluster:
+```bash
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
+```
+For launching an array job on a Slurm cluster:
+```bash
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/grid.yaml
+```
 
 ## Development
 For formatting, I recommand using `ruff`.
