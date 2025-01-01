@@ -40,8 +40,10 @@ pip install -e . [dev,visu]
 #### First run
 You can run a debug script with the following command:
 ```
-python -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
+python -m src.apps.gssm_online.train config=src/apps/gssm_online/configs/debug.yaml
 ```
+In this online setting, data are generated on the fly. 
+The configuration file `debug.yaml` is a simple configuration file that will run a simple experiment.
 
 #### Data
 The previous config will generate batch of data on the fly. Each new batch will be made of new data.
@@ -52,18 +54,15 @@ python -m src.apps.gssm.data config=src/apps/gssm/configs/data.yaml
 Here the `data.yaml` is a configuration files to generate various datasets.
 You can modify this configuration to suit your needs.
 
-#### Real experiments
-Currently, you may run some experiments where new data are generated within each batch with the following commands:
-```
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/base.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/sparse.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/dense.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/low_entropy.yaml
+#### Further Experiments
+You may launch experiments to run on a cluster with the following command:
+```bash
+python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
 ```
 This will launch them on a slurm cluster (assuming your are logged into one).
-If you want to launch them locally on your machine, run, e.g.,
-```
-python -m src.src.apps.gssm.train config=src/apps/gssm/configs/base.yaml
+You equally run experiments on multi-gpu locally with torchrun, e.g.,
+```bash
+OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
 ```
 
 ## Development

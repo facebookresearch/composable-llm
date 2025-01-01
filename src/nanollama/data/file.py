@@ -54,14 +54,14 @@ class DataLoaderState:
             "rng_state": self.rng_state,
             "epoch": self.epoch,
             "step": self.step,
-            "residual_idx": self.residual_idx,
+            "residual_idx": self.residual_idx.tolist(),
         }
 
     def load_state_dict(self, state_dict: dict[str, Any]) -> None:
         self.rng_state = state_dict["rng_state"]
         self.epoch = state_dict["epoch"]
         self.step = state_dict["step"]
-        self.residual_idx = state_dict["residual_idx"]
+        self.residual_idx = np.array(state_dict["residual_idx"])
 
     def report_restart_info(
         self, rng_state: dict[str, Any], epoch: int, step: int, residual_idx: np.ndarray[int]
@@ -189,7 +189,7 @@ class FileDataLoaderManager:
                     batch = f["data"][batch_idx]
 
                 # handle duplicate
-                if duplicate and (duplicate != 1).any():
+                if duplicate is not None and (duplicate != 1).any():
                     ind = np.repeat(np.arange(len(duplicate)), duplicate)
                     batch = batch[ind]
 
