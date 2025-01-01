@@ -73,7 +73,7 @@ class OptimizerState:
         self.acc_step = state_dict["acc_step"]
 
 
-def init_optimizer_state():
+def init_optimizer_state() -> OptimizerState:
     """
     Initialize the scheduler state
     """
@@ -85,7 +85,7 @@ def init_optimizer_state():
 # -----------------------------------------------------------------------------
 
 
-def init_scheduler(optimizer, config: OptimizerConfig) -> lr_scheduler.LambdaLR:
+def init_scheduler(optimizer: Optimizer, config: OptimizerConfig) -> lr_scheduler.LambdaLR:
     """
     Initialize the scheduler state
     """

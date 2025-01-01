@@ -10,9 +10,11 @@ located in the root directory of this repository.
 """
 
 import logging
+from collections.abc import Generator
 from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from queue import Empty, Full
+from types import TracebackType
 from typing import Any, Optional
 
 import h5py
@@ -124,13 +126,13 @@ class OnlineDataLoaderManager:
             self.process.start()
         return self
 
-    def get_batch(self):
+    def get_batch(self) -> tuple[np.ndarray, tuple]:
         """
         Generate a batch of sentences.
         """
         return next(self.batch_generator())
 
-    def batch_generator(self):
+    def batch_generator(self) -> Generator[tuple[np.ndarray, tuple], None, None]:
         """
         Generate batches of sentences.
         """
@@ -183,7 +185,7 @@ class OnlineDataLoaderManager:
                 restart_info = (epoch, step, batch_idx, rng_state)
                 yield batch, restart_info
 
-    def async_create_batch(self):
+    def async_create_batch(self) -> None:
         """
         Asynchronous batch generation, writting batches to the buffer.
         """
@@ -203,7 +205,7 @@ class OnlineDataLoaderManager:
                     logger.debug("Buffer is full. Waiting for data comsumption.")
             logger.debug("New batch put in the buffer.")
 
-    def async_get_batch(self):
+    def async_get_batch(self) -> tuple[np.ndarray, tuple]:
         """
         Asynchronous batch acquisition, reading batches from the buffer.
         """
@@ -215,7 +217,7 @@ class OnlineDataLoaderManager:
             except Empty:
                 logger.debug("Buffer is empty. Waiting for data.")
 
-    def __next__(self):
+    def __next__(self) -> tuple[np.ndarray, tuple]:
         if self.asynchronous:
             return self.async_get_batch()
         else:
@@ -223,7 +225,12 @@ class OnlineDataLoaderManager:
             batch = torch.from_numpy(batch).long()
             return (batch, restart_info)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         logger.info("Exiting dataloader.")
         if self.asynchronous:
             self.process.kill()

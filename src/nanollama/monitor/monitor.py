@@ -147,7 +147,7 @@ class Orchestrator:
         scheduler: lr_scheduler.LambdaLR,
         state: TrainState,
         config: Any,
-    ):
+    ) -> None:
         """
         Report the objects to monitor.
 
@@ -169,7 +169,7 @@ class Orchestrator:
         # report objects to submanagers
         self.profiler.report_objects(state)
 
-    def __call__(self):
+    def __call__(self) -> None:
         # manual garbage collection
         if trigger_update(self.state, self.gc_period):
             logger.info("garbage collection")
@@ -179,7 +179,7 @@ class Orchestrator:
         self.checkpointer()
         self.profiler()
 
-    def report_metrics(self, metrics: dict):
+    def report_metrics(self, metrics: dict) -> None:
         """
         Report the metrics to monitor.
         """
@@ -187,10 +187,10 @@ class Orchestrator:
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         gc.collect()
 
         # close managers

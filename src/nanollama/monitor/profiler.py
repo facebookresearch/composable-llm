@@ -14,6 +14,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path, PosixPath
+from types import TracebackType
 
 import numpy as np
 import torch
@@ -62,19 +63,24 @@ class HeavyProfiler:
         self.profiler.__enter__()
         logger.info(f"Pytorch profiler active. Traces will be saved at {self.path}")
 
-    def report_metrics(self, prof: profiler.profile):
+    def report_metrics(self, prof: profiler.profile) -> None:
         prof.export_chrome_trace(str(self.path))
         logger.info(f"Pytorch profiler traces saved to {self.path}")
         self.profiler.__exit__(None, None, None)
         self.profiler = None
 
-    def __call__(self):
+    def __call__(self) -> None:
         if self.profiler:
             self.profiler.step()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         if self.profiler:
-            self.profiler.__exit__(exc_type, exc_val, exc_tb)
+            self.profiler.__exit__(exc_type, exc_value, traceback)
 
 
 class LightProfiler:
@@ -105,22 +111,22 @@ class LightProfiler:
         self.file = open(self.path, "w")
         self.start_timer()
 
-    def start_timer(self):
+    def start_timer(self) -> None:
         """Start a timer"""
         if self.device:  # act as an active flag
             self.time = time.time()
 
-    def end_timer(self, name: str, sync=False):
+    def end_timer(self, name: str, sync: bool = False) -> None:
         """End timer and report time"""
         if self.device:  # act as an active flag
             if sync:
                 torch.cuda.synchronize(get_rank())
             self.times[name] = time.time() - self.time
 
-    def report_objects(self, train_state: TrainState):
+    def report_objects(self, train_state: TrainState) -> None:
         self.state = train_state
 
-    def __call__(self):
+    def __call__(self) -> None:
         if self.step >= self.start_step and self.step <= self.end_step:
             # write csv header
             if self.step == self.start_step:
@@ -157,7 +163,12 @@ class LightProfiler:
 
         self.step += 1
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         if self.device is None:
             return
 
@@ -274,22 +285,27 @@ class Profiler:
             prof.__enter__()
         return self
 
-    def __call__(self):
+    def __call__(self) -> None:
         for prof in self.profilers:
             prof()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         for prof in self.profilers:
-            prof.__exit__(exc_type, exc_val, exc_tb)
+            prof.__exit__(exc_type, exc_value, traceback)
 
-    def start_timer(self):
+    def start_timer(self) -> None:
         if self.light:
             self.light.start_timer()
 
-    def end_timer(self, *args, **kwargs):
+    def end_timer(self, *args, **kwargs) -> None:
         if self.light:
             self.light.end_timer(*args, **kwargs)
 
-    def report_objects(self, train_state: TrainState):
+    def report_objects(self, train_state: TrainState) -> None:
         if self.light:
             self.light.report_objects(train_state)

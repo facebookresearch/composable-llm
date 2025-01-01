@@ -14,7 +14,8 @@ import logging
 import re
 import shutil
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PosixPath
+from types import TracebackType
 
 import torch
 from torch import nn
@@ -90,7 +91,7 @@ class Checkpointer:
         optimizer: Optimizer,
         scheduler: lr_scheduler.LambdaLR,
         state: TrainState,
-    ):
+    ) -> None:
         """
         Report object and load checkpoint if it exists
         """
@@ -103,7 +104,7 @@ class Checkpointer:
         if path:
             self.load(path)
 
-    def __call__(self):
+    def __call__(self) -> None:
         """
         Save checkpoint if it matching the period
         """
@@ -113,14 +114,19 @@ class Checkpointer:
         else:
             self.up_to_date = False
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         """
         Exit checkpoint context by saving checkpoint if needed
         """
         if not self.up_to_date:
             self.save()
 
-    def save(self) -> bool:
+    def save(self) -> None:
         """
         Checkpoint model, optimizer, scheduler and training state
         """
@@ -143,7 +149,7 @@ class Checkpointer:
             self.cleaning()
 
     @torch.no_grad()
-    def load(self, path: Path):
+    def load(self, path: Path) -> None:
         """
         Load from checkpoint
 
@@ -167,7 +173,7 @@ class Checkpointer:
         self.scheduler.load_state_dict(state_dict["scheduler"])
         logger.info("Model, optimizer and scheduler reloaded")
 
-    def get_last_checkpoint_path(self):
+    def get_last_checkpoint_path(self) -> str:
         """
         Get last existing checkpoint
         """
@@ -180,7 +186,7 @@ class Checkpointer:
                 break
         return path
 
-    def list_checkpoints(self) -> list[Path]:
+    def list_checkpoints(self) -> list[PosixPath]:
         """
         List all existing checkpoints
         """
@@ -189,10 +195,10 @@ class Checkpointer:
         return folders
 
     @classmethod
-    def _get_key_step(cls, name: str):
+    def _get_key_step(cls, name: str) -> int:
         return int(re.findall(cls.re_digits, name)[-1])
 
-    def cleaning(self):
+    def cleaning(self) -> None:
         """
         Clean up old checkpoints
         """

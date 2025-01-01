@@ -22,7 +22,7 @@ class OsEnvironment:
     OMP_NUM_THREADS: str = "1"
 
 
-def set_os_environment(config: OsEnvironment):
+def set_os_environment(config: OsEnvironment) -> None:
     """
     Set OS environment variables based on configuration.
     """

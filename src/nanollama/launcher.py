@@ -100,7 +100,7 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
 # -------------------------------------------------------------------------------
 
 
-def flatten_config(config: dict[str, Any], _parent_key="") -> dict[str, Any]:
+def flatten_config(config: dict[str, Any], _parent_key: str = "") -> dict[str, Any]:
     """
     Flatten a nested configuration into a dot-separated format.
 
@@ -329,7 +329,7 @@ def launch_job(config: LauncherConfig, grid: Optional[dict[str, Any]] = None) ->
     os.system(f"{config.launcher} {dir}/run.sh")
 
 
-def main():
+def main() -> None:
     """
     Command line interface using OmegaConf
 

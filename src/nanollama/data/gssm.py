@@ -10,11 +10,12 @@ located in the root directory of this repository.
 """
 
 import logging
+import zlib
 from dataclasses import dataclass, field
 from multiprocessing import Process, Queue
 from queue import Empty, Full
-from typing import Any, Optional, Union
-import zlib
+from types import TracebackType
+from typing import Any, Union
 
 import numpy as np
 import torch
@@ -179,9 +180,9 @@ class Node:
         self,
         state_dim: int,
         alphas: Union[int, float, list[float], np.ndarray],
-        parents: Optional[list["Node"]] = None,
+        parents: list["Node"] = None,
         mode: str = "default",
-        rng: Optional[Generator] = None,
+        rng: Generator = None,
     ):
         self.parents = parents if parents is not None else []
 
@@ -204,7 +205,7 @@ class Node:
             rng = default_rng()
         self.rng = rng
 
-    def initialize(self, bsz: int):
+    def initialize(self, bsz: int) -> None:
         """
         Initialize the state of the node.
 
@@ -220,7 +221,7 @@ class Node:
         self.state = np.zeros(bsz, dtype=int)
         self.time = 0
 
-    def evolve(self):
+    def evolve(self) -> None:
         """
         Sample the next state given the current state and parent states.
 
@@ -241,7 +242,7 @@ class Node:
         self.state = self.kernel(input_state)
         self.time += 1
 
-    def get_input_state(self):
+    def get_input_state(self) -> np.ndarray:
         input_state = np.vstack((self.state, *(parent.state for parent in self.parents)))
         return input_state
 
@@ -284,7 +285,7 @@ class ObservedNode(Node):
         self,
         state_dim: int,
         alphas: Union[int, float, list[float], np.ndarray],
-        parents: Optional[list["Node"]] = None,
+        parents: list["Node"] = None,
         mode: str = "default",
         rng: Generator = None,
     ):
@@ -294,10 +295,10 @@ class ObservedNode(Node):
         self,
         state_dim: int,
         alphas: Union[int, float, list[float], np.ndarray],
-        parents: Optional[list["Node"]] = None,
+        parents: list["Node"] = None,
         mode: str = "default",
         rng: Generator = None,
-    ):
+    ) -> None:
         self.parents = parents if parents is not None else []
 
         # Calculate the fan_in based on the parents
@@ -319,7 +320,7 @@ class ObservedNode(Node):
             rng = default_rng()
         self.rng = rng
 
-    def get_input_state(self):
+    def get_input_state(self) -> np.ndarray:
         input_state = np.vstack((*(parent.state for parent in self.parents),))
         return input_state
 
@@ -481,7 +482,7 @@ class DataLoaderState:
         self.rng_state = state_dict["rng_state"]
         self.graph_rng_state = state_dict["graph_rng_state"]
 
-    def report_restart_info(self, rng_state: dict[str, Any]):
+    def report_restart_info(self, rng_state: dict[str, Any]) -> None:
         """
         Report the restart information to the state.
         """
@@ -559,7 +560,7 @@ class OnlineDataLoaderManager:
             self.process.start()
         return self
 
-    def get_batch(self):
+    def get_batch(self) -> tuple[np.ndarray, dict[str, Any]]:
         """
         Generate a batch of sentences.
         """
@@ -575,7 +576,7 @@ class OnlineDataLoaderManager:
 
         return batch, restart_info
 
-    def async_create_batch(self):
+    def async_create_batch(self) -> None:
         """
         Asynchronous batch generation, writting batches to the buffer.
         """
@@ -595,7 +596,7 @@ class OnlineDataLoaderManager:
                     logger.debug("Buffer is full. Waiting for data comsumption.")
             logger.debug("New batch put in the buffer.")
 
-    def async_get_batch(self):
+    def async_get_batch(self) -> tuple[np.ndarray, dict[str, Any]]:
         """
         Asynchronous batch acquisition, reading batches from the buffer.
         """
@@ -607,7 +608,7 @@ class OnlineDataLoaderManager:
             except Empty:
                 logger.debug("Buffer is empty. Waiting for data.")
 
-    def __next__(self):
+    def __next__(self) -> tuple[np.ndarray, dict[str, Any]]:
         if self.asynchronous:
             return self.async_get_batch()
         else:
@@ -615,13 +616,19 @@ class OnlineDataLoaderManager:
             batch = torch.from_numpy(batch).long()
             return (batch, restart_info)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         logger.info("Exiting dataloader.")
         if self.asynchronous:
             self.process.kill()
             self.buffer.close()
 
-def estimate_seq_entropy_by_compression(batch : np.ndarray):
+
+def estimate_seq_entropy_by_compression(batch: np.ndarray) -> np.ndarray:
     """
     Estimates the entropy of a batch (np.ndarray) via zlib compression.
 
@@ -646,14 +653,16 @@ def estimate_seq_entropy_by_compression(batch : np.ndarray):
 
 
 if __name__ == "__main__":
-  # Example usage
-  batch = np.array([
-      [1, 1, 1, 1, 1, 1, 1],
-      [1, 2, 3, 4, 5, 6, 7],
-      [0, 0, 0, 0, 0, 0, 0],
-      [1, 0, 1, 0, 1, 0, 1],
-      [1, 5, 1, 2, 8, 3, 6]
-  ])
+    # Example usage
+    batch = np.array(
+        [
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 2, 3, 4, 5, 6, 7],
+            [0, 0, 0, 0, 0, 0, 0],
+            [1, 0, 1, 0, 1, 0, 1],
+            [1, 5, 1, 2, 8, 3, 6],
+        ]
+    )
 
-  entropy_estimates = estimate_seq_entropy_by_compression(batch)
-  print(entropy_estimates)
+    entropy_estimates = estimate_seq_entropy_by_compression(batch)
+    print(entropy_estimates)

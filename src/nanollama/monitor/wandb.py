@@ -13,6 +13,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
+from types import TracebackType
 from typing import Optional
 
 import wandb
@@ -76,15 +77,20 @@ class WandbManager:
             with open(self.id_file, "w") as file:
                 file.write(self.run.id)
 
-    def report_objects(self, run_config):
+    def report_objects(self, run_config: dict) -> None:
         config_dict = OmegaConf.to_container(OmegaConf.structured(run_config))
         self.run.config.update(config_dict, allow_val_change=True)
         logger.info("Run configuration has been logged to wandb.")
 
-    def __call__(self, metrics: dict, step: int):
+    def __call__(self, metrics: dict, step: int) -> None:
         wandb.log(metrics, step=step)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         # Handle exception
         try:
             if exc_type is not None:
@@ -95,7 +101,7 @@ class WandbManager:
         except Exception as e:
             logger.warning(e)
 
-    def check_run_state(self, run_id):
+    def check_run_state(self, run_id: str) -> str:
         api = wandb.Api()
         try:
             run = api.run(f"{self.entity}/{self.project}/{run_id}")

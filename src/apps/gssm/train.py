@@ -1,5 +1,5 @@
 """
-Training Script.
+Training script with online generation of batch of data.
 
 License
 -------

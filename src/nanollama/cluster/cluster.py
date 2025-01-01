@@ -11,6 +11,7 @@ located in the root directory of this repository.
 
 import logging
 from dataclasses import dataclass, field
+from types import TracebackType
 
 import torch
 import torch.distributed as dist
@@ -66,7 +67,7 @@ class ClusterManager:
             print(f"Running on {self.device}")
         return self
 
-    def parallelize_model(self, model: nn.Module):
+    def parallelize_model(self, model: nn.Module) -> nn.Module:
         local_rank = get_local_rank()
         world_size = get_world_size()
         if world_size > 1:
@@ -74,7 +75,12 @@ class ClusterManager:
             model = DDP(model, device_ids=[local_rank])
         return model
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         """
         Exit distributed environment
         """

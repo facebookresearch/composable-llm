@@ -18,7 +18,7 @@ from pathlib import Path
 import h5py
 from omegaconf import OmegaConf
 
-from nanollama.data.gssm import DataLoaderManager, GSSMConfig, init_dataloader_state
+from nanollama.data.gssm import GSSMConfig, OnlineDataLoaderManager, init_dataloader_state
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def create_dataset(config: DataGenerationConfig):
     chunk_size = config.chunk_size
     seq_len = config.seq_len
 
-    with DataLoaderManager(config, state) as dataloader:
+    with OnlineDataLoaderManager(config, state) as dataloader:
         # iterate over the datasets to create
         for set_config in config.sets:
             n_data = set_config.n_data

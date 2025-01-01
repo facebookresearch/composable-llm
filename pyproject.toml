@@ -65,8 +65,8 @@ line-length = 120
 [tool.ruff.lint]
 select = [
   "E", "F", "W",  # Default rules
-  # "ANN001",     # Function arguments should annotate types
-  # "ANN201",     # Public function should annotate return type
+  "ANN001",     # Function arguments should annotate types
+  "ANN201",     # Public function should annotate return type
   "B",            # Common bugs
   "DTZ",          # Timezone issues
   "I",            # Sort inputs

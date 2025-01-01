@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
+from types import TracebackType
 
 from ..cluster import get_hostname, get_rank, is_master_process
 from .wandb import WandbConfig, WandbManager
@@ -81,7 +82,7 @@ class Logger:
         if self.wandb is not None:
             self.wandb.__enter__()
 
-    def __call__(self, metrics: dict):
+    def __call__(self, metrics: dict) -> None:
         """
         Report the metrics to monitor.
         """
@@ -90,7 +91,12 @@ class Logger:
         if self.wandb:
             self.wandb(metrics, step=metrics["step"])
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ):
         """
         Close logging files (and wandb api).
         """

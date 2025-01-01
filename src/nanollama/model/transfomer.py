@@ -99,7 +99,7 @@ class SelfAttention(nn.Module):
         self.theta = rope_theta
         self.register_buffer("rope_modulator", self._get_rope_modulator(self.seq_len, self.head_dim, self.theta))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Self attention
 
@@ -140,7 +140,7 @@ class SelfAttention(nn.Module):
         z = self.output(z)
         return z
 
-    def reset_parameters(self, init_std=None, factor=1.0):
+    def reset_parameters(self, init_std: float = None, factor: float = 1.0) -> None:
         """
         Weight initialization
         """
@@ -235,13 +235,13 @@ class FeedForward(nn.Module):
         self.fc1 = nn.Linear(emb_dim, 2 * ffn_dim, bias=False)
         self.fc2 = nn.Linear(ffn_dim, emb_dim, bias=False)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out1, out2 = self.fc1(x).chunk(2, dim=-1)
         out = F.silu(out1) * out2
         out = self.fc2(out)
         return out
 
-    def reset_parameters(self, init_std=None, factor=1.0):
+    def reset_parameters(self, init_std: float = None, factor: float = 1.0) -> None:
         """
         Weight initialization
         """
@@ -287,11 +287,11 @@ class RMSNorm(nn.Module):
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(dim))
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         output = x * torch.rsqrt((x * x).mean(-1, keepdim=True) + self.eps)
         return (output * self.weight).type_as(x)
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         torch.nn.init.ones_(self.weight)
 
 
@@ -319,12 +319,12 @@ class TransformerBlock(nn.Module):
         self.attn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
         self.ffn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
 
-    def forward(self, x, verbose=False):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = x + self.attn(self.attn_norm(x))
         out = out + self.ffn(self.ffn_norm(out))
         return out
 
-    def reset_parameters(self, init_std=None, factor=1.0):
+    def reset_parameters(self, init_std: float = None, factor: float = 1.0) -> None:
         """
         Weight initialization
         """
@@ -364,7 +364,7 @@ class Transformer(nn.Module):
     TransformerBlock
     """
 
-    def __init__(self, config):
+    def __init__(self, config: TransformerConfig):
         super().__init__()
 
         self.emb_dim = config.emb_dim
@@ -384,14 +384,14 @@ class Transformer(nn.Module):
 
         self.reset_parameters()
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.embeddings(x)
         for layer in self.layers:
             out = layer(out)
         logits = self.output(self.output_norm(out))
         return logits
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         """
         Weight initialization
         """
