@@ -103,3 +103,9 @@ root/
 │       └── launcher: script to launch a training via Slurm or torchrun
 └── tests/
 ```
+
+## Known bugs
+- When running a torchrun with asynchronous data loader, keyboard interrupt are not always intercepted by all gpus.
+The GPUs that do not intercept the keyboard interrupt do not exit the context stack, not checkpointing their state.
+
+- Some GPUs do not seem to like the instanciation of SIGUSR1.
