@@ -37,6 +37,7 @@ data:
   batch_size: 128
   seed: 42
   gssm:
+    # see `data.yaml` for other graph configuration
     nodes:
     - name: Z1
       state_dim: 256

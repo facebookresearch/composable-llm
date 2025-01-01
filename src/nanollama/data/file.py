@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class DataConfig:
+    path: str = ""
     n_data: int = -1
     seq_len: int = -1
     batch_size: int = -1
@@ -111,6 +112,7 @@ class FileDataLoaderManager:
         self.n_data = config.n_data
         self.batch_size = config.batch_size
         self.seq_len = config.seq_len
+        self.path = config.path
         self.asynchronous = config.asynchronous
 
         # track randomness

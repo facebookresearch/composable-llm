@@ -17,13 +17,13 @@ monitor:
   profiler:
     active: true
     wait: 1
-    steps: 50
+    steps: -1
 
 cluster:
-  compile_model: false
+  compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
   slurm:
     nodes: 1
-    nb_gpus: 2
+    nb_gpus: 2        # use torchrun, or slurm, for multi-gpu runs
     time: 10          # job time in minutes
     signal_time: 60   # alert time in seconds
 
@@ -39,6 +39,7 @@ data:
   batch_size: 16
   seed: 42
   gssm:
+    # see `data.yaml` for other graph configuration
     nodes:
     - name: Z1
       state_dim: 4
@@ -61,3 +62,8 @@ data:
 
 optim:
   steps: 100
+  lr: 1e-2
+  weight_decay: 0.1
+  warmup: 10
+  lr_min_ratio: 0
+
