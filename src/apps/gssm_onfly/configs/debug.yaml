@@ -1,24 +1,4 @@
 # Debugging configuration
-monitor:
-  name: debug 
-  seed: 100
-  overwrite: true
-
-  logging:
-    period: 1
-    level: debug
-    wandb:
-      active: true
-
-  checkpoint:
-    period: 20
-    keep_only: 3
-
-  profiler:
-    active: true
-    wait: 1
-    steps: -1
-
 cluster:
   compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
   slurm:
@@ -67,3 +47,26 @@ optim:
   warmup: 10
   lr_min_ratio: 0
 
+orchestration:
+  name: debug 
+  overwrite: true
+
+  checkpoint:
+    period: 20
+    keep_only: 3
+
+  logging:
+    period: 1
+    level: debug
+
+  profiler:
+    active: true
+    wait: 1
+    steps: -1
+
+  utils:
+    seed: 100
+
+  wandb:
+    active: false
+    name: "me"

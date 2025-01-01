@@ -12,13 +12,14 @@ located in the root directory of this repository.
 import logging
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Optional
 
+import wandb
 from omegaconf import OmegaConf
 
-import wandb
+from .monitor import Monitor
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +31,30 @@ class WandbConfig:
     # Wandb user and project name
     entity: str = ""
     project: str = "composition"
-    name: str = ""
+    name: str = field(init=False)
+    id_file: str = field(init=False)
+
+    def __post_init__(self):
+        self.name = ""
+        self.id_file = ""
+
+    def __manual_post_init__(self):
+        """Check validity of arguments and fill in missing values."""
+        assert self.name, "name was not set"
+        assert self.id_file, "name was not set"
 
 
-class WandbManager:
-    def __init__(self, config: WandbConfig, log_dir: str):
+class WandbManager(Monitor):
+    def __init__(self, config: WandbConfig):
         self.entity = config.entity
         self.project = config.project
         self.name = config.name
-        self.id_file = str(log_dir / "wandb.id")
+        self.id_file = config.id_file
 
     def __enter__(self):
+        """
+        Open wandb api.
+        """
         # Read run id from id file if it exists
         if os.path.exists(self.id_file):
             resuming = True
@@ -83,15 +97,16 @@ class WandbManager:
         self.run.config.update(config_dict, allow_val_change=True)
         logger.info("Run configuration has been logged to wandb.")
 
-    def __call__(self, metrics: dict, step: int) -> None:
-        wandb.log(metrics, step=step)
+    def report_metrics(self, metrics: dict) -> None:
+        """
+        Report metrics to wanbd.
+        """
+        wandb.log(metrics, step=metrics["step"])
 
-    def __exit__(
-        self,
-        exc: type[BaseException],
-        value: BaseException,
-        tb: TracebackType,
-    ):
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
+        """
+        Close wandb api.
+        """
         # Handle exception
         try:
             if exc is not None:

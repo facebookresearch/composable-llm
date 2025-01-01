@@ -9,4 +9,4 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-from .monitor import MonitorConfig, Orchestrator
+from .orchestrator import Orchestrator, OrchestratorConfig

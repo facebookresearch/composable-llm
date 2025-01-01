@@ -13,7 +13,7 @@ import json
 import logging
 import re
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PosixPath
 from types import TracebackType
 
@@ -23,7 +23,7 @@ from torch.optim import Optimizer, lr_scheduler
 
 from ..cluster import get_rank, is_master_process
 from ..train import TrainState
-from ..utils import trigger_update
+from .monitor import Monitor
 
 logger = logging.getLogger(__file__)
 
@@ -32,10 +32,18 @@ logger = logging.getLogger(__file__)
 class CheckpointConfig:
     period: int = -1
     keep_only: int = -1
-    path: str = ""
+    sync_step: bool = True  # whether profiler step should be sync with optimizer step
+    path: str = field(init=False)
+
+    def __post_init__(self):
+        self.path = ""
+
+    def __manual_post_init__(self):
+        """Check validity of arguments."""
+        assert self.path, "path was not set"
 
 
-class Checkpointer:
+class Checkpointer(Monitor):
     """
     Checkpoint manager
 
@@ -66,10 +74,12 @@ class Checkpointer:
         self,
         config: CheckpointConfig,
     ):
-        self.period = config.period
+        super().__init__(config)
+
         self.keep_only = config.keep_only
         self.path = Path(config.path)
         self.path.mkdir(parents=True, exist_ok=True)
+        self.sync = config.sync_step
 
         self.model = None
         self.optimizer = None
@@ -77,56 +87,48 @@ class Checkpointer:
         self.state = None
 
         self.device_rank = get_rank()
-        self.up_to_date = True
+        self.saved_step = 0
 
-    def __enter__(self):
-        """
-        Enter checkpoint context by loading checkpoint if it exists
-        """
-        return self
-
+    @torch.no_grad()
     def report_objects(
         self,
         model: nn.Module,
         optimizer: Optimizer,
         scheduler: lr_scheduler.LambdaLR,
         state: TrainState,
+        **kwargs,
     ) -> None:
         """
-        Report object and load checkpoint if it exists
+        Create alias for the objects to monitor, and try to load checkpoint
         """
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.state = state
 
-        path = self.get_last_checkpoint_path()
-        if path:
-            self.load(path)
+        path = self._get_last_checkpoint_path()
+        if not path:
+            return
 
-    def __call__(self) -> None:
-        """
-        Save checkpoint if it matching the period
-        """
-        if trigger_update(self.state, self.period):
-            self.save()
-            self.up_to_date = True
-        else:
-            self.up_to_date = False
+        logger.info("Reloading train state")
+        file_path = path / self.state_name.format(self.device_rank)
+        with open(file_path) as f:
+            train_state_dict = json.load(f)
+        self.state.load_state_dict(train_state_dict)
+        logger.info("Train state reloaded")
 
-    def __exit__(
-        self,
-        exc: type[BaseException],
-        value: BaseException,
-        tb: TracebackType,
-    ):
-        """
-        Exit checkpoint context by saving checkpoint if needed
-        """
-        if not self.up_to_date:
-            self.save()
+        logger.info(f"Loading from: {str(path)}")
+        state_dict = torch.load(path / "checkpoint.pth", weights_only=True)
+        self.model.load_state_dict(state_dict["model"])
+        self.optimizer.load_state_dict(state_dict["optim"])
+        self.scheduler.load_state_dict(state_dict["scheduler"])
+        logger.info("Model, optimizer and scheduler reloaded")
 
-    def save(self) -> None:
+        if self.sync:
+            self.step = state.optim.step
+        self.saved_step = self.step
+
+    def update(self) -> None:
         """
         Checkpoint model, optimizer, scheduler and training state
         """
@@ -146,55 +148,39 @@ class Checkpointer:
                 "scheduler": self.scheduler.state_dict(),
             }
             torch.save(state_dict, save_dir / "checkpoint.pth")
-            self.cleaning()
+            self._cleaning()
 
-    @torch.no_grad()
-    def load(self, path: Path) -> None:
+        self.saved_step = self.step
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         """
-        Load from checkpoint
-
-        Parameters
-        ----------
-        path:
-            Path to the checkpoint directory
+        Exit checkpoint context by saving checkpoint if needed
         """
+        if not self.saved_step != self.step:
+            self.update()
 
-        logger.info("Reloading train state")
-        file_path = path / self.state_name.format(self.device_rank)
-        with open(file_path) as f:
-            train_state_dict = json.load(f)
-        self.state.load_state_dict(train_state_dict)
-        logger.info("Train state reloaded")
-
-        logger.info(f"Loading from: {str(path)}")
-        state_dict = torch.load(path / "checkpoint.pth", weights_only=True)
-        self.model.load_state_dict(state_dict["model"])
-        self.optimizer.load_state_dict(state_dict["optim"])
-        self.scheduler.load_state_dict(state_dict["scheduler"])
-        logger.info("Model, optimizer and scheduler reloaded")
-
-    def get_last_checkpoint_path(self) -> str:
+    def _get_last_checkpoint_path(self) -> str:
         """
         Get last existing checkpoint
         """
-        folders = self.list_checkpoints()
+        folders = self._list_checkpoints()
         if folders:
             return max(folders, key=lambda p: self._get_key_step(p.name))
         return ""
 
-    def cleaning(self) -> None:
+    def _cleaning(self) -> None:
         """
         Clean up old checkpoints
         """
         if self.keep_only == -1:
             return
-        all_checkpoints = self.list_checkpoints()
+        all_checkpoints = self._list_checkpoints()
         all_checkpoints.sort(key=lambda p: self._get_key_step(p.name))
         for prefix in all_checkpoints[: -self.keep_only]:
             logger.info(f"Removing: {str(prefix)}")
             shutil.rmtree(prefix)
 
-    def list_checkpoints(self) -> list[PosixPath]:
+    def _list_checkpoints(self) -> list[PosixPath]:
         """
         List all existing checkpoints
         """

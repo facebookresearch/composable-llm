@@ -25,7 +25,7 @@ from omegaconf import OmegaConf
 from ...nanollama.cluster import ClusterConfig, ClusterManager, get_hostname, is_master_process
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoaderManager, init_dataloader_state
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import MonitorConfig, Orchestrator
+from ...nanollama.monitor import Orchestrator, OrchestratorConfig
 from ...nanollama.optim import (
     OptimizerConfig,
     init_optimizer,
@@ -50,7 +50,7 @@ class TrainingConfig:
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
-    monitor: MonitorConfig = field(default_factory=MonitorConfig)
+    orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
 
     def __manual_post_init__(self):
         """
@@ -111,7 +111,7 @@ def train(config: TrainingConfig) -> None:
         # Monitor: checkpointing, profiling, probing, logging
         # ---------------------------------------------------------------------
 
-        monitor: Orchestrator = context_stack.enter_context(Orchestrator(config.monitor))
+        monitor: Orchestrator = context_stack.enter_context(Orchestrator(config.orchestration))
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
@@ -165,7 +165,8 @@ def train(config: TrainingConfig) -> None:
         model.train()
 
         # poor man's profiler
-        timer = monitor.profiler
+        timer = monitor.submanagers[3]
+        my_logger = monitor.submanagers[1]
 
         while state.optim.step < config.optim.steps:
             # accumulation step
@@ -227,7 +228,7 @@ def train(config: TrainingConfig) -> None:
 
             timer.start_timer()
 
-            if trigger_update(state, config.monitor.logging.period):
+            if trigger_update(state, config.orchestration.logging.period):
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
                 metrics = {
@@ -235,7 +236,7 @@ def train(config: TrainingConfig) -> None:
                     "step": state.optim.step,
                     "acc_step": state.optim.acc_step,
                 }
-                monitor.report_metrics(metrics)
+                my_logger.report_metrics(metrics)
 
                 # log to console
                 if is_master_process():

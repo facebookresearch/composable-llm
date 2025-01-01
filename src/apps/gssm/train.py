@@ -25,7 +25,7 @@ from omegaconf import OmegaConf
 from ...nanollama.cluster import ClusterConfig, ClusterManager, get_hostname, is_master_process
 from ...nanollama.data.file import DataConfig, FileDataLoaderManager, init_dataloader_state
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import MonitorConfig, Orchestrator
+from ...nanollama.monitor.orchestrator import Orchestrator, OrchestratorConfig
 from ...nanollama.optim import (
     OptimizerConfig,
     init_optimizer,
@@ -50,7 +50,7 @@ class TrainingConfig:
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
-    monitor: MonitorConfig = field(default_factory=MonitorConfig)
+    monitor: OrchestratorConfig = field(default_factory=OrchestratorConfig)
 
     def __manual_post_init__(self):
         """

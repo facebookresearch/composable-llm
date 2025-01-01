@@ -1,6 +1,6 @@
 # Debugging configuration
 monitor:
-  name: debug_from_file
+  name: debug_new
   seed: 100
   overwrite: true
 
@@ -45,7 +45,7 @@ data:
   asynchronous: false
 
 optim:
-  steps: 100
+  steps: 500
   lr: 1e-2
   weight_decay: 0.1
   warmup: 10
