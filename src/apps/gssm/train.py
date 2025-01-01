@@ -151,7 +151,7 @@ def train(config: TrainingConfig) -> None:
         # DataLoader
         # ---------------------------------------------------------------------
 
-        dataloader = context_stack.enter_context(
+        dataloader: OnlineDataLoaderManager = context_stack.enter_context(
             OnlineDataLoaderManager(
                 config=config.data,
                 state=state.data,

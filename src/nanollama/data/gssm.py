@@ -596,7 +596,7 @@ class OnlineDataLoaderManager:
                     logger.debug("Buffer is full. Waiting for data comsumption.")
             logger.debug("New batch put in the buffer.")
 
-    def async_get_batch(self) -> tuple[np.ndarray, dict[str, Any]]:
+    def async_get_batch(self) -> tuple[torch.Tensor, dict[str, Any]]:
         """
         Asynchronous batch acquisition, reading batches from the buffer.
         """
@@ -608,7 +608,7 @@ class OnlineDataLoaderManager:
             except Empty:
                 logger.debug("Buffer is empty. Waiting for data.")
 
-    def __next__(self) -> tuple[np.ndarray, dict[str, Any]]:
+    def __next__(self) -> tuple[torch.Tensor, dict[str, Any]]:
         if self.asynchronous:
             return self.async_get_batch()
         else:
