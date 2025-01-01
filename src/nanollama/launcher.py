@@ -194,7 +194,7 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 # Logging configuration
 #SBATCH --job-name={name}
 #SBATCH --output={log_dir}/logs/%j/main.out
-#SBATCH --error={log_dir}/logs/%j/main.err
+#SBATCH --error={log_dir}/logs/%j/device_0.log
 #SBATCH --open-mode=append
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
