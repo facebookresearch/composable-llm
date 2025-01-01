@@ -40,7 +40,7 @@ pip install -e . [dev,visu]
 #### First run
 You can run a debug script with the following command:
 ```
-python -m src.apps.gssm_online.train config=src/apps/gssm_online/configs/debug.yaml
+python -m src.apps.gssm_onfly.train config=src/apps/gssm_onfly/configs/debug.yaml
 ```
 In this online setting, data are generated on the fly. 
 The configuration file `debug.yaml` is a simple configuration file that will run a simple experiment.
