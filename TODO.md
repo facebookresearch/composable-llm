@@ -1,27 +1,8 @@
 # TODOS
 
-- Training with dataloading from file
-- Check determinism if training if stopped and restart
-- Ensure training online still works fine and is deterministic
-
-Add an option to choose whether we train online or from a file.
-
-
 #### Scaling law with respect to model size
 
 #### Scaling law with respect to the number of data
-
-#### Additional features
-- [ ] Probing.
-
-- [ ] Evaluation : can probing recover the hidden state.
-- [ ] Generation: Implement caching mechanisms from meta-lingua.
-
-- [ ] Clean the arguments in manual_post_init. (vocab_size = X.state_dim)
-
-- Script to upload all metrics to wandb. 
-Profiler traces to wandb
-
 
 #### Further improvements
 Improvement for `checkpoint.py`
@@ -47,45 +28,8 @@ Improvement for `visualization`
 1. notebook to visualize logging with plotly.
 
 Improvement for `profiler`
-1. Make the `light` profiler work when pausing and restarting a run (create a ProfilerState).
-     - Check if file already exists, and if so, just append to it without writing the header.
 1. Add option to log HFU, MFU...
+1. Write a script to cast the profiler traces to numpy array to visualize them, and to wandb.
 
 Improvement to `wanbd`
 1. Do not log to wanbd, first log to local file, and have a asynchronous process casting the logs to wandb (or to another visualizer).
-
-
-## Commands
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/base.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/sparse.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/dense.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/low_entropy.yaml
-
-
-#### Debug
-python -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml launcher=bash
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml torchrun=True
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml torchrun=True launcher=bash
-OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
-OMP_NUM_THREADS=1 torchrun --nproc-per-node 8 -m src.apps.gssm.train config=src/apps/gssm/configs/debug.yaml
-
-#### Personal Debug
-python -m src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml launcher=bash
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml torchrun=True
-python -m src.nanollama.launcher script=src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml torchrun=True launcher=bash
-OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
-OMP_NUM_THREADS=1 torchrun --nproc-per-node 8 -m src.apps.gssm.train config=src/apps/gssm/tmp_configs/debug.yaml
-
-## Longer term project
-
-- Model parallelism
-
-Formal math:
-xlean
-Metagen -> Lean formal ...
-
-- Subsampling / Mamba Hybrid

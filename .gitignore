@@ -11,7 +11,7 @@ savings/
 wandb/
 
 # Personal file and folder
-# TODO.md
+MYTODO.md
 *.ipynb
 tmp_*
 tests/
