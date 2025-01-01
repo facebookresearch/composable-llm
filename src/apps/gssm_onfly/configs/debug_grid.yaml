@@ -6,16 +6,17 @@ grid:
   optim:
     lr: [1e-3, 1e-4]
 
-monitor:
+orchestration:
   name: debug_grid
-  seed: 100
   overwrite: true
 
+  utils:
+    seed: 100
   logging:
     period: 1
     level: debug
-    wandb:
-      active: true
+  wandb:
+    active: true
 
   checkpoint:
     period: 20
@@ -29,6 +30,8 @@ monitor:
 cluster:
   compile_model: false
   slurm:
+    partition: "scavenge"
+    mem: 16G
     nodes: 1
     nb_gpus: 2
     time: 10          # job time in minutes

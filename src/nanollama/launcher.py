@@ -13,14 +13,14 @@ import itertools
 import os
 import shutil
 import subprocess
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
 from omegaconf import OmegaConf
 
-from .cluster import ClusterConfig
-from .monitor import MonitorConfig
+from .cluster import SlurmConfig
+from .monitor import OrchestratorConfig
 
 # -------------------------------------------------------------------------------
 # Configuration Class
@@ -33,13 +33,12 @@ class TrainingConfig:
     model: Optional[Any] = None
     optim: Optional[Any] = None
 
-    cluster: ClusterConfig = field(default_factory=ClusterConfig)
-    monitor: MonitorConfig = field(default_factory=MonitorConfig)
+    cluster: Optional[Any] = None
+    orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
 
 
 @dataclass
 class LauncherConfig:
-    config: TrainingConfig = field(default_factory=TrainingConfig)
     launcher: str = "sbatch"
     torchrun: bool = False
     script: str = "apps.train"
@@ -50,10 +49,6 @@ class LauncherConfig:
         """
         Check validity of arguments and fill in missing values.
         """
-        # manual post initialization of all modules
-        for module in self.config.__dict__.values():
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
 
         # recover python environment from the job was launched.
         if self.python_env:
@@ -229,7 +224,9 @@ export LOG_DIR={log_dir}
 """
 
 
-def launch_job(config: LauncherConfig, grid: Optional[dict[str, Any]] = None) -> None:
+def launch_job(
+    config: LauncherConfig, run_config: TrainingConfig, slurm: SlurmConfig, grid: Optional[dict[str, Any]] = None
+) -> None:
     """
     Launch a job on a Slurm cluster.
 
@@ -237,16 +234,18 @@ def launch_job(config: LauncherConfig, grid: Optional[dict[str, Any]] = None) ->
     ----------
     config:
         The configuration to launch the job.
+    run_config:
+        The training configuration of the job.
+    slurm:
+        Slurm ressource configuration.
     grid:
-        A grid configuration to launch a grid job.
+        Dictionnary to iterate over to launch a grid job.
     """
-    # aliases
-    monitor_config = config.config.monitor
-    slurm_config = config.config.cluster.slurm
+    monitor = OrchestratorConfig(**run_config.orchestration)
 
     # logging directory
-    dir = monitor_config.dir
-    if os.path.exists(dir) and monitor_config.overwrite:
+    dir = monitor.dir
+    if os.path.exists(dir) and monitor.overwrite:
         confirm = input(
             f"Are you sure you want to delete the directory '{dir}'? This action cannot be undone. (yes/no): "
         )
@@ -271,13 +270,13 @@ def launch_job(config: LauncherConfig, grid: Optional[dict[str, Any]] = None) ->
     # handling potential grid run
     if grid:
         print("Writing grid configurations ...", end="")
-        nb_configs = write_configs_from_grid(asdict(config.config), grid, dir)
+        nb_configs = write_configs_from_grid(run_config, grid, dir)
         slurm_extra = f"#SBATCH --array=1-{nb_configs}\n"
         config_path = "$LOG_DIR/config_$SLURM_ARRAY_TASK_ID.yaml"
     else:
         # write config
-        with open(f"{dir}/config.yaml", "w") as cfg:
-            cfg.write(OmegaConf.to_yaml(config.config))
+        with open(f"{dir}/config.yaml", "w") as f:
+            f.write(OmegaConf.to_yaml(run_config))
         slurm_extra = ""
         config_path = "$LOG_DIR/config.yaml"
 
@@ -286,8 +285,8 @@ def launch_job(config: LauncherConfig, grid: Optional[dict[str, Any]] = None) ->
     conda_env_path = str(Path(config.python_env).parent.parent)
 
     # aliases
-    nodes = slurm_config.nodes
-    nb_gpus = slurm_config.nb_gpus
+    nodes = slurm.nodes
+    nb_gpus = slurm.nb_gpus
 
     # define the run command
     if config.launcher == "sbatch":
@@ -304,18 +303,18 @@ def launch_job(config: LauncherConfig, grid: Optional[dict[str, Any]] = None) ->
             run_command = f"python -u -m {config.script} config=$LOG_DIR/config.yaml"
 
     bash_command = LAUNCHER_SCRIPT.format(
-        name=monitor_config.name,
+        name=monitor.name,
         log_dir=dir,
-        partition=slurm_config.partition,
+        partition=slurm.partition,
         nodes=nodes,
         tasks=nodes * nb_gpus,
         nb_gpus=nb_gpus,
-        nb_cpus=slurm_config.nb_cpus,
-        mem=slurm_config.mem,
-        time=slurm_config.time,
-        signal_time=slurm_config.signal_time,
-        slurm_extra=slurm_extra + slurm_config.slurm_extra,
-        script_extra=slurm_config.script_extra,
+        nb_cpus=slurm.nb_cpus,
+        mem=slurm.mem,
+        time=slurm.time,
+        signal_time=slurm.signal_time,
+        slurm_extra=slurm_extra + slurm.slurm_extra,
+        script_extra=slurm.script_extra,
         conda_exe=conda_exe,
         conda_env_path=conda_env_path,
         go_to_code_dir=go_to_code_dir,
@@ -326,7 +325,7 @@ def launch_job(config: LauncherConfig, grid: Optional[dict[str, Any]] = None) ->
         f.write(bash_command)
 
     print(f"Launching job with `{config.launcher}` command.")
-    os.system(f"{config.launcher} {dir}/run.sh")
+    # os.system(f"{config.launcher} {dir}/run.sh")
 
 
 def main() -> None:
@@ -342,19 +341,25 @@ def main() -> None:
     """
     # Load config from path specified by the `config` cli argument
     args = OmegaConf.from_cli()
-    args.config = OmegaConf.load(args.config)
-    grid = args.config.pop("grid", None)
+    run_config = OmegaConf.load(args.pop("config"))
+
+    # special yaml section
+    grid = run_config.pop("grid", None)
+    slurm = SlurmConfig(**run_config.get("cluster", {}).pop("slurm", {}))
+
+    # convert OmegeConf object to dictionnary
     if grid:
         grid = OmegaConf.to_object(grid)
 
     # Default to default arguments for unspecified values
-    default_config = OmegaConf.structured(LauncherConfig())
-    config = OmegaConf.merge(default_config, args)
-    config: LauncherConfig = OmegaConf.to_object(config)
+    # default_config = OmegaConf.structured(LauncherConfig())
+    # config = OmegaConf.merge(default_config, args)
+    # config: LauncherConfig = OmegaConf.to_object(config)
+    config = LauncherConfig(**args)
     config.__manual_post_init__()
 
     # Launch job
-    launch_job(config, grid)
+    launch_job(config, run_config, slurm, grid)
 
 
 if __name__ == "__main__":

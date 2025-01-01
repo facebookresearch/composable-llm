@@ -36,24 +36,24 @@ class OrchestratorConfig:
     overwrite: bool = False  # whether to overwrite logging directory
 
     # submanagers
-    utils: UtilityConfig = field(default_factory=UtilityConfig)
-    logging: LoggerConfig = field(default_factory=LoggerConfig)
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
+    logging: LoggerConfig = field(default_factory=LoggerConfig)
     profiler: ProfilerConfig = field(default_factory=ProfilerConfig)
+    utils: UtilityConfig = field(default_factory=UtilityConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)
+
+    def __post_init__(self):
+        if not self.dir:
+            dir = Path.home() / "logs" / self.name
+            self.dir = str(dir)
+            print(f"No logging directory set. Setting it to {self.dir}")
 
     def __manual_post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
 
-        # directory
-        if not self.dir:
-            dir = Path.home() / "logs" / self.name
-            self.dir = str(dir)
-            print(f"No logging directory set. Setting it to {self.dir}")
-        else:
-            dir = Path(self.dir)
+        dir = Path(self.dir)
         dir.mkdir(parents=True, exist_ok=True)
 
         # add discriminative information if array job

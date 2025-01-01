@@ -286,12 +286,12 @@ def main() -> None:
     Non-specified arguments will be filled with the default values of the Config classes.
     """
     # Load config from path specified by the `config` cli argument
-    cli_args = OmegaConf.from_cli()
-    file_config = OmegaConf.load(cli_args.pop("config", None))
+    args = OmegaConf.from_cli()
+    file_config = OmegaConf.load(args.config)
 
     # Default to default arguments for unspecified values
     default_config = OmegaConf.structured(TrainingConfig())
-    config = OmegaConf.merge(default_config, file_config, cli_args)
+    config = OmegaConf.merge(default_config, file_config)
     config: TrainingConfig = OmegaConf.to_object(config)
     config.__manual_post_init__()
 

@@ -10,4 +10,5 @@ located in the root directory of this repository.
 """
 
 from .cluster import ClusterConfig, ClusterManager
+from .slurm import SlurmConfig
 from .utils import get_hostname, get_rank, is_master_process

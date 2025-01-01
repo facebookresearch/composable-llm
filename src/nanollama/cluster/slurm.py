@@ -12,7 +12,7 @@ located in the root directory of this repository.
 import json
 import logging
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class SlurmConfig:
     signal_time: int = 120
 
     # extra configuration
-    slurm_extra: str = ""  # placeholder
+    slurm_extra: str = field(init=False)  # placeholder
     constraint: str = ""  # constraint on the nodes.
     exclude: str = ""  # nodes to exclude.
     account: str = ""
@@ -41,21 +41,12 @@ class SlurmConfig:
     script_extra: str = ""
 
     def __post_init__(self):
-        assert self.slurm_extra == "", "slurm_extra is a placeholder and should not be set"
+        self.slurm_extra = ""
         for name in ["exclude", "qos", "account", "constraint"]:
             val = getattr(self, name)
             if val:
                 self.slurm_extra += f"#SBATCH --{name}={val}\n"
 
-    def __manual_post_init__(self):
-        """
-        Check validity of arguments and fill in missing values.
-
-        Notes
-        -----
-        The following calls are not made in the __post_init__ method to
-        avoid running them when extracting default config with OmegaConf.
-        """
         # if partition, time or memory was not set
         priorities, max_times, memories = {}, {}, {}
         if self.partition == "" or self.time == -1 or self.mem == "":

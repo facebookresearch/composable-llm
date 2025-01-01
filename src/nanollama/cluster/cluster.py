@@ -10,7 +10,10 @@ located in the root directory of this repository.
 """
 
 import logging
-from dataclasses import dataclass, field
+import os
+import random
+import subprocess
+from dataclasses import asdict, dataclass, field
 from types import TracebackType
 
 import torch
@@ -18,30 +21,77 @@ import torch.distributed as dist
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from .os_environment import OsEnvironment, set_os_environment
-from .slurm import SlurmConfig
-from .utils import get_local_rank, get_rank, get_world_size, is_distributed_job
+from .utils import get_local_rank, get_rank, get_world_size, is_distributed_job, is_slurm_job
 
 logger = logging.getLogger(__name__)
 
 
+# -------------------------------------------------------------------------------
+# OS Environment
+# -------------------------------------------------------------------------------
+
+
+@dataclass
+class OsEnvironment:
+    OMP_NUM_THREADS: str = "1"
+
+
+def set_os_environment(config: OsEnvironment) -> None:
+    """
+    Set OS environment variables based on configuration.
+    """
+    env_vars = asdict(config)
+
+    # # When using Triton, it attempts to locate prebuilt kernels in a cache
+    # # located at ~/.triton/cache, but when that's backed by NFS this can fail
+    # # with a "OSError: [Errno 116] Stale file handle" error. If we were to set
+    # # it to a local directory it would belong to the first user who created it
+    # # and it would fail for the job of any other successive user assigned to
+    # # that machine. To avoid all this mess we use a temporary per-process cache.
+    # triton_cache_dir = tempfile.mkdtemp()
+    # atexit.register(shutil.rmtree, triton_cache_dir, ignore_errors=True)
+    # env_vars["TRITON_CACHE_DIR"] = triton_cache_dir
+
+    # # We change the tmp dir to /scratch in case it's slurm job
+    # # This avoids filling up the host's usually limited tmpfs
+    # # A full tmpfs leads to very slow creation of processes and weird bugs
+    # if is_slurm_job():
+    #     new_tmp = f"/scratch/slurm_tmpdir/{os.environ['SLURM_JOB_ID']}"
+    #     if os.path.exists(new_tmp):
+    #         env_vars["TMP_DIR"] = new_tmp
+
+    for name, value in env_vars.items():
+        if os.environ.get(name) != str(value):
+            os.environ[name] = str(value)
+            print(f"WARNING: Setting {name} to {value}")
+
+    # set up slurm environment
+    if is_slurm_job():
+        hostnames = subprocess.check_output(["scontrol", "show", "hostnames", os.environ["SLURM_JOB_NODELIST"]])
+        master_addr = hostnames.split()[0].decode("utf-8")
+
+        MIN_MASTER_PORT, MAX_MASTER_PORT = (20000, 60000)
+        job_id = int(os.environ["SLURM_JOB_ID"])
+        rng = random.Random(job_id)
+        master_port = rng.randint(MIN_MASTER_PORT, MAX_MASTER_PORT)
+
+        os.environ["MASTER_ADDR"] = master_addr
+        os.environ["MASTER_PORT"] = str(master_port)
+
+
+# -------------------------------------------------------------------------------
+# Cluster Configuration and Manager
+# -------------------------------------------------------------------------------
+
+
 @dataclass
 class ClusterConfig:
-    slurm: SlurmConfig = field(default_factory=SlurmConfig)
-    os_environment: OsEnvironment = field(default_factory=OsEnvironment)
-
     device: str = "cuda"
     compile_model: bool = True
     backend: str = "nccl"
 
-    def __manual_post_init__(self):
-        """
-        Check validity of arguments and fill in missing values.
-        """
-        # manual post initialization of all modules
-        for module in self.__dict__.values():
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
+    # submanager
+    os_environment: OsEnvironment = field(default_factory=OsEnvironment)
 
 
 class ClusterManager:
@@ -83,12 +133,7 @@ class ClusterManager:
             model = DDP(model, device_ids=[local_rank])
         return model
 
-    def __exit__(
-        self,
-        exc: type[BaseException],
-        value: BaseException,
-        tb: TracebackType,
-    ):
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         """
         Exit distributed environment
         """
