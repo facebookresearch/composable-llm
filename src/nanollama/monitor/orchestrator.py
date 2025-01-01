@@ -109,7 +109,7 @@ class Orchestrator:
         ]
 
         if config.wandb.active and is_master_process():
-            os.environ["WANDB_DIR"] = config.wandb.log_dir
+            os.environ["WANDB_DIR"] = config.logging.stdout_path
             self.submanagers.append(WandbManager(config.wandb))
 
     def __enter__(self):

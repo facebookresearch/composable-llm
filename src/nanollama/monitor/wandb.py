@@ -16,8 +16,9 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Optional
 
-import wandb
 from omegaconf import OmegaConf
+
+import wandb
 
 from .monitor import Monitor
 
@@ -92,8 +93,12 @@ class WandbManager(Monitor):
             with open(self.id_file, "w") as file:
                 file.write(self.run.id)
 
-    def report_objects(self, run_config: dict) -> None:
-        config_dict = OmegaConf.to_container(OmegaConf.structured(run_config))
+    def __call__(self):
+        """Unused function, call should be made throught the report_metrics method."""
+        pass
+
+    def report_objects(self, config: dict = None, **kwargs) -> None:
+        config_dict = OmegaConf.to_container(OmegaConf.structured(config))
         self.run.config.update(config_dict, allow_val_change=True)
         logger.info("Run configuration has been logged to wandb.")
 

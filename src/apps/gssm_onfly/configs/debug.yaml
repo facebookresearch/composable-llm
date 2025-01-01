@@ -68,5 +68,5 @@ orchestration:
     seed: 100
 
   wandb:
-    active: false
+    active: true
     name: "me"

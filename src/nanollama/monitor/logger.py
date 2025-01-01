@@ -82,7 +82,7 @@ class Logger(Monitor):
         self.metric = open(self.metric, "a")
 
     def __call__(self):
-        """Unused function, real call should be made throught the report_metrics method."""
+        """Unused function, call should be made throught the report_metrics method."""
         pass
 
     def report_metrics(self, metrics: dict[str, Any]) -> None:

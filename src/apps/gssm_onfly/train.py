@@ -167,6 +167,7 @@ def train(config: TrainingConfig) -> None:
         # poor man's profiler
         timer = monitor.submanagers[3]
         my_logger = monitor.submanagers[1]
+        wandb = monitor.submanagers[4] if len(monitor.submanagers) == 5 else None
 
         while state.optim.step < config.optim.steps:
             # accumulation step
@@ -237,6 +238,8 @@ def train(config: TrainingConfig) -> None:
                     "acc_step": state.optim.acc_step,
                 }
                 my_logger.report_metrics(metrics)
+                if wandb:
+                    wandb.report_metrics(metrics)
 
                 # log to console
                 if is_master_process():
