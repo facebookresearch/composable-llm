@@ -1,7 +1,7 @@
 # Debugging configuration
 
 launcher:
-  name: debu_
+  name: debug
   overwrite: true
   log_dir: $HOME/logs/debug_onfly
 
