@@ -16,15 +16,13 @@ import os
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
-from types import TracebackType
 
 from ..distributed import is_master_process
-from .checkpoint import CheckpointConfig, Checkpointer
-from .logger import Logger, LoggerConfig
-from .monitor import Monitor
-from .profiler import Profiler, ProfilerConfig
-from .utility import UtilityConfig, UtilityManager
-from .wandb import WandbConfig, WandbManager
+from .checkpoint import CheckpointConfig
+from .logger import LoggerConfig
+from .profiler import ProfilerConfig
+from .utility import UtilityConfig
+from .wandb import WandbConfig
 
 logger = getLogger(__name__)
 
@@ -94,42 +92,3 @@ class OrchestratorConfig:
         for module in self.__dict__.values():
             if hasattr(module, "__check_init__"):
                 module.__check_init__()
-
-
-class MockOrchestrator:
-    def __init__(self, config: OrchestratorConfig):
-        self.model = None
-        self.optimizer = None
-        self.scheduler = None
-        self.state = None
-
-        # submanagers
-        self.submanagers: list[Monitor] = [
-            UtilityManager(config.utils),
-            Logger(config.logging),
-            Checkpointer(config.checkpoint),
-            Profiler(config.profiler),
-            WandbManager(config.wandb),
-        ]
-
-    def __enter__(self):
-        for manager in self.submanagers:
-            manager.__enter__()
-        return self
-
-    def report_objects(self, **kwargs) -> None:
-        """
-        Report the objects to monitor.
-
-        This function is useful since if we were to initialize monitors before the model is built.
-        """
-        for manager in self.submanagers:
-            manager.report_objects(**kwargs)
-
-    def __call__(self) -> None:
-        for manager in self.submanagers:
-            manager()
-
-    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
-        for manager in self.submanagers:
-            manager.__exit__(exc, value, tb)
