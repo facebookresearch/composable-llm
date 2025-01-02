@@ -35,9 +35,6 @@ class CheckpointConfig:
     sync_step: bool = True  # whether profiler step should be sync with optimizer step
     path: str = field(init=False)
 
-    def __post_init__(self):
-        self.path = ""
-
     def __manual_post_init__(self):
         """Check validity of arguments."""
         assert self.path, "path was not set"

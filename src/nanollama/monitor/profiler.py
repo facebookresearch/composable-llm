@@ -282,9 +282,6 @@ class ProfilerConfig:
     heavy: bool = False
     path: str = field(init=False)
 
-    def __post_init__(self):
-        self.path = ""
-
     def __manual_post_init__(self):
         """Check validity of arguments."""
         assert self.path, "path was not set"

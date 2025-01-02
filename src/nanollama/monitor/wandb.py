@@ -34,10 +34,6 @@ class WandbConfig:
     name: str = field(init=False)
     id_file: str = field(init=False)
 
-    def __post_init__(self):
-        self.name = ""
-        self.id_file = ""
-
     def __manual_post_init__(self):
         """Check validity of arguments and fill in missing values."""
         assert self.name, "name was not set"

@@ -31,7 +31,7 @@ logger = getLogger(__name__)
 
 @dataclass
 class OrchestratorConfig:
-    dir: str = ""
+    log_dir: str = ""
     name: str = "composition_default"
 
     # submanagers
@@ -42,16 +42,16 @@ class OrchestratorConfig:
     wandb: WandbConfig = field(default_factory=WandbConfig)
 
     def __post_init__(self):
-        if not self.log_dir:
-            self.log_dir = str(Path.home() / "logs" / self.name)
-            print(f"No logging directory set. Setting it to {self.log_dir}")
-
-    def __manual_post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
-
-        log_dir = Path(self.log_dir)
+        # logging directory
+        if not self.log_dir:
+            log_dir = str(Path.home() / "logs" / self.name)
+            self.log_dir = log_dir
+            print(f"No logging directory set. Setting it to {self.log_dir}")
+        else:
+            log_dir = Path(self.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # add discriminative information if array job
