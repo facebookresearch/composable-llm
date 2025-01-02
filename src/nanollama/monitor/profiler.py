@@ -333,10 +333,11 @@ class Profiler:
 
     @staticmethod
     def _unique_path(path: PosixPath, prefix: str, suffix: str) -> PosixPath:
-        i = 1
+        i = 0
         while i < 1000:
-            file_path = path / f"{prefix}{i}{suffix}"
-            if not file_path.exists():
-                return file_path
             i += 1
+            file_path = path / f"{prefix}{i}{suffix}"
+            if file_path.exists():
+                continue
+            return file_path
         raise ValueError("Could not find unique path")
