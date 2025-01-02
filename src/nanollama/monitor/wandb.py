@@ -13,6 +13,7 @@ import logging
 import os
 import sys
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from types import TracebackType
 from typing import Any
 
@@ -47,7 +48,8 @@ class WandbManager:
 
         # open wandb api
         os.environ["WANDB_DIR"] = config.path
-        id_file = config.path / "wandb.id"
+        id_file = Path(config.path) / "wandb.id"
+        id_file.parent.mkdir(parents=True, exist_ok=True)
         self.open(config.entity, config.project, id_file, config.name)
 
         # log run configuration to wandb
