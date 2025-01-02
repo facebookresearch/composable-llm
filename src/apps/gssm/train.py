@@ -22,8 +22,8 @@ import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
 
-from ...nanollama.cluster import ClusterConfig, ClusterManager, get_hostname, is_master_process
-from ...nanollama.data.file import DataConfig, FileDataLoaderManager, init_dataloader_state
+from ...nanollama.data.hdf5 import DataConfig, FileDataLoaderManager, init_dataloader_state
+from ...nanollama.distributed import ClusterConfig, ClusterManager, get_hostname, is_master_process
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor.orchestrator import Orchestrator, OrchestratorConfig
 from ...nanollama.optim import (
@@ -32,8 +32,7 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.train import TrainState
-from ...nanollama.utils import trigger_update
+from ...nanollama.utils import TrainState
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +202,10 @@ def train(config: TrainingConfig) -> None:
             # backward propagation
             loss.backward()
 
+            # gradient accumulation
+            if state.optim.acc_step != 0:
+                continue
+
             # optimizer step
             if state.optim.acc_step == 0:
                 optimizer.step()
@@ -227,7 +230,7 @@ def train(config: TrainingConfig) -> None:
 
             timer.start_timer()
 
-            if trigger_update(state, config.monitor.logging.period):
+            if state.optim.step % config.monitor.logging.period == 0:
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
                 metrics = {

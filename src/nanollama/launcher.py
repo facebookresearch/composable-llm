@@ -41,7 +41,7 @@ class SlurmConfig:
     signal_time: int = 120
 
     # extra configuration
-    slurm_extra: str = field(init=False, default="")  # placeholder
+    slurm_extra: str = field(init=False)  # placeholder
     constraint: str = ""  # constraint on the nodes.
     exclude: str = ""  # nodes to exclude.
     account: str = ""
@@ -50,7 +50,7 @@ class SlurmConfig:
     # cluster environment
     script_extra: str = ""
 
-    def __manual_post_init__(self):
+    def __post_init__(self):
         self.slurm_extra = ""
         for name in ["exclude", "qos", "account", "constraint"]:
             val = getattr(self, name)
@@ -101,26 +101,28 @@ class SlurmConfig:
 class LauncherConfig:
     name: str = "composition_default"
 
-    dir: str = ""
+    log_dir: str = ""
     overwrite: bool = False
     copy_code: bool = True
 
     launcher: str = "sbatch"
     torchrun: bool = False
     python_env: str = "default"
-    script: str = "apps.train"
+    script: str = ""
 
     grid: dict[str, Any] = field(default_factory=dict)
 
     slurm: SlurmConfig = field(default_factory=SlurmConfig)
 
-    def __manual_post_init__(self):
+    def __post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
-        if not self.dir:
-            self.dir = str(Path.home() / "logs" / self.name)
-            print(f"No logging directory specified, default to {self.dir}")
+        assert self.script, "No script specified to run the job."
+
+        if not self.log_dir:
+            self.log_dir = str(Path.home() / "logs" / self.name)
+            print(f"No logging directory specified, default to {self.log_dir}")
 
         # recover python environment from the job was launched.
         if self.python_env:
@@ -129,8 +131,6 @@ class LauncherConfig:
             else:
                 self.python_env = f"{self.python_env}/bin/python"
             assert os.path.isfile(self.python_env)
-
-        self.slurm.__manual_post_init__()
 
 
 # -------------------------------------------------------------------------------
@@ -279,25 +279,30 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     slurm = config.slurm
 
     # logging directory
-    dir = config.dir
-    if os.path.exists(dir) and config.overwrite:
+    log_dir = config.log_dir
+    if os.path.exists(log_dir) and config.overwrite:
         confirm = input(
-            f"Are you sure you want to delete the directory '{dir}'? This action cannot be undone. (yes/no): "
+            f"Are you sure you want to delete the directory '{log_dir}'? This action cannot be undone. (yes/no): "
         )
         if confirm.upper().startswith("Y"):
-            shutil.rmtree(dir)
-            print(f"Directory '{dir}' has been deleted.")
+            shutil.rmtree(log_dir)
+            print(f"Directory '{log_dir}' has been deleted.")
         else:
             print("Operation cancelled.")
             return
-    os.makedirs(dir, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    # casting logging directory to run_config
+    if "orchestration" not in run_config:
+        run_config["orchestration"] = {}
+    run_config["orchestration"] |= {"log_dir": log_dir, "name": config.name}
 
     # copy code
     if config.copy_code:
-        os.makedirs(f"{dir}/code", exist_ok=True)
-        print(f"Copying code to {dir} ...", end="")
-        copy_dir(os.getcwd(), f"{dir}/code")
-        go_to_code_dir = f"cd {dir}/code"
+        os.makedirs(f"{log_dir}/code", exist_ok=True)
+        print(f"Copying code to {log_dir} ...", end="")
+        copy_dir(os.getcwd(), f"{log_dir}/code")
+        go_to_code_dir = f"cd {log_dir}/code"
     else:
         go_to_code_dir = ""
     print(" Done.")
@@ -309,14 +314,14 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         all_configs = get_configs_from_grid(run_config, config.grid)
 
         for i, nested_config in enumerate(all_configs, start=1):
-            config_path = os.path.join(dir, f"config_{i}.yaml")
+            config_path = os.path.join(log_dir, f"config_{i}.yaml")
             with open(config_path, "w") as f:
                 yaml.dump(nested_config, f, default_flow_style=False)
 
         slurm_extra = f"#SBATCH --array=1-{i}\n"
         config_path = "$LOG_DIR/config_$SLURM_ARRAY_TASK_ID.yaml"
     else:
-        with open(f"{dir}/config.yaml", "w") as f:
+        with open(f"{log_dir}/config.yaml", "w") as f:
             yaml.dump(run_config, f, default_flow_style=False)
         slurm_extra = ""
         config_path = "$LOG_DIR/config.yaml"
@@ -345,7 +350,7 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
 
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.name,
-        log_dir=dir,
+        log_dir=log_dir,
         partition=slurm.partition,
         nodes=nodes,
         tasks=nodes * nb_gpus,
@@ -362,11 +367,11 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         run_command=run_command,
     )
 
-    with open(f"{dir}/run.sh", "w") as f:
+    with open(f"{log_dir}/run.sh", "w") as f:
         f.write(bash_command)
 
     print(f"Launching job with `{config.launcher}` command.")
-    os.system(f"{config.launcher} {dir}/run.sh")
+    # os.system(f"{config.launcher} {log_dir}/run.sh")
 
 
 def main() -> None:
@@ -395,7 +400,6 @@ def main() -> None:
     file_config = file_config.pop("launcher", None)
 
     config = initialize_nested_dataclass(LauncherConfig, file_config)
-    config.__manual_post_init__()
 
     # Launch job
     launch_job(config, run_config)

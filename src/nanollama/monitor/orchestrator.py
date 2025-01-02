@@ -42,17 +42,17 @@ class OrchestratorConfig:
     wandb: WandbConfig = field(default_factory=WandbConfig)
 
     def __post_init__(self):
-        if not self.dir:
-            self.dir = str(Path.home() / "logs" / self.name)
-            print(f"No logging directory set. Setting it to {self.dir}")
+        if not self.log_dir:
+            self.log_dir = str(Path.home() / "logs" / self.name)
+            print(f"No logging directory set. Setting it to {self.log_dir}")
 
     def __manual_post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
 
-        dir = Path(self.dir)
-        dir.mkdir(parents=True, exist_ok=True)
+        log_dir = Path(self.log_dir)
+        log_dir.mkdir(parents=True, exist_ok=True)
 
         # add discriminative information if array job
         task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
@@ -60,23 +60,21 @@ class OrchestratorConfig:
             # keep a mapping of job_id to task_id
             if is_master_process():
                 job_id = os.environ.get("SLURM_JOB_ID")
-                with open(dir / "id_mapping", "a") as f:
+                with open(log_dir / "id_mapping", "a") as f:
                     f.write(f"task {task_id}: {job_id}\n")
-            dir = dir / task_id
-
-        # logging directory
-        log_dir = dir / "logs"
-        self.logging.stdout_path = str(log_dir)
-
-        # logging related path
-        self.logging.metric_path = str(log_dir / "metrics" / "train_eval.json")
-        self.wandb.id_file = str(log_dir / "wandb.id")
+            log_dir = log_dir / task_id
 
         # checkpoint directory
-        self.checkpoint.path = str(dir / "checkpoints")
+        self.checkpoint.path = str(log_dir / "checkpoints")
 
         # profile directory
-        self.profiler.path = str(dir / "metrics")
+        self.profiler.path = str(log_dir / "metrics")
+
+        # logging directory and paths
+        log_dir = log_dir / "logs"
+        self.logging.stdout_path = str(log_dir)
+        self.logging.metric_path = str(log_dir / "metrics" / "train_eval.json")
+        self.wandb.id_file = str(log_dir / "wandb.id")
 
         # wandb name
         self.wandb.name = self.name
