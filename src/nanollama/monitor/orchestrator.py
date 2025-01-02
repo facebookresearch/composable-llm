@@ -52,6 +52,7 @@ class OrchestratorConfig:
             self.log_dir = str(log_dir)
             print(f"No logging directory set. Setting it to {self.log_dir}")
         else:
+            self.log_dir = os.expandvars(self.log_dir)
             log_dir = Path(self.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -87,8 +88,6 @@ class OrchestratorConfig:
             self.wandb.name += f"_task_{task_id}"
         self.logging.stdout_path = str(stdout_dir)
         self.wandb.id_file = str(stdout_dir / "wandb.id")
-
-        print(self.wandb.id_file)
 
         # check validity of submodule
         for module in self.__dict__.values():

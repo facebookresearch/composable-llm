@@ -10,6 +10,7 @@ located in the root directory of this repository.
 """
 
 import logging
+import os
 from collections.abc import Generator
 from dataclasses import dataclass
 from multiprocessing import Process, Queue
@@ -37,6 +38,9 @@ class DataConfig:
     asynchronous: bool = True  # asynchronous data loading
     buffer_size: int = 4  # number of batches to bufferize asynchronously for data loading
 
+    def __post_init__(self):
+        self.path = os.path.expandvars(self.path)
+
 
 @dataclass
 class DataLoaderState:
@@ -61,7 +65,7 @@ class DataLoaderState:
         self.rng_state = state_dict["rng_state"]
         self.epoch = state_dict["epoch"]
         self.step = state_dict["step"]
-        self.residual_idx = np.array(state_dict["residual_idx"])
+        self.residual_idx = np.array(state_dict["residual_idx"], dtype=int)
 
     def report_restart_info(
         self, rng_state: dict[str, Any], epoch: int, step: int, residual_idx: np.ndarray[int]
