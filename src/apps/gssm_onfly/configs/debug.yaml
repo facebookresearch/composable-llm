@@ -1,6 +1,11 @@
 # Debugging configuration
 
 launcher:
+  name: debug 
+  overwrite: true
+
+  script: src.apps.gssm_onfly.train
+
   slurm:
     nodes: 1
     nb_gpus: 2        # use torchrun, or slurm, for multi-gpu runs
@@ -53,7 +58,8 @@ run_config:
 
   orchestration:
     name: debug 
-    overwrite: true
+    utils:
+      seed: 100
 
     checkpoint:
       period: 20
@@ -68,9 +74,5 @@ run_config:
       wait: 1
       steps: -1
 
-    utils:
-      seed: 100
-
     wandb:
       active: true
-      name: "me"

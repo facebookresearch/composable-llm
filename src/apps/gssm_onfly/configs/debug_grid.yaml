@@ -62,9 +62,9 @@ run_config:
     steps: 100
 
   orchestration:
-
     utils:
       seed: 100
+
     logging:
       period: 1
       level: debug
