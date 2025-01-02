@@ -123,6 +123,8 @@ class LauncherConfig:
         if not self.log_dir:
             self.log_dir = str(Path.home() / "logs" / self.name)
             print(f"No logging directory specified, default to {self.log_dir}")
+        else:
+            self.log_dir = os.path.expandvars(self.log_dir)
 
         # recover python environment from the job was launched.
         if self.python_env:
