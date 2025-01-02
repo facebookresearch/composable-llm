@@ -50,10 +50,10 @@ class Logger:
     def __init__(self, config: LoggerConfig):
         self.stdout_path = Path(config.stdout_path)
         self.stdout_path.mkdir(parents=True, exist_ok=True)
-        device_rank = get_rank()
-        stdout_file = self.stdout_path / f"device_{device_rank}.log"
+        rank = get_rank()
+        stdout_file = self.stdout_path / f"device_{rank}.log"
 
-        self.metric = Path(config.metric_path)
+        self.metric = Path(config.metric_path + f"_{rank}.json")
         self.metric.parent.mkdir(parents=True, exist_ok=True)
 
         # Initialize logging stream

@@ -292,14 +292,13 @@ class Profiler:
 
         self.path = Path(config.path)
         rank = get_rank()
-        ts = time.strftime("%Y%m%d_%H%M%S")
 
         self.path.mkdir(parents=True, exist_ok=True)
         if config.heavy:
-            path = self.path / f"heavy_{rank}_{ts}.pt.trace.json"
+            path = self._unique_path(self.path, f"hprof_{rank}_", ".pt.trace.json")
             self.profilers.append(HeavyProfiler(path, config.wait, config.steps))
         else:
-            path = self.path / f"light_{rank}_{ts}.csv"
+            path = self._unique_path(self.path, f"prof_{rank}_", ".csv")
             self.profilers.append(LightProfiler(path, config.wait, config.steps, state=state))
 
     def __enter__(self) -> "Profiler":
@@ -331,3 +330,13 @@ class Profiler:
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         for prof in self.profilers:
             prof.__exit__(exc, value, tb)
+
+    @staticmethod
+    def _unique_path(path: PosixPath, prefix: str, suffix: str) -> PosixPath:
+        i = 1
+        while i < 1000:
+            file_path = path / f"{prefix}{i}{suffix}"
+            if not file_path.exists():
+                return file_path
+            i += 1
+        raise ValueError("Could not find unique path")
