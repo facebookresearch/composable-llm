@@ -20,7 +20,7 @@ import numpy as np
 import torch
 import torch.profiler as profiler
 
-from ..distributed import get_rank
+from ..distributed import get_local_rank, get_rank
 from ..utils import TrainState
 
 logger = logging.getLogger(__name__)
@@ -124,15 +124,16 @@ class LightProfiler(BaseProfiler):
         self.step = 0
         self.active = False
 
+        # device
+        self.device = torch.device(get_local_rank())
+        self.capacity = torch.cuda.get_device_properties(self.device).total_memory
+
         # various placeholder
-        self.device = None
         self.times = {}
         self.state = state
 
     def __enter__(self):
         logger.info(f"Light profiler active. Traces will be saved at {self.path}")
-        self.device = torch.device(get_rank())
-        self.capacity = torch.cuda.get_device_properties(self.device).total_memory
         self.file = open(self.path, "w")
         self.start_timer()
 
@@ -184,7 +185,7 @@ class LightProfiler(BaseProfiler):
     def end_timer(self, name: str, sync: bool = False) -> None:
         if self.device:  # act as an active flag
             if sync:
-                torch.cuda.synchronize(get_rank())
+                torch.cuda.synchronize(self.device)
             self.times[name] = time.time() - self.time
 
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
