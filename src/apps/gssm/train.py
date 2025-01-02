@@ -55,6 +55,11 @@ class TrainingConfig:
         """
         Check validity of arguments and fill in missing values.
         """
+        # restriction for cpu run
+        if self.cluster.device.type == "cpu":
+            assert self.optim.fused is False, "Fused Adam is not supported on CPU"
+            assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
+
         # manual post initialization of all modules
         for module in self.__dict__.values():
             if hasattr(module, "__check_init__"):
@@ -117,7 +122,7 @@ def train(config: TrainingConfig) -> None:
         # ---------------------------------------------------------------------
 
         _logger.info("Building optimizer")
-        optimizer = init_optimizer(model, config.optim, device=cluster.device)
+        optimizer = init_optimizer(model, config.optim)
         scheduler = init_scheduler(optimizer, config.optim)
         _logger.info("Done building optimizer")
 
@@ -166,7 +171,7 @@ def train(config: TrainingConfig) -> None:
 
             profiler.start_timer()
             batch, restart_info = next(dataloader)
-            if cluster.device.type == "cuda":
+            if cluster.device.type != "cpu":
                 batch = batch.pin_memory()
             profiler.end_timer("data_cpu_time")
 
@@ -196,13 +201,16 @@ def train(config: TrainingConfig) -> None:
             if state.optim.acc_step != 0:
                 continue
 
+            # gradient accumulation
+            if state.optim.acc_step != 0:
+                continue
+
             # optimizer step
-            if state.optim.acc_step == 0:
-                optimizer.step()
-                scheduler.step()
-                optimizer.zero_grad()
-                state.data.report_restart_info(*restart_info)
-                state.optim.step += 1
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+            state.data.report_restart_info(*restart_info)
+            state.optim.step += 1
 
             profiler.end_timer("model_time", sync=True)
 

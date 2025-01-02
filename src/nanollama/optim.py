@@ -13,7 +13,6 @@ import math
 from dataclasses import dataclass
 from functools import partial
 
-import torch
 from torch import nn
 from torch.optim import AdamW, Optimizer, lr_scheduler
 
@@ -35,6 +34,7 @@ class OptimizerConfig:
     epsilon: float = 1e-8
     beta1: float = 0.9
     beta2: float = 0.95
+    fused: bool = True
 
     # gradient clipping
     clip: float = 1.0
@@ -45,7 +45,7 @@ class OptimizerConfig:
     lr_min_ratio: float = 0.1
 
 
-def init_optimizer(model: nn.Module, config: OptimizerConfig, device: torch.device) -> Optimizer:
+def init_optimizer(model: nn.Module, config: OptimizerConfig) -> Optimizer:
     """
     Build optimizer and Scheduler
     """
@@ -55,7 +55,7 @@ def init_optimizer(model: nn.Module, config: OptimizerConfig, device: torch.devi
         betas=(config.beta1, config.beta2),
         weight_decay=config.weight_decay,
         eps=config.epsilon,
-        fused=True if device.type == "cuda" else False,
+        fused=config.fused,
     )
 
 

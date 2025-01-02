@@ -19,7 +19,6 @@ located in the root directory of this repository.
 
 import math
 from dataclasses import dataclass
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -46,7 +45,7 @@ class TransformerConfig:
     # Transformer parameters
     nb_layers: int = 0
     weight_tying: bool = False
-    init_std: Optional[float] = None
+    init_std: float = None
 
     def __post_init__(self):
         # hidden feed-forward dimension

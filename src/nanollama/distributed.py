@@ -147,7 +147,7 @@ def set_os_environment(config: OsEnvironment) -> None:
 
 @dataclass
 class ClusterConfig:
-    device: str = ""
+    device: torch.device = None
     compile_model: bool = True
     backend: str = "nccl"
 

@@ -68,7 +68,7 @@ class OrchestratorConfig:
         self.profiler.path = str(log_dir / "metrics" / task_id)
 
         # logging related
-        self.logging.metric_path = str(log_dir / "metrics" / task_id / "train_eval.json")
+        self.logging.metric_path = str(log_dir / "metrics" / task_id / "raw")
         self.wandb.path = str(log_dir / "wandb" / task_id)
         self.wandb.name = self.name
         stdout_dir = log_dir / "logs"

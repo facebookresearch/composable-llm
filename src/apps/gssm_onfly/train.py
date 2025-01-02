@@ -68,6 +68,11 @@ class TrainingConfig:
             print(f"Setting vocab size to {node.state_dim}")
             self.model.vocab_size = node.state_dim
 
+        # restriction for cpu run
+        if self.cluster.device.type == "cpu":
+            assert self.optim.fused is False, "Fused Adam is not supported on CPU"
+            assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
+
         # check validity of submodule
         for module in self.__dict__.values():
             if hasattr(module, "__check_init__"):
@@ -130,7 +135,7 @@ def train(config: TrainingConfig) -> None:
         # ---------------------------------------------------------------------
 
         _logger.info("Building optimizer")
-        optimizer = init_optimizer(model, config.optim, device=cluster.device)
+        optimizer = init_optimizer(model, config.optim)
         scheduler = init_scheduler(optimizer, config.optim)
         _logger.info("Done building optimizer")
 
@@ -179,7 +184,7 @@ def train(config: TrainingConfig) -> None:
 
             profiler.start_timer()
             batch, restart_info = next(dataloader)
-            if cluster.device.type == "cuda":
+            if cluster.device.type != "cpu":
                 batch = batch.pin_memory()
             profiler.end_timer("data_cpu_time")
 
