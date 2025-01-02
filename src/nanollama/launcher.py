@@ -338,15 +338,15 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     if config.launcher == "sbatch":
         if config.torchrun:
             option_flags = f" --nproc_per_node={nb_gpus}" f" --nnodes={nodes}" " --node_rank=$SLURM_NODEID"
-            run_command = f"torchrun {option_flags} -m {config.script} config={config_path}"
+            run_command = f"torchrun {option_flags} -m {config.script} {config_path}"
         else:
-            run_command = f"srun python -u -m {config.script} config={config_path}"
+            run_command = f"srun python -u -m {config.script} {config_path}"
     else:
         if config.torchrun:
             option_flags = f"--nproc_per_node={nb_gpus}"
-            run_command = f"torchrun {option_flags} -m {config.script} config=$LOG_DIR/config.yaml"
+            run_command = f"torchrun {option_flags} -m {config.script} $LOG_DIR/config.yaml"
         else:
-            run_command = f"python -u -m {config.script} config=$LOG_DIR/config.yaml"
+            run_command = f"python -u -m {config.script} $LOG_DIR/config.yaml"
 
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.name,
