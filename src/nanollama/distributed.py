@@ -147,12 +147,18 @@ def set_os_environment(config: OsEnvironment) -> None:
 
 @dataclass
 class ClusterConfig:
-    device: str = "cuda"
+    device: str = ""
     compile_model: bool = True
     backend: str = "nccl"
 
     # submanager
     os_environment: OsEnvironment = field(default_factory=OsEnvironment)
+
+    def __post_init__(self):
+        if not self.device:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        if isinstance(self.device, str):
+            self.device = torch.device(self.device)
 
 
 class ClusterManager:
@@ -172,10 +178,8 @@ class ClusterManager:
             world_size = get_world_size()
             dist.init_process_group(backend=self.backend, rank=rank, world_size=world_size)
             print(f"Setting up device ranked {rank + 1} / {world_size}")
-
-            self.device = f"cuda:{local_rank}"
+            self.device = torch.device(f"cuda:{local_rank}")
         else:
-            self.device = torch.device(self.device)
             print(f"Running on {self.device}")
         return self
 
@@ -185,6 +189,7 @@ class ClusterManager:
         """
         model = model.to(device=self.device)
         if self.compile:
+            logger.info("Compiling model")
             model = torch.compile(model)
         logger.info("Done building model")
         local_rank = get_local_rank()
