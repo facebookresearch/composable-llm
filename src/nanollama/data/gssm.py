@@ -583,8 +583,8 @@ class OnlineDataLoaderManager:
         """
         # loop on batch creation
         while True:
-            batch, restart_info = self.get_batch()
-            # convert to torch tensor
+            batch = self.get_batch()
+            restart_info = self.rng.bit_generator.state
             batch = torch.from_numpy(batch).long()
 
             # put it in the buffer
