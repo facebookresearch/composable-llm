@@ -26,13 +26,9 @@ class Monitor:
         self.period = config.period
         self.step = 0
 
-    def __enter__(self):
+    def __enter__(self) -> "Monitor":
         """Function called when entering context."""
         return self
-
-    def report_objects(self, **kwargs) -> None:
-        """Create alias for the objects to monitor."""
-        pass
 
     def __call__(self) -> None:
         """Call update function periodically."""

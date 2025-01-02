@@ -22,7 +22,6 @@ import torch.profiler as profiler
 
 from ..distributed import get_rank
 from ..utils import TrainState
-from .monitor import Monitor
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +41,6 @@ class BaseProfiler:
 
     def __call__(self):
         """Main function ran by the Profiler"""
-        pass
-
-    def report_objects(self, **kwargs) -> None:
-        """Create alias for the objects to monitor."""
         pass
 
     def start_timer(self) -> None:
@@ -119,7 +114,7 @@ class LightProfiler(BaseProfiler):
     Minimal profiler.
     """
 
-    def __init__(self, path: PosixPath, wait: int, steps: int):
+    def __init__(self, path: PosixPath, wait: int, steps: int, state: TrainState):
         self.path = path
         self.start_step = wait
         if steps < 0:
@@ -132,7 +127,7 @@ class LightProfiler(BaseProfiler):
         # various placeholder
         self.device = None
         self.times = {}
-        self.state = None
+        self.state = state
 
     def __enter__(self):
         logger.info(f"Light profiler active. Traces will be saved at {self.path}")
@@ -141,54 +136,46 @@ class LightProfiler(BaseProfiler):
         self.file = open(self.path, "w")
         self.start_timer()
 
-    def report_objects(self, state: TrainState) -> None:
-        self.state = state
-
     def __call__(self) -> None:
         """
         Call update function when profiler is active
         """
         if self.step >= self.start_step and self.step <= self.end_step:
-            self.update()
+            # write csv header
+            if self.step == self.start_step:
+                header = list(self.times.keys()) + [
+                    "ts",
+                    "step",
+                    "acc_step",
+                    "mem",
+                    "mem_reserved",
+                    "num_alloc_retries",
+                    "num_ooms",
+                    "mem_capacity",
+                ]
+                self.file.write(",".join(header) + "\n")
+
+            # log profiler traces
+            cuda_info = torch.cuda.memory_stats(self.device)
+
+            data = list(self.times.values()) + [
+                round(time.time(), 6),
+                self.state.optim.step,
+                self.state.optim.acc_step,
+                cuda_info["active_bytes.all.peak"],
+                cuda_info["reserved_bytes.all.peak"],
+                cuda_info["num_alloc_retries"],
+                cuda_info["num_ooms"],
+                self.capacity,
+            ]
+            self.file.write(",".join([str(x) for x in data]) + "\n")
+
+            torch.cuda.reset_peak_memory_stats()
 
         if self.step == self.end_step:
             self.__exit__(None, None, None)
 
         self.step += 1
-
-    def update(self) -> None:
-        """
-        Log profiler traces
-        """
-        # write csv header
-        if self.step == self.start_step:
-            header = list(self.times.keys()) + [
-                "ts",
-                "step",
-                "acc_step",
-                "mem",
-                "mem_reserved",
-                "num_alloc_retries",
-                "num_ooms",
-                "mem_capacity",
-            ]
-            self.file.write(",".join(header) + "\n")
-
-        cuda_info = torch.cuda.memory_stats(self.device)
-
-        data = list(self.times.values()) + [
-            round(time.time(), 6),
-            self.state.optim.step,
-            self.state.optim.acc_step,
-            cuda_info["active_bytes.all.peak"],
-            cuda_info["reserved_bytes.all.peak"],
-            cuda_info["num_alloc_retries"],
-            cuda_info["num_ooms"],
-            self.capacity,
-        ]
-        self.file.write(",".join([str(x) for x in data]) + "\n")
-
-        torch.cuda.reset_peak_memory_stats()
 
     def start_timer(self) -> None:
         if self.device:  # act as an active flag
@@ -287,7 +274,7 @@ class ProfilerConfig:
         assert self.path, "path was not set"
 
 
-class Profiler(Monitor):
+class Profiler:
     """
     Profiler Context
 
@@ -296,7 +283,7 @@ class Profiler(Monitor):
     Implementation is compatible with the simultaneous usage of multiple profilers
     """
 
-    def __init__(self, config: ProfilerConfig):
+    def __init__(self, config: ProfilerConfig, state: TrainState = None):
         self.profilers: list[BaseProfiler] = []
         self.light = None
         if not config.active:
@@ -312,16 +299,12 @@ class Profiler(Monitor):
             self.profilers.append(HeavyProfiler(path, config.wait, config.steps))
         else:
             path = self.path / f"light_{rank}_{ts}.csv"
-            self.profilers.append(LightProfiler(path, config.wait, config.steps))
+            self.profilers.append(LightProfiler(path, config.wait, config.steps, state=state))
 
-    def __enter__(self):
+    def __enter__(self) -> "Profiler":
         for prof in self.profilers:
             prof.__enter__()
         return self
-
-    def report_objects(self, state: TrainState = None, **kwargs) -> None:
-        for prof in self.profilers:
-            prof.report_objects(state)
 
     def __call__(self) -> None:
         """

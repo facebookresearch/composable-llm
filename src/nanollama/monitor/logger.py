@@ -20,7 +20,6 @@ from types import TracebackType
 from typing import Any
 
 from ..distributed import get_hostname, get_rank, is_master_process
-from .monitor import Monitor
 
 logger = getLogger(__name__)
 
@@ -47,7 +46,7 @@ class LoggerConfig:
 # -------------------------------------------------------------------------------
 
 
-class Logger(Monitor):
+class Logger:
     def __init__(self, config: LoggerConfig):
         self.stdout_path = Path(config.stdout_path)
         self.stdout_path.mkdir(parents=True, exist_ok=True)
@@ -72,17 +71,14 @@ class Logger(Monitor):
         logger.info(f"Running on machine {get_hostname()}")
         logger.info(f"Logging to {self.stdout_path}")
 
-    def __enter__(self):
+    def __enter__(self) -> "Logger":
         """
         Open logging files.
         """
         self.metric = open(self.metric, "a")
+        return self
 
-    def __call__(self):
-        """Unused function, call should be made throught the report_metrics method."""
-        pass
-
-    def report_metrics(self, metrics: dict[str, Any]) -> None:
+    def __call__(self, metrics: dict[str, Any]) -> None:
         """
         Report metrics to file.
         """

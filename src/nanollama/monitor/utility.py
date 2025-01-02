@@ -34,7 +34,7 @@ class UtilityManager(Monitor):
         super().__init__(config)
         self.seed = config.seed
 
-    def __enter__(self):
+    def __enter__(self) -> "UtilityManager":
         # set seed
         torch.manual_seed(self.seed)
         torch.cuda.manual_seed_all(self.seed)

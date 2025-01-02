@@ -86,8 +86,9 @@ class OrchestratorConfig:
 
             stdout_dir = stdout_dir / job_id
             self.wandb.name += f"_task_{task_id}"
+
         self.logging.stdout_path = str(stdout_dir)
-        self.wandb.id_file = str(stdout_dir / "wandb.id")
+        self.wandb.path = str(stdout_dir / "wandb")
 
         # check validity of submodule
         for module in self.__dict__.values():
@@ -95,7 +96,7 @@ class OrchestratorConfig:
                 module.__check_init__()
 
 
-class Orchestrator:
+class MockOrchestrator:
     def __init__(self, config: OrchestratorConfig):
         self.model = None
         self.optimizer = None
@@ -108,11 +109,8 @@ class Orchestrator:
             Logger(config.logging),
             Checkpointer(config.checkpoint),
             Profiler(config.profiler),
+            WandbManager(config.wandb),
         ]
-
-        if config.wandb.active and is_master_process():
-            os.environ["WANDB_DIR"] = config.logging.stdout_path
-            self.submanagers.append(WandbManager(config.wandb))
 
     def __enter__(self):
         for manager in self.submanagers:
@@ -123,7 +121,7 @@ class Orchestrator:
         """
         Report the objects to monitor.
 
-        This function is useful since we initialize the Monitor before the model is built.
+        This function is useful since if we were to initialize monitors before the model is built.
         """
         for manager in self.submanagers:
             manager.report_objects(**kwargs)

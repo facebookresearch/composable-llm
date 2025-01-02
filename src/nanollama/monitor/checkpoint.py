@@ -70,6 +70,10 @@ class Checkpointer(Monitor):
     def __init__(
         self,
         config: CheckpointConfig,
+        model: nn.Module,
+        optimizer: Optimizer,
+        scheduler: lr_scheduler.LambdaLR,
+        state: TrainState,
     ):
         super().__init__(config)
 
@@ -78,34 +82,23 @@ class Checkpointer(Monitor):
         self.path.mkdir(parents=True, exist_ok=True)
         self.sync = config.sync_step
 
-        self.model = None
-        self.optimizer = None
-        self.scheduler = None
-        self.state = None
-
-        self.device_rank = get_rank()
-        self.saved_step = 0
-
-    @torch.no_grad()
-    def report_objects(
-        self,
-        model: nn.Module,
-        optimizer: Optimizer,
-        scheduler: lr_scheduler.LambdaLR,
-        state: TrainState,
-        **kwargs,
-    ) -> None:
-        """
-        Create alias for the objects to monitor, and try to load checkpoint
-        """
+        # Create alias for the objects to monitor.
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.state = state
 
+        self.device_rank = get_rank()
+        self.saved_step = 0
+
+    @torch.no_grad()
+    def __enter__(self) -> "Checkpointer":
+        """
+        Loading checkpoint if any
+        """
         path = self._get_last_checkpoint_path()
         if not path:
-            return
+            return self
 
         logger.info("Reloading train state")
         file_path = path / self.state_name.format(self.device_rank)
@@ -122,8 +115,10 @@ class Checkpointer(Monitor):
         logger.info("Model, optimizer and scheduler reloaded")
 
         if self.sync:
-            self.step = state.optim.step
+            self.step = self.state.optim.step
         self.saved_step = self.step
+
+        return self
 
     def update(self) -> None:
         """

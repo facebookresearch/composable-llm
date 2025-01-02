@@ -25,7 +25,7 @@ import yaml
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoaderManager, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_hostname, is_master_process
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import Orchestrator, OrchestratorConfig
+from ...nanollama.monitor import Checkpointer, Logger, OrchestratorConfig, Profiler, UtilityManager, WandbManager
 from ...nanollama.optim import (
     OptimizerConfig,
     init_optimizer,
@@ -34,7 +34,7 @@ from ...nanollama.optim import (
 )
 from ...nanollama.utils import TrainState, initialize_nested_dataclass
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 # -------------------------------------------------------------------------------
@@ -90,11 +90,11 @@ def train(config: TrainingConfig) -> None:
     preemption_flag = dict(flag=False)
 
     def signal_handler(signum: Signals, frame: FrameType):
-        logger.warning("Signal handler called with signal " + str(signum))
+        _logger.warning("Signal handler called with signal " + str(signum))
         preemption_flag["flag"] = True
 
     def term_handler(signum: Signals, frame: FrameType):
-        logger.warning("Received termination signal " + str(signum))
+        _logger.warning("Received termination signal " + str(signum))
         # do not requeue to avoid requeuing on `scancel`
 
     signal.signal(signal.SIGUSR1, signal_handler)
@@ -108,16 +108,18 @@ def train(config: TrainingConfig) -> None:
         cluster: ClusterManager = context_stack.enter_context(ClusterManager(config.cluster))
 
         # ---------------------------------------------------------------------
-        # Monitor: checkpointing, profiling, probing, logging
+        # Monitor: logging, and utils
         # ---------------------------------------------------------------------
 
-        monitor: Orchestrator = context_stack.enter_context(Orchestrator(config.orchestration))
+        logger: Logger = context_stack.enter_context(Logger(config.orchestration.logging))
+        utils: UtilityManager = context_stack.enter_context(UtilityManager(config.orchestration.utils))
+        wandb: WandbManager = context_stack.enter_context(WandbManager(config.orchestration.wandb, run_config=config))
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
         # ---------------------------------------------------------------------
 
-        logger.info("Building model")
+        _logger.info("Building model")
         model = Transformer(config.model)
         model = cluster.initialize_model(model)
 
@@ -125,10 +127,10 @@ def train(config: TrainingConfig) -> None:
         # Build Optimizer
         # ---------------------------------------------------------------------
 
-        logger.info("Building optimizer")
+        _logger.info("Building optimizer")
         optimizer = init_optimizer(model, config.optim)
         scheduler = init_scheduler(optimizer, config.optim)
-        logger.info("Done building optimizer")
+        _logger.info("Done building optimizer")
 
         # ---------------------------------------------------------------------
         # Recover Checkpoint
@@ -139,12 +141,10 @@ def train(config: TrainingConfig) -> None:
             optim=init_optimizer_state(),
         )
 
-        monitor.report_objects(
-            model=model,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            state=state,
-            config=config,
+        checkpoint: Checkpointer = context_stack.enter_context(
+            Checkpointer(
+                config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
+            )
         )
 
         # ---------------------------------------------------------------------
@@ -162,12 +162,9 @@ def train(config: TrainingConfig) -> None:
         # Training loop
         # ---------------------------------------------------------------------
 
-        model.train()
+        profiler: Profiler = context_stack.enter_context(Profiler(config.orchestration.profiler, state=state))
 
-        # poor man's profiler
-        timer = monitor.submanagers[3]
-        my_logger = monitor.submanagers[1]
-        wandb = monitor.submanagers[4] if len(monitor.submanagers) == 5 else None
+        model.train()
 
         while state.optim.step < config.optim.steps:
             # accumulation step
@@ -178,22 +175,22 @@ def train(config: TrainingConfig) -> None:
             # Batch of data (with random state for reproducibility)
             # -----------------------------------------------------------------
 
-            timer.start_timer()
+            profiler.start_timer()
             batch, restart_info = next(dataloader)
             batch = batch.pin_memory()
-            timer.end_timer("data_cpu_time")
+            profiler.end_timer("data_cpu_time")
 
-            timer.start_timer()
+            profiler.start_timer()
             batch = batch.to(device=cluster.device, non_blocking=True)
             X_batch = batch[:, :-1]
             y_batch = batch[:, 1:]
-            timer.end_timer("data_io_time")
+            profiler.end_timer("data_io_time")
 
             # -----------------------------------------------------------------
             # Forward and backward pass
             # -----------------------------------------------------------------
 
-            timer.start_timer()
+            profiler.start_timer()
 
             # forward propagation
             preds = model(X_batch)
@@ -216,21 +213,23 @@ def train(config: TrainingConfig) -> None:
             state.data.report_restart_info(restart_info)
             state.optim.step += 1
 
-            timer.end_timer("model_time", sync=True)
+            profiler.end_timer("model_time", sync=True)
 
             # -----------------------------------------------------------------
-            # Call monitor for garbage collection, checkpointing...
+            # Call monitors for garbage collection, checkpointing...
             # -----------------------------------------------------------------
 
-            timer.start_timer()
-            monitor()
-            timer.end_timer("monitor_time")
+            profiler.start_timer()
+            checkpoint()
+            profiler()
+            utils()
+            profiler.end_timer("monitor_time")
 
             # -----------------------------------------------------------------
             # Log metrics
             # -----------------------------------------------------------------
 
-            timer.start_timer()
+            profiler.start_timer()
 
             if state.optim.step % config.orchestration.logging.period == 0:
                 # For logging we undo that scaling
@@ -240,15 +239,14 @@ def train(config: TrainingConfig) -> None:
                     "step": state.optim.step,
                     "acc_step": state.optim.acc_step,
                 }
-                my_logger.report_metrics(metrics)
-                if wandb:
-                    wandb.report_metrics(metrics)
+                logger(metrics)
+                wandb(metrics)
 
                 # log to console
                 if is_master_process():
-                    logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
+                    _logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
 
-            timer.end_timer("log_time")
+            profiler.end_timer("log_time")
 
             # -----------------------------------------------------------------
             # Evaluation
@@ -266,15 +264,15 @@ def train(config: TrainingConfig) -> None:
 
     if preemption_flag["flag"]:
         prod_id = int(os.environ["SLURM_PROCID"])
-        logger.warning(f"Host: {get_hostname()} - Global rank: {prod_id}")
+        _logger.warning(f"Host: {get_hostname()} - Global rank: {prod_id}")
         if prod_id == 0:
-            logger.warning("Requeuing job " + os.environ["SLURM_JOB_ID"])
+            _logger.warning("Requeuing job " + os.environ["SLURM_JOB_ID"])
             os.system("scontrol requeue " + os.environ["SLURM_JOB_ID"])
         else:
-            logger.warning("Not the master process, no need to requeue.")
+            _logger.warning("Not the master process, no need to requeue.")
         sys.exit(0)
 
-    logger.info("Training done.")
+    _logger.info("Training done.")
 
 
 def main() -> None:
@@ -290,8 +288,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("config", type=str, help="Path to configuration file")
-    args = parser.parse_args()
-    path = args.config
+    path = parser.parse_args().config
 
     with open(path) as f:
         file_config = yaml.safe_load(f)

@@ -18,7 +18,7 @@ from typing import Any
 
 import wandb
 
-from .monitor import Monitor
+from ..distributed import is_master_process
 
 logger = logging.getLogger(__name__)
 
@@ -31,29 +31,36 @@ class WandbConfig:
     entity: str = ""
     project: str = "composition"
     name: str = field(init=False, default="")
-    id_file: str = field(init=False, default="")
+    path: str = field(init=False, default="")
 
     def __check_init__(self):
         """Check validity of arguments and fill in missing values."""
         assert self.name, "name was not set"
-        assert self.id_file, "name was not set"
+        assert self.path, "path was not set"
 
 
-class WandbManager(Monitor):
-    def __init__(self, config: WandbConfig):
-        self.entity = config.entity
-        self.project = config.project
-        self.name = config.name
-        self.id_file = config.id_file
+class WandbManager:
+    def __init__(self, config: WandbConfig, run_config: Any = None):
+        self.active = config.active and is_master_process()
+        if not self.active:
+            return
 
-    def __enter__(self):
-        """
-        Open wandb api.
-        """
+        # open wandb api
+        os.environ["WANDB_DIR"] = config.path
+        id_file = config.path / "wandb.id"
+        self.open(config.entity, config.project, id_file, config.name)
+
+        # log run configuration to wandb
+        if run_config:
+            config_dict = asdict(run_config)
+            self.run.config.update(config_dict, allow_val_change=True)
+            logger.info("Run configuration has been logged to wandb.")
+
+    def open(self, entity: str, project: str, id_file: str, name: str) -> None:
         # Read run id from id file if it exists
-        if os.path.exists(self.id_file):
+        if os.path.exists(id_file):
             resuming = True
-            with open(self.id_file) as file:
+            with open(id_file) as file:
                 run_id = file.read().strip()
         else:
             resuming = False
@@ -61,14 +68,14 @@ class WandbManager(Monitor):
         if resuming:
             # Check whether run is still alive
             api = wandb.Api()
-            run_state = api.run(f"{self.entity}/{self.project}/{run_id}").state
+            run_state = api.run(f"{entity}/{project}/{run_id}").state
             if run_state == "running":
                 logger.warning(f"Run with ID: {run_id} is currently active and running.")
                 sys.exit(1)
 
             self.run = wandb.init(
-                project=self.project,
-                entity=self.entity,
+                project=project,
+                entity=entity,
                 id=run_id,
                 resume="must",
             )
@@ -77,35 +84,30 @@ class WandbManager(Monitor):
         else:
             # Starting a new run
             self.run = wandb.init(
-                project=self.project,
-                entity=self.entity,
-                name=self.name,
+                project=project,
+                entity=entity,
+                name=name,
             )
             logger.info(f"Starting new run with ID: {self.run.id}")
 
             # Save run id to id file
-            with open(self.id_file, "w") as file:
+            with open(id_file, "w") as file:
                 file.write(self.run.id)
 
-    def __call__(self):
-        """Unused function, call should be made throught the report_metrics method."""
-        pass
+    def __enter__(self) -> "WandbManager":
+        return self
 
-    def report_objects(self, config: Any = None, **kwargs) -> None:
-        config_dict = asdict(config)
-        self.run.config.update(config_dict, allow_val_change=True)
-        logger.info("Run configuration has been logged to wandb.")
-
-    def report_metrics(self, metrics: dict) -> None:
-        """
-        Report metrics to wanbd.
-        """
+    def __call__(self, metrics: dict) -> None:
+        """Report metrics to wanbd."""
+        if not self.active:
+            return
+        assert "step" in metrics, f"metrics should contain a step key.\n{metrics=}"
         wandb.log(metrics, step=metrics["step"])
 
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
-        """
-        Close wandb api.
-        """
+        """Close wandb api."""
+        if not self.active:
+            return
         # Handle exception
         try:
             if exc is not None:
@@ -115,12 +117,3 @@ class WandbManager(Monitor):
                 wandb.finish()
         except Exception as e:
             logger.warning(e)
-
-    def check_run_state(self, run_id: str) -> str:
-        api = wandb.Api()
-        try:
-            run = api.run(f"{self.entity}/{self.project}/{run_id}")
-            return run.state
-        except wandb.errors.CommError:
-            logger.error("Wandb run not found or API error.")
-        return "no_state"
