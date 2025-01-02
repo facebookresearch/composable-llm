@@ -295,8 +295,15 @@ def main() -> None:
 
     with open(path) as f:
         file_config = yaml.safe_load(f)
+
+    # get arguments from launcher config
+    launcher = file_config.pop("launcher", {})
+
+    # unnest run_config
     if "run_config" in file_config:
-        file_config = file_config["run_config"]
+        file_config = file_config.pop("run_config")
+
+    file_config["orchestration"] |= {key: launcher[key] for key in ["log_dir", "name"] if key in launcher}
 
     config = initialize_nested_dataclass(TrainingConfig, file_config)
 

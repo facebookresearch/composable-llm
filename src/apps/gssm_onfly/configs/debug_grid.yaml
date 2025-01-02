@@ -4,8 +4,9 @@
 # Its values should be compatible with the rest of the config.
 
 launcher:
-  name: debug_grid
+  name: debug_grid_onfly
   overwrite: true
+  dir: $HOME/logs/debug_grid_onfly
   
   script: src.apps.gssm_onfly.train
 
@@ -25,13 +26,6 @@ launcher:
 run_config:
   cluster:
     compile_model: false
-
-  model:
-    vocab_size: 32
-    emb_dim: 64
-    nb_heads: 2
-    ffn_dim: 256
-    nb_layers: 2
 
   data:
     seq_len: 32
@@ -58,6 +52,13 @@ run_config:
         parents: [Z1, Z2, Z3, Z4]
         alpha: 1e-2
 
+  model:
+    vocab_size: 32
+    emb_dim: 64
+    nb_heads: 2
+    ffn_dim: 256
+    nb_layers: 2
+
   optim:
     steps: 100
 
@@ -65,15 +66,15 @@ run_config:
     utils:
       seed: 100
 
+    checkpoint:
+      period: 20
+      keep_only: 3
+
     logging:
       period: 1
       level: debug
     wandb:
-      active: true
-
-    checkpoint:
-      period: 20
-      keep_only: 3
+      active: false
 
     profiler:
       active: true

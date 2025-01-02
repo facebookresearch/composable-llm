@@ -20,7 +20,7 @@ from types import FrameType
 
 import torch
 import torch.nn.functional as F
-from omegaconf import OmegaConf
+import yaml
 
 from ...nanollama.data.hdf5 import DataConfig, FileDataLoaderManager, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_hostname, is_master_process
@@ -32,7 +32,7 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.utils import TrainState
+from ...nanollama.utils import TrainState, initialize_nested_dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -49,16 +49,16 @@ class TrainingConfig:
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
-    monitor: OrchestratorConfig = field(default_factory=OrchestratorConfig)
+    orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
 
-    def __manual_post_init__(self):
+    def __post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
         # manual post initialization of all modules
         for module in self.__dict__.values():
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
+            if hasattr(module, "__check_init__"):
+                module.__check_init__()
 
         # Sequence length
         if self.model.seq_len == -1 and self.data.seq_len == -1:
@@ -110,7 +110,7 @@ def train(config: TrainingConfig) -> None:
         # Monitor: checkpointing, profiling, probing, logging
         # ---------------------------------------------------------------------
 
-        monitor: Orchestrator = context_stack.enter_context(Orchestrator(config.monitor))
+        monitor: Orchestrator = context_stack.enter_context(Orchestrator(config.orchestration))
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
@@ -164,7 +164,9 @@ def train(config: TrainingConfig) -> None:
         model.train()
 
         # poor man's profiler
-        timer = monitor.profiler
+        timer = monitor.submanagers[3]
+        my_logger = monitor.submanagers[1]
+        wandb = monitor.submanagers[4] if len(monitor.submanagers) == 5 else None
 
         while state.optim.step < config.optim.steps:
             # accumulation step
@@ -230,7 +232,7 @@ def train(config: TrainingConfig) -> None:
 
             timer.start_timer()
 
-            if state.optim.step % config.monitor.logging.period == 0:
+            if state.optim.step % config.orchestration.logging.period == 0:
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
                 metrics = {
@@ -238,7 +240,9 @@ def train(config: TrainingConfig) -> None:
                     "step": state.optim.step,
                     "acc_step": state.optim.acc_step,
                 }
-                monitor.report_metrics(metrics)
+                my_logger.report_metrics(metrics)
+                if wandb:
+                    wandb.report_metrics(metrics)
 
                 # log to console
                 if is_master_process():
@@ -250,7 +254,7 @@ def train(config: TrainingConfig) -> None:
             # Evaluation
             # -----------------------------------------------------------------
 
-            # if trigger_update(state, config.monitor.evaluation.period):
+            # if trigger_update(state, config.orchestration.evaluation.period):
             #     pass
 
             # -----------------------------------------------------------------
@@ -275,24 +279,36 @@ def train(config: TrainingConfig) -> None:
 
 def main() -> None:
     """
-    Command line interface using OmegaConf
+    Launch a training job from configuration file specified by cli argument.
 
-    Read argument from a config file specified by the `config` cli argument. E.g.,
-    ```bash
-    python -m apps.my_app.train config=apps/my_app/configs/debug.yaml
+    Usage:
     ```
-
-    Non-specified arguments will be filled with the default values of the Config classes.
+    python -m apps.my_app.train apps/my_app/configs/debug.yaml
+    ```
     """
-    # Load config from path specified by the `config` cli argument
-    cli_args = OmegaConf.from_cli()
-    file_config = OmegaConf.load(cli_args.pop("config", None))
+    import argparse
 
-    # Default to default arguments for unspecified values
-    default_config = OmegaConf.structured(TrainingConfig())
-    config = OmegaConf.merge(default_config, file_config, cli_args)
-    config: TrainingConfig = OmegaConf.to_object(config)
-    config.__manual_post_init__()
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("config", type=str, help="Path to configuration file")
+    args = parser.parse_args()
+    path = args.config
+
+    with open(path) as f:
+        file_config = yaml.safe_load(f)
+
+    # get arguments from launcher config
+    config = {}
+    if "launcher" in file_config:
+        launcher = file_config.pop("launcher")
+        for key in ["name", "log_dir"]:
+            val = launcher.pop(key, None)
+            if val:
+                config[key] = val
+
+    if "run_config" in file_config:
+        file_config = file_config.pop("run_config")
+
+    config = initialize_nested_dataclass(TrainingConfig, file_config | config)
 
     # Launch training with the config
     train(config)
