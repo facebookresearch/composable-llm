@@ -49,7 +49,7 @@ The configuration file `debug.yaml` is a simple configuration file that will run
 The previous config will generate batch of data on the fly. Each new batch will be made of new data.
 If you want to generate data offline first, and only read from these datasets, you can do so with the following command to generate datasets:
 ```bash
-python -m src.apps.gssm.data config=src/apps/gssm/configs/data.yaml
+python -m src.apps.gssm.data src/apps/gssm/configs/data.yaml
 ```
 Here the `data.yaml` is a configuration files to generate various datasets.
 You can modify this configuration to suit your needs.
