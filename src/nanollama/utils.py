@@ -53,7 +53,7 @@ def initialize_nested_dataclass(dataclass_type: type[T], data: dict[str, Any]) -
     for data_field in fields(dataclass_type):
         fname, ftype = data_field.name, data_field.type
         if fname in data:
-            value = data[fname]
+            value = data.pop(fname)
             # Check if the field is a list
             if get_origin(ftype) is list:
                 item_type = get_args(ftype)[0]
@@ -73,4 +73,7 @@ def initialize_nested_dataclass(dataclass_type: type[T], data: dict[str, Any]) -
                 except TypeError:
                     print(f"Initializing {fname}:{value} without type checking ({ftype}).")
                     field_values[fname] = value
+    if data:
+        for fname in data:
+            print(f"Field '{fname}' ignored when initializing {dataclass_type}.")
     return dataclass_type(**field_values)
