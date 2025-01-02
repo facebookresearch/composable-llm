@@ -52,7 +52,7 @@ class OrchestratorConfig:
             self.log_dir = str(log_dir)
             print(f"No logging directory set. Setting it to {self.log_dir}")
         else:
-            self.log_dir = os.expandvars(self.log_dir)
+            self.log_dir = os.path.expandvars(self.log_dir)
             log_dir = Path(self.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
 

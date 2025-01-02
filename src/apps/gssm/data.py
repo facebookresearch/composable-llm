@@ -37,7 +37,7 @@ class DatasetConfig:
         assert self.path, "Path to save the dataset must be specified."
         assert self.n_data, "n_data must be specified."
 
-        self.path = os.expandvars(self.path)
+        self.path = os.path.expandvars(self.path)
 
 
 @dataclass
