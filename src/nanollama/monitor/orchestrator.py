@@ -57,31 +57,34 @@ class OrchestratorConfig:
         # add discriminative information if array job
         task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
         if task_id:
-            # keep a mapping of job_id to task_id
-            if is_master_process():
-                job_id = os.environ.get("SLURM_JOB_ID")
-                with open(log_dir / "id_mapping", "a") as f:
-                    f.write(f"task {task_id}: {job_id}\n")
-            log_dir = log_dir / task_id
+            task_id = str(task_id)
+        else:
+            task_id = ""
 
         # checkpoint directory
-        self.checkpoint.path = str(log_dir / "checkpoints")
+        self.checkpoint.path = str(log_dir / "checkpoints" / task_id)
 
         # profile directory
-        self.profiler.path = str(log_dir / "metrics")
+        self.profiler.path = str(log_dir / "metrics" / task_id)
 
-        # logging directory and paths
-        log_dir = log_dir / "logs"
-        self.logging.stdout_path = str(log_dir)
-        self.logging.metric_path = str(log_dir / "metrics" / "train_eval.json")
-        self.wandb.id_file = str(log_dir / "wandb.id")
-
-        # wandb name
+        # logging related
+        self.logging.metric_path = str(log_dir / "metrics" / task_id / "train_eval.json")
+        stdout_dir = log_dir / "logs"
+        self.wandb.id_file = str(stdout_dir / task_id / "wandb.id")
         self.wandb.name = self.name
 
-        # add discriminative information if array job
-        if task_id:
+        # handling grid job
+        if task_id and is_master_process():
+            job_id = os.environ.get("SLURM_JOB_ID")
+
+            # keep a mapping of job_id to task_id
+            stdout_dir.mkdir(parents=True, exist_ok=True)
+            with open(stdout_dir / "id_mapping", "a") as f:
+                f.write(f"task {task_id}: {job_id}\n")
+
+            stdout_dir = stdout_dir / job_id
             self.wandb.name += f"_task_{task_id}"
+        self.logging.stdout_path = str(stdout_dir)
 
         # check validity of submodule
         for module in self.__dict__.values():

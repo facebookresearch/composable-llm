@@ -228,8 +228,8 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 
 # Logging configuration
 #SBATCH --job-name={name}
-#SBATCH --output={log_dir}/logs/%j/main.out
-#SBATCH --error={log_dir}/logs/%j/device_0.log
+#SBATCH --output={stdout_dir}/main.out
+#SBATCH --error={stdout_dir}/device_0.log
 #SBATCH --open-mode=append
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
@@ -259,7 +259,6 @@ conda activate {conda_env_path}
 
 # launch the job
 export OMP_NUM_THREADS=1
-export LOG_DIR={log_dir}
 {run_command}
 """
 
@@ -279,8 +278,8 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     slurm = config.slurm
 
     # logging directory
-    log_dir = config.log_dir
-    if os.path.exists(log_dir) and config.overwrite:
+    log_dir = Path(config.log_dir)
+    if log_dir.exists() and config.overwrite:
         confirm = input(
             f"Are you sure you want to delete the directory '{log_dir}'? This action cannot be undone. (yes/no): "
         )
@@ -290,22 +289,26 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         else:
             print("Operation cancelled.")
             return
-    os.makedirs(log_dir, exist_ok=True)
+    log_dir.mkdir(exist_ok=True, parents=True)
 
     # casting logging directory to run_config
     if "orchestration" not in run_config:
         run_config["orchestration"] = {}
-    run_config["orchestration"] |= {"log_dir": log_dir, "name": config.name}
+    run_config["orchestration"] |= {"log_dir": str(log_dir), "name": config.name}
 
     # copy code
     if config.copy_code:
-        os.makedirs(f"{log_dir}/code", exist_ok=True)
-        print(f"Copying code to {log_dir} ...", end="")
-        copy_dir(os.getcwd(), f"{log_dir}/code")
-        go_to_code_dir = f"cd {log_dir}/code"
+        code_dir = log_dir / "code"
+        code_dir.mkdir(exist_ok=True)
+        print(f"Copying code to {code_dir} ...", end="")
+        copy_dir(os.getcwd(), code_dir)
+        go_to_code_dir = f"cd {code_dir}"
     else:
         go_to_code_dir = ""
     print(" Done.")
+
+    # stdout directory
+    stdout_dir = log_dir / "logs"
 
     # write configs
     if config.grid:
@@ -313,18 +316,21 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         print("Writing grid configurations ...", end="")
         all_configs = get_configs_from_grid(run_config, config.grid)
 
+        config_dir = log_dir / "tasks"
+        config_dir.mkdir(exist_ok=True)
         for i, nested_config in enumerate(all_configs, start=1):
-            config_path = os.path.join(log_dir, f"config_{i}.yaml")
+            config_path = config_dir / f"{i}.yaml"
             with open(config_path, "w") as f:
                 yaml.dump(nested_config, f, default_flow_style=False)
 
         slurm_extra = f"#SBATCH --array=1-{i}\n"
-        config_path = "$LOG_DIR/config_$SLURM_ARRAY_TASK_ID.yaml"
+        config_path = f"{config_dir}/$SLURM_ARRAY_TASK_ID.yaml"
+        stdout_dir = stdout_dir / "%j"
     else:
-        with open(f"{log_dir}/config.yaml", "w") as f:
+        with open(f"{log_dir}/task.yaml", "w") as f:
             yaml.dump(run_config, f, default_flow_style=False)
         slurm_extra = ""
-        config_path = "$LOG_DIR/config.yaml"
+        config_path = f"{log_dir}/task.yaml"
 
     # define proper conda environment
     conda_exe = os.environ.get("CONDA_EXE", "conda")
@@ -344,13 +350,13 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     else:
         if config.torchrun:
             option_flags = f"--nproc_per_node={nb_gpus}"
-            run_command = f"torchrun {option_flags} -m {config.script} $LOG_DIR/config.yaml"
+            run_command = f"torchrun {option_flags} -m {config.script} {config_path}"
         else:
-            run_command = f"python -u -m {config.script} $LOG_DIR/config.yaml"
+            run_command = f"python -u -m {config.script} {config_path}"
 
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.name,
-        log_dir=log_dir,
+        stdout_dir=stdout_dir,
         partition=slurm.partition,
         nodes=nodes,
         tasks=nodes * nb_gpus,
@@ -367,11 +373,12 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         run_command=run_command,
     )
 
-    with open(f"{log_dir}/run.sh", "w") as f:
+    run_path = log_dir / "run.sh"
+    with open(run_path, "w") as f:
         f.write(bash_command)
 
     print(f"Launching job with `{config.launcher}` command.")
-    os.system(f"{config.launcher} {log_dir}/run.sh")
+    os.system(f"{config.launcher} {run_path}")
 
 
 def main() -> None:
