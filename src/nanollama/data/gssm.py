@@ -10,7 +10,6 @@ located in the root directory of this repository.
 """
 
 import logging
-import zlib
 from dataclasses import dataclass, field
 from multiprocessing import Process, Queue
 from queue import Empty, Full
@@ -630,40 +629,3 @@ class OnlineDataLoaderManager:
         if self.asynchronous:
             self.process.kill()
             self.buffer.close()
-
-
-def estimate_seq_entropy_by_compression(seq: Union[np.ndarray, torch.Tensor]) -> float:
-    """
-    Estimates the entropy of a sequence (np.ndarray/torch.tensor) via zlib compression.
-
-    Parameters:
-    - seq: NumPy ndarray of shape (sequence_length,)
-
-    Returns:
-    - entropy_estimate: float
-    """
-    if isinstance(seq, torch.Tensor):
-      seq = seq.cpu().numpy()
-
-    seq = seq.tobytes()
-    compressed_data = zlib.compress(seq, level=9)
-
-    # Calculate entropy as compressed size / original size
-    original_size = len(seq)
-    return len(compressed_data) / original_size if original_size > 0 else 0
-
-
-if __name__ == "__main__":
-    # Example usage
-    batch = torch.tensor(
-        [
-            [1, 1, 1, 1, 1, 1, 1],
-            [1, 2, 3, 4, 5, 6, 7],
-            [0, 0, 0, 0, 0, 0, 0],
-            [1, 0, 1, 0, 1, 0, 1],
-            [1, 5, 1, 2, 8, 3, 6],
-        ]
-    )
-
-    entropy_estimates = list(map(estimate_seq_entropy_by_compression, batch))
-    print(entropy_estimates)
