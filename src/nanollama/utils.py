@@ -9,6 +9,7 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
+import copy
 from dataclasses import dataclass, fields, is_dataclass
 from typing import Any, TypeVar, get_args, get_origin
 
@@ -47,6 +48,7 @@ def initialize_nested_dataclass(dataclass_type: type[T], data: dict[str, Any]) -
     """
     Recursively initializes a dataclass from a nested dictionary.
     """
+    data = copy.deepcopy(data)
     if not is_dataclass(dataclass_type):
         raise ValueError(f"{dataclass_type} is not a dataclass")
     field_values = {}
@@ -71,7 +73,7 @@ def initialize_nested_dataclass(dataclass_type: type[T], data: dict[str, Any]) -
                     # Directly assign the value
                     field_values[fname] = ftype(value)
                 except TypeError:
-                    print(f"Initializing {fname}:{value} without type checking ({ftype}).")
+                    # print(f"Initializing {fname}:{value} without type checking ({ftype}).")
                     field_values[fname] = value
     if data:
         for fname in data:
