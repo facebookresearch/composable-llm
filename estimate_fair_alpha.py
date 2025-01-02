@@ -5,54 +5,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 from src.nanollama.utils import initialize_nested_dataclass
 from scipy.optimize import minimize_scalar
+import copy
 
 from src.nanollama.data import gssm
 
 
-def estimate_seq_entropy_by_compression(batch: np.ndarray) -> np.ndarray:
-    """
-    Estimates the entropy of a batch (np.ndarray) via zlib compression.
+def estimate_seq_entropy_by_compression(seq):
+    seq = seq.tobytes()
+    compressed_data = zlib.compress(seq, level=9)
 
-    Parameters:
-    - batch: NumPy ndarray of shape (batch_size, sequence_length)
-
-    Returns:
-    - entropy_estimates: NumPy array of shape (batch_size,)
-    """
-    entropy_estimates = []
-    for seq in batch:
-        # Compress the seq
-        seq = seq.tobytes()
-        compressed_data = zlib.compress(seq, level=9)
-
-        # Calculate entropy as compressed size / original size
-        original_size = len(seq)
-        entropy = len(compressed_data) / original_size if original_size > 0 else 0
-        entropy_estimates.append(entropy)
-
-    return np.array(entropy_estimates)
-
-
-if __name__ == "__main__":
-    # Example usage
-    batch = np.array(
-        [
-            [1, 1, 1, 1, 1, 1, 1],
-            [1, 2, 3, 4, 5, 6, 7],
-            [0, 0, 0, 0, 0, 0, 0],
-            [1, 0, 1, 0, 1, 0, 1],
-            [1, 5, 1, 2, 8, 3, 6],
-        ]
-    )
-
-    entropy_estimates = estimate_seq_entropy_by_compression(batch)
-    print(entropy_estimates)
+    # Calculate entropy as compressed size / original size
+    original_size = len(seq)
+    entropy = len(compressed_data) / original_size if original_size > 0 else 0
+    return entropy
 
 # %%
 
 
 def get_entropy_from_config(gssm_config, bsz=256, seq_len=1024):
-    config = initialize_nested_dataclass(gssm.GSSMConfig, gssm_config)
+    config = initialize_nested_dataclass(gssm.GSSMConfig, copy.deepcopy(gssm_config))
 
     nodes = gssm.build_gssm(config, np.random.default_rng())
     seqs = np.empty((bsz, seq_len), dtype=int)
@@ -123,6 +94,3 @@ plt.plot(alphas, [np.abs(h - base_H) for h in hs])
 # truth
 plt.axvline(gssm_config_base["nodes"][-1]["alpha"])
 plt.xscale("log")
-# %%
-gssm_config_base
-# %%
