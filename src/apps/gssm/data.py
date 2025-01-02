@@ -12,13 +12,15 @@ located in the root directory of this repository.
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import h5py
-from omegaconf import OmegaConf
+import yaml
 
 from nanollama.data.gssm import GSSMConfig, OnlineDataLoaderManager, init_dataloader_state
+from nanollama.utils import initialize_nested_dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +30,14 @@ class DatasetConfig:
     path: str = ""
     n_data: int = 0
 
-    def __manual_post_init__(self):
+    def __post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
-        # manual post initialization of all modules
-        for module in self.__dict__.values():
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
         assert self.path, "Path to save the dataset must be specified."
         assert self.n_data, "n_data must be specified."
+
+        self.path = os.expandvars(self.path)
 
 
 @dataclass
@@ -54,15 +54,7 @@ class DataGenerationConfig:
         self.buffer_size = None
         self.batch_size = 0
 
-    def __manual_post_init__(self):
-        """
-        Check validity of arguments and fill in missing values.
-        """
-        # manual post initialization of all modules
-        for module in self.sets + [self.gssm]:
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
-
+        # Check validity of arguments and fill in missing values.
         assert self.seq_len, "seq_len must be specified."
         assert self.sets, "At least one dataset configuration must be specified."
 
@@ -127,6 +119,7 @@ def main() -> None:
 
     Non-specified arguments will be filled with the default values of the Config classes.
     """
+    import argparse
 
     logging.basicConfig(
         level=logging.INFO,
@@ -134,17 +127,16 @@ def main() -> None:
         handlers=[logging.StreamHandler()],
     )
 
-    cli_args = OmegaConf.from_cli()
-    file_configs = OmegaConf.load(cli_args.pop("config", None))
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("config", type=str, help="Path to configuration file")
+    path = parser.parse_args().config
 
-    default_config = OmegaConf.structured(DataGenerationConfig())
+    with open(path) as f:
+        file_configs = yaml.safe_load(f)
 
     for env, file_config in file_configs.items():
         logger.info(f"Creating datasets for environment {env}")
-        config = OmegaConf.merge(default_config, file_config, cli_args)
-        config: DataGenerationConfig = OmegaConf.to_object(config)
-        config.__manual_post_init__()
-
+        config = initialize_nested_dataclass(DataGenerationConfig, file_config)
         create_dataset(config)
 
 

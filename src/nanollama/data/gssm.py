@@ -563,7 +563,7 @@ class OnlineDataLoaderManager:
             self.process.start()
         return self
 
-    def get_batch(self) -> tuple[np.ndarray, dict[str, Any]]:
+    def get_batch(self) -> np.ndarray:
         """
         Generate a batch of sentences.
         """
@@ -575,9 +575,7 @@ class OnlineDataLoaderManager:
             self.nodes["X"].evolve()
             batch[:, t] = self.nodes["X"].state
 
-        restart_info = self.rng.bit_generator.state
-
-        return batch, restart_info
+        return batch
 
     def async_create_batch(self) -> None:
         """
@@ -615,7 +613,8 @@ class OnlineDataLoaderManager:
         if self.asynchronous:
             return self.async_get_batch()
         else:
-            batch, restart_info = self.get_batch()
+            batch = self.get_batch()
+            restart_info = self.rng.bit_generator.state
             batch = torch.from_numpy(batch).long()
             return (batch, restart_info)
 

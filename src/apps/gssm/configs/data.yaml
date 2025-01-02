@@ -18,9 +18,9 @@ base:
       alpha: 1e-2
   sets:
   - n_data: 1_000_000
-    path: ${oc.env:HOME}/data/composition/base/trainset.h5
+    path: $HOME/data/composition/base/trainset.h5
   - n_data: 10_000
-    path: ${oc.env:HOME}/data/composition/base/testset.h5
+    path: $HOME/data/composition/base/testset.h5
 
 sparse:
   seq_len: 2048
@@ -50,9 +50,9 @@ sparse:
       alpha: 1e-2
   sets:
   - n_data: 1_000_000
-    path: ${oc.env:HOME}/data/composition/sparse/trainset.h5
+    path: $HOME/data/composition/sparse/trainset.h5
   - n_data: 10_000
-    path: ${oc.env:HOME}/data/composition/sparse/testset.h5
+    path: $HOME/data/composition/sparse/testset.h5
 
 dense:
   seq_len: 2048
@@ -82,9 +82,9 @@ dense:
       alpha: 1e-2
   sets:
   - n_data: 1_000_000
-    path: ${oc.env:HOME}/data/composition/dense/trainset.pt
+    path: $HOME/data/composition/dense/trainset.pt
   - n_data: 10_000
-    path: ${oc.env:HOME}/data/composition/dense/testset.pt
+    path: $HOME/data/composition/dense/testset.pt
 
 low_entropy:
   seq_len: 2048
@@ -114,9 +114,9 @@ low_entropy:
       alpha: 1e-2
   sets:
   - n_data: 1_000_000
-    path: ${oc.env:HOME}/data/composition/low/trainset.pt
+    path: $HOME/data/composition/low/trainset.pt
   - n_data: 10_000
-    path: ${oc.env:HOME}/data/composition/low/testset.pt
+    path: $HOME/data/composition/low/testset.pt
 
 slow_evolving:
   seq_len: 2048
@@ -150,9 +150,9 @@ slow_evolving:
       alpha: 1e-2
   sets:
   - n_data: 1_000_000
-    path: ${oc.env:HOME}/data/composition/slow/trainset.pt
+    path: $HOME/data/composition/slow/trainset.pt
   - n_data: 10_000
-    path: ${oc.env:HOME}/data/composition/slow/testset.pt
+    path: $HOME/data/composition/slow/testset.pt
 
 dead_mode_env:
   seq_len: 2048
@@ -186,6 +186,6 @@ dead_mode_env:
       alpha: 1e-2
   sets:
   - n_data: 1_000_000
-    path: ${oc.env:HOME}/data/composition/slow/trainset.pt
+    path: $HOME/data/composition/slow/trainset.pt
   - n_data: 10_000
-    path: ${oc.env:HOME}/data/composition/slow/testset.pt
+    path: $HOME/data/composition/slow/testset.pt
