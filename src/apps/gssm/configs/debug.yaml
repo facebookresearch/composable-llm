@@ -1,26 +1,12 @@
 # Debugging configuration
-monitor:
-  name: debug_from_file
-  seed: 100
+
+launcher:
+  name: debug
   overwrite: true
+  dir: $HOME/logs/debug
 
-  logging:
-    period: 1
-    level: debug
-    wandb:
-      active: false
+  script: apps.gssm.train
 
-  checkpoint:
-    period: 20
-    keep_only: 3
-
-  profiler:
-    active: true
-    wait: 1
-    steps: -1
-
-cluster:
-  compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
   slurm:
     partition: scavenge
     mem: 16G
@@ -29,24 +15,47 @@ cluster:
     time: 10          # job time in minutes
     signal_time: 60   # alert time in seconds
 
-model:
-  vocab_size: 32
-  emb_dim: 64
-  nb_heads: 2
-  ffn_dim: 256
-  nb_layers: 2
+run_config:
+  cluster:
+    compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
 
-data:
-  path: ${oc.env:HOME}/data/composition/base/trainset.h5
-  n_data: 10_000
-  seq_len: 2048
-  batch_size: 16
-  seed: 42
-  asynchronous: false
+  data:
+    path: $HOME/data/composition/base/trainset.h5
+    n_data: 10_000
+    seq_len: 2048
+    batch_size: 16
+    seed: 42
+    asynchronous: false
 
-optim:
-  steps: 100
-  lr: 1e-2
-  weight_decay: 0.1
-  warmup: 10
-  lr_min_ratio: 0
+  model:
+    vocab_size: 32
+    emb_dim: 64
+    nb_heads: 2
+    ffn_dim: 256
+    nb_layers: 2
+
+  optim:
+    steps: 500
+    lr: 1e-2
+    weight_decay: 0.1
+    warmup: 10
+    lr_min_ratio: 0
+
+  orchestration:
+    utils:
+      seed: 100
+
+    checkpoint:
+      period: 20
+      keep_only: 3
+
+    logging:
+      period: 1
+      level: debug
+    wandb:
+      active: false
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1

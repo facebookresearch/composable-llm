@@ -15,29 +15,31 @@ import time
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
+from traceback import format_exception
 from types import TracebackType
+from typing import Any
 
-from ..cluster import get_hostname, get_rank, is_master_process
-from .wandb import WandbConfig, WandbManager
+from ..distributed import get_hostname, get_rank, is_master_process
+from .monitor import Monitor
 
 logger = getLogger(__name__)
 
 
 @dataclass
 class LoggerConfig:
-    path: str = ""
-    metric_path: str = ""
     period: int = 100
     level: str = "INFO"
-    wandb: WandbConfig = field(default_factory=WandbConfig)
+    stdout_path: str = field(init=False, default="")
+    metric_path: str = field(init=False, default="")
 
     def __post_init__(self):
         self.level = self.level.upper()
         assert self.level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
-    def __manual_post_init__(self):
-        if self.metric_path == "" and self.path != "":
-            self.metric_path = str(Path(self.path) / "metrics.json")
+    def __check_init__(self):
+        """Check validity of arguments."""
+        assert self.stdout_path, "stdout_path was not set"
+        assert self.metric_path, "metric_path was not set"
 
 
 # -------------------------------------------------------------------------------
@@ -45,25 +47,21 @@ class LoggerConfig:
 # -------------------------------------------------------------------------------
 
 
-class Logger:
+class Logger(Monitor):
     def __init__(self, config: LoggerConfig):
-        self.path = Path(config.path)
-        self.path.mkdir(parents=True, exist_ok=True)
+        self.stdout_path = Path(config.stdout_path)
+        self.stdout_path.mkdir(parents=True, exist_ok=True)
         device_rank = get_rank()
-        log_file = self.path / f"device_{device_rank}.log"
+        stdout_file = self.stdout_path / f"device_{device_rank}.log"
 
         self.metric = Path(config.metric_path)
         self.metric.parent.mkdir(parents=True, exist_ok=True)
-        self.wandb = None
 
         # Initialize logging stream
         if is_master_process():
-            # the master node gets to log more information
             handlers = [logging.StreamHandler()]
-            if config.wandb.active:
-                self.wandb = WandbManager(config.wandb, log_dir=self.path)
         else:
-            handlers = [logging.FileHandler(log_file, "a")]
+            handlers = [logging.FileHandler(stdout_file, "a")]
 
         logging.basicConfig(
             level=getattr(logging, config.level),
@@ -72,34 +70,30 @@ class Logger:
         )
 
         logger.info(f"Running on machine {get_hostname()}")
-        logger.info(f"Logging to {self.path}")
+        logger.info(f"Logging to {self.stdout_path}")
 
     def __enter__(self):
         """
-        Open logging files (and wandb api).
+        Open logging files.
         """
         self.metric = open(self.metric, "a")
-        if self.wandb is not None:
-            self.wandb.__enter__()
 
-    def __call__(self, metrics: dict) -> None:
+    def __call__(self):
+        """Unused function, call should be made throught the report_metrics method."""
+        pass
+
+    def report_metrics(self, metrics: dict[str, Any]) -> None:
         """
-        Report the metrics to monitor.
+        Report metrics to file.
         """
         metrics |= {"ts": time.time()}
         print(json.dumps(metrics), file=self.metric, flush=True)
-        if self.wandb:
-            self.wandb(metrics, step=metrics["step"])
 
-    def __exit__(
-        self,
-        exc: type[BaseException],
-        value: BaseException,
-        trace: TracebackType,
-    ):
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         """
-        Close logging files (and wandb api).
+        Close logging files. Log exceptions if any.
         """
         self.metric.close()
-        if self.wandb is not None:
-            self.wandb.__exit__(exc, value, trace)
+        if exc is not None:
+            logger.error(f"Exception: {value}")
+            logger.info("".join(format_exception(exc, value, tb)))

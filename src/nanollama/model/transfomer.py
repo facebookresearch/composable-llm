@@ -46,6 +46,7 @@ class TransformerConfig:
     # Transformer parameters
     nb_layers: int = -1
     weight_tying: bool = False
+    # init_std: float = -1
     init_std: Optional[float] = None
 
     def __post_init__(self):
@@ -369,6 +370,7 @@ class Transformer(nn.Module):
 
         self.emb_dim = config.emb_dim
         self.weight_tying = config.weight_tying
+        # self.init_std = config.init_std if config.init_std >= 0 else None
         self.init_std = config.init_std
 
         self.embeddings = nn.Embedding(config.vocab_size, config.emb_dim)

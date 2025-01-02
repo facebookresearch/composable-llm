@@ -12,7 +12,7 @@ located in the root directory of this repository.
 import csv
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PosixPath
 from types import TracebackType
 
@@ -20,8 +20,9 @@ import numpy as np
 import torch
 import torch.profiler as profiler
 
-from ..cluster import get_rank
-from ..train import TrainState
+from ..distributed import get_rank
+from ..utils import TrainState
+from .monitor import Monitor
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,36 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------------------------------------
 
 
-class HeavyProfiler:
+class BaseProfiler:
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        """Function called when entering context."""
+        pass
+
+    def __call__(self):
+        """Main function ran by the Profiler"""
+        pass
+
+    def report_objects(self, **kwargs) -> None:
+        """Create alias for the objects to monitor."""
+        pass
+
+    def start_timer(self) -> None:
+        """Start a timer"""
+        pass
+
+    def end_timer(self, name: str, **kwargs) -> None:
+        """End timer and report time"""
+        pass
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
+        """Function called when exiting context"""
+        pass
+
+
+class HeavyProfiler(BaseProfiler):
     """
     Wrapper around Pytorch Profiler, highly detailed, yet heavy.
     """
@@ -52,7 +82,7 @@ class HeavyProfiler:
                 active=steps,
                 repeat=1,
             ),
-            on_trace_ready=self.report_metrics,
+            on_trace_ready=self.update,
             profile_memory=True,
             record_shapes=True,
             with_stack=True,
@@ -63,27 +93,28 @@ class HeavyProfiler:
         self.profiler.__enter__()
         logger.info(f"Pytorch profiler active. Traces will be saved at {self.path}")
 
-    def report_metrics(self, prof: profiler.profile) -> None:
+    def __call__(self) -> None:
+        """
+        Call step function when profiler is active
+        """
+        if self.profiler:
+            self.profiler.step()
+
+    def update(self, prof: profiler.profile) -> None:
+        """
+        Log profiler traces
+        """
         prof.export_chrome_trace(str(self.path))
         logger.info(f"Pytorch profiler traces saved to {self.path}")
         self.profiler.__exit__(None, None, None)
         self.profiler = None
 
-    def __call__(self) -> None:
-        if self.profiler:
-            self.profiler.step()
-
-    def __exit__(
-        self,
-        exc: type[BaseException],
-        value: BaseException,
-        tb: TracebackType,
-    ):
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         if self.profiler:
             self.profiler.__exit__(exc, value, tb)
 
 
-class LightProfiler:
+class LightProfiler(BaseProfiler):
     """
     Minimal profiler.
     """
@@ -100,7 +131,6 @@ class LightProfiler:
 
         # various placeholder
         self.device = None
-        self.capacity = None
         self.times = {}
         self.state = None
 
@@ -111,64 +141,66 @@ class LightProfiler:
         self.file = open(self.path, "w")
         self.start_timer()
 
-    def start_timer(self) -> None:
-        """Start a timer"""
-        if self.device:  # act as an active flag
-            self.time = time.time()
-
-    def end_timer(self, name: str, sync: bool = False) -> None:
-        """End timer and report time"""
-        if self.device:  # act as an active flag
-            if sync:
-                torch.cuda.synchronize(get_rank())
-            self.times[name] = time.time() - self.time
-
-    def report_objects(self, train_state: TrainState) -> None:
-        self.state = train_state
+    def report_objects(self, state: TrainState) -> None:
+        self.state = state
 
     def __call__(self) -> None:
+        """
+        Call update function when profiler is active
+        """
         if self.step >= self.start_step and self.step <= self.end_step:
-            # write csv header
-            if self.step == self.start_step:
-                header = list(self.times.keys()) + [
-                    "ts",
-                    "step",
-                    "acc_step",
-                    "mem",
-                    "mem_reserved",
-                    "num_alloc_retries",
-                    "num_ooms",
-                    "mem_capacity",
-                ]
-                self.file.write(",".join(header) + "\n")
-
-            cuda_info = torch.cuda.memory_stats(self.device)
-
-            data = list(self.times.values()) + [
-                round(time.time(), 6),
-                self.state.optim.step,
-                self.state.optim.acc_step,
-                cuda_info["active_bytes.all.peak"],
-                cuda_info["reserved_bytes.all.peak"],
-                cuda_info["num_alloc_retries"],
-                cuda_info["num_ooms"],
-                self.capacity,
-            ]
-            self.file.write(",".join([str(x) for x in data]) + "\n")
-
-            torch.cuda.reset_peak_memory_stats()
+            self.update()
 
         if self.step == self.end_step:
             self.__exit__(None, None, None)
 
         self.step += 1
 
-    def __exit__(
-        self,
-        exc: type[BaseException],
-        value: BaseException,
-        tb: TracebackType,
-    ):
+    def update(self) -> None:
+        """
+        Log profiler traces
+        """
+        # write csv header
+        if self.step == self.start_step:
+            header = list(self.times.keys()) + [
+                "ts",
+                "step",
+                "acc_step",
+                "mem",
+                "mem_reserved",
+                "num_alloc_retries",
+                "num_ooms",
+                "mem_capacity",
+            ]
+            self.file.write(",".join(header) + "\n")
+
+        cuda_info = torch.cuda.memory_stats(self.device)
+
+        data = list(self.times.values()) + [
+            round(time.time(), 6),
+            self.state.optim.step,
+            self.state.optim.acc_step,
+            cuda_info["active_bytes.all.peak"],
+            cuda_info["reserved_bytes.all.peak"],
+            cuda_info["num_alloc_retries"],
+            cuda_info["num_ooms"],
+            self.capacity,
+        ]
+        self.file.write(",".join([str(x) for x in data]) + "\n")
+
+        torch.cuda.reset_peak_memory_stats()
+
+    def start_timer(self) -> None:
+        if self.device:  # act as an active flag
+            self.time = time.time()
+
+    def end_timer(self, name: str, sync: bool = False) -> None:
+        if self.device:  # act as an active flag
+            if sync:
+                torch.cuda.synchronize(get_rank())
+            self.times[name] = time.time() - self.time
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         if self.device is None:
             return
 
@@ -177,7 +209,6 @@ class LightProfiler:
 
         # free placeholders
         self.device = None
-        self.capacity = None
         self.times = {}
         self.state = None
 
@@ -212,12 +243,12 @@ class LightProfiler:
         res = {}
         for file_path in path.glob("*.csv"):
             rank = int(str(file_path).split("_")[1])
-            header, data = cls.csv_to_numpy(file_path)
-            res[rank] = cls.process_data(header, data)
+            header, data = cls._csv_to_numpy(file_path)
+            res[rank] = cls._process_data(header, data)
         return res
 
     @staticmethod
-    def csv_to_numpy(file_path: PosixPath) -> tuple[list[str], np.ndarray]:
+    def _csv_to_numpy(file_path: PosixPath) -> tuple[list[str], np.ndarray]:
         with open(file_path, newline="") as csvfile:
             csvreader = csv.reader(csvfile)
             header = next(csvreader)
@@ -225,7 +256,7 @@ class LightProfiler:
         return header, data
 
     @staticmethod
-    def process_data(header: list[str], data: np.ndarray) -> dict[str, np.ndarray]:
+    def _process_data(header: list[str], data: np.ndarray) -> dict[str, np.ndarray]:
         res = {}
         index = -1
         assert header[index] == "mem_capacity"
@@ -246,13 +277,17 @@ class LightProfiler:
 @dataclass
 class ProfilerConfig:
     active: bool = True
-    path: str = ""
     wait: int = 1
     steps: int = -1
     heavy: bool = False
+    path: str = field(init=False, default="")
+
+    def __check_init__(self):
+        """Check validity of arguments."""
+        assert self.path, "path was not set"
 
 
-class Profiler:
+class Profiler(Monitor):
     """
     Profiler Context
 
@@ -262,7 +297,7 @@ class Profiler:
     """
 
     def __init__(self, config: ProfilerConfig):
-        self.profilers = []
+        self.profilers: list[BaseProfiler] = []
         self.light = None
         if not config.active:
             return
@@ -273,39 +308,42 @@ class Profiler:
 
         self.path.mkdir(parents=True, exist_ok=True)
         if config.heavy:
-            self.profilers.append(
-                HeavyProfiler(self.path / f"heavy_{rank}_{ts}.pt.trace.json", config.wait, config.steps)
-            )
+            path = self.path / f"heavy_{rank}_{ts}.pt.trace.json"
+            self.profilers.append(HeavyProfiler(path, config.wait, config.steps))
         else:
-            self.light = LightProfiler(self.path / f"light_{rank}_{ts}.csv", config.wait, config.steps)
-            self.profilers.append(self.light)
+            path = self.path / f"light_{rank}_{ts}.csv"
+            self.profilers.append(LightProfiler(path, config.wait, config.steps))
 
     def __enter__(self):
         for prof in self.profilers:
             prof.__enter__()
         return self
 
+    def report_objects(self, state: TrainState = None, **kwargs) -> None:
+        for prof in self.profilers:
+            prof.report_objects(state)
+
     def __call__(self) -> None:
+        """
+        Call profilers
+        """
         for prof in self.profilers:
             prof()
 
-    def __exit__(
-        self,
-        exc: type[BaseException],
-        value: BaseException,
-        tb: TracebackType,
-    ):
+    def start_timer(self) -> None:
+        """
+        Start a timer
+        """
+        for prof in self.profilers:
+            prof.start_timer()
+
+    def end_timer(self, name: str, **kwargs) -> None:
+        """
+        End timer and report time
+        """
+        for prof in self.profilers:
+            prof.end_timer(name, **kwargs)
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         for prof in self.profilers:
             prof.__exit__(exc, value, tb)
-
-    def start_timer(self) -> None:
-        if self.light:
-            self.light.start_timer()
-
-    def end_timer(self, *args, **kwargs) -> None:
-        if self.light:
-            self.light.end_timer(*args, **kwargs)
-
-    def report_objects(self, train_state: TrainState) -> None:
-        if self.light:
-            self.light.report_objects(train_state)

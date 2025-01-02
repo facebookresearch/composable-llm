@@ -10,19 +10,20 @@ located in the root directory of this repository.
 """
 
 import logging
+import os
 from collections.abc import Generator
 from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from queue import Empty, Full
 from types import TracebackType
-from typing import Any, Optional
+from typing import Any
 
 import h5py
 import numpy as np
 import torch
 from numpy.random import SeedSequence, default_rng
 
-from ..cluster import get_rank
+from ..distributed import get_rank
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +38,16 @@ class DataConfig:
     asynchronous: bool = True  # asynchronous data loading
     buffer_size: int = 4  # number of batches to bufferize asynchronously for data loading
 
+    def __post_init__(self):
+        self.path = os.path.expandvars(self.path)
+
 
 @dataclass
 class DataLoaderState:
     rng_state: dict[str, Any]
     epoch: int = 0
     step: int = 0  # batch step
-    residual_idx: Optional[np.ndarray[int]] = None  # residual data from the previous epoch
+    residual_idx: np.ndarray[int] = None  # residual data from the previous epoch
 
     def __post_init__(self):
         if self.residual_idx is None:
@@ -61,7 +65,7 @@ class DataLoaderState:
         self.rng_state = state_dict["rng_state"]
         self.epoch = state_dict["epoch"]
         self.step = state_dict["step"]
-        self.residual_idx = np.array(state_dict["residual_idx"])
+        self.residual_idx = np.array(state_dict["residual_idx"], dtype=int)
 
     def report_restart_info(
         self, rng_state: dict[str, Any], epoch: int, step: int, residual_idx: np.ndarray[int]
