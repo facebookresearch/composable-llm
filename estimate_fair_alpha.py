@@ -3,7 +3,7 @@ import zlib
 
 import matplotlib.pyplot as plt
 import numpy as np
-from omegaconf import OmegaConf
+from src.nanollama.utils import initialize_nested_dataclass
 from scipy.optimize import minimize_scalar
 
 from src.nanollama.data import gssm
@@ -51,11 +51,8 @@ if __name__ == "__main__":
 # %%
 
 
-def get_entropy_from_config(gssm_config, bsz=128, seq_len=1024):
-    default_config = OmegaConf.structured(gssm.GSSMConfig())
-    config = OmegaConf.merge(default_config, gssm_config)
-    config = OmegaConf.to_object(config)
-    config.__manual_post_init__()
+def get_entropy_from_config(gssm_config, bsz=256, seq_len=1024):
+    config = initialize_nested_dataclass(gssm.GSSMConfig, gssm_config)
 
     nodes = gssm.build_gssm(config, np.random.default_rng())
     seqs = np.empty((bsz, seq_len), dtype=int)
@@ -70,38 +67,35 @@ def get_entropy_from_config(gssm_config, bsz=128, seq_len=1024):
     return entropy_estimate
 
 
-gssm_config_base = OmegaConf.create(
-    {
-        "nodes": [
-            {"name": "Z1", "state_dim": 2, "parents": [], "alpha": 0.1},
-            {"name": "Z2", "state_dim": 3, "parents": ["Z1"], "alpha": 0.1},
-            # {"name": "Z4", "state_dim": 2, "parents": ["Z3", "Z1"], "alpha": 1},
-            {
-                "name": "X",
-                "state_dim": 10,
-                "parents": ["Z1", "Z2"],
-                "alpha": 0.1,
-            },
-        ]
-    }
-)
+gssm_config_base = {
+    "nodes": [
+        {"name": "Z1", "state_dim": 2, "parents": [], "alpha": 0.3},
+        {"name": "Z2", "state_dim": 2, "parents": ["Z1"], "alpha": 0.01},
+        {"name": "Z4", "state_dim": 2, "parents": ["Z2", "Z1"], "alpha": 0.1},
+        {
+            "name": "X",
+            "state_dim": 16,
+            "parents": ["Z1", "Z4"],
+            "alpha": 0.3,
+        },
+    ]
+}
 
 
 def gssm_config_template(alpha):
-    return OmegaConf.create(
-        {
-            "nodes": [
-                {"name": "Z1", "state_dim": 2, "parents": [], "alpha": 0.1},
-                {"name": "Z4", "state_dim": 3, "parents": ["Z1"], "alpha": 0.1},
-                {
-                    "name": "X",
-                    "state_dim": 10,
-                    "parents": ["Z1", "Z4"],
-                    "alpha": float(alpha),
-                },
-            ]
-        }
-    )
+    return {
+        "nodes": [
+            {"name": "Z1", "state_dim": 2, "parents": [], "alpha": 0.3},
+            {"name": "Z2", "state_dim": 2, "parents": ["Z1"], "alpha": 0.01},
+            {"name": "Z4", "state_dim": 2, "parents": ["Z2", "Z1"], "alpha": 0.1},
+            {
+                "name": "X",
+                "state_dim": 16,
+                "parents": ["Z1", "Z4"],
+                "alpha": float(alpha),
+            },
+        ]
+    }
 
 
 base_H, base_H_std = get_entropy_from_config(gssm_config_base)
@@ -119,7 +113,7 @@ result
 
 # %%
 hs = []
-alphas = np.logspace(-3, 1, 30)
+alphas = np.logspace(-3, 1, 50)
 for alpha in alphas:
     cfg = gssm_config_template(alpha)
     new_H, new_H_std = get_entropy_from_config(cfg)
@@ -129,4 +123,6 @@ plt.plot(alphas, [np.abs(h - base_H) for h in hs])
 # truth
 plt.axvline(gssm_config_base["nodes"][-1]["alpha"])
 plt.xscale("log")
+# %%
+gssm_config_base
 # %%
