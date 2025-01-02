@@ -628,33 +628,30 @@ class OnlineDataLoaderManager:
             self.buffer.close()
 
 
-def estimate_seq_entropy_by_compression(batch: np.ndarray) -> np.ndarray:
+def estimate_seq_entropy_by_compression(seq: Union[np.ndarray, torch.Tensor]) -> float:
     """
-    Estimates the entropy of a batch (np.ndarray) via zlib compression.
+    Estimates the entropy of a sequence (np.ndarray/torch.tensor) via zlib compression.
 
     Parameters:
-    - batch: NumPy ndarray of shape (batch_size, sequence_length)
+    - seq: NumPy ndarray of shape (sequence_length,)
 
     Returns:
-    - entropy_estimates: NumPy array of shape (batch_size,)
+    - entropy_estimate: float
     """
-    entropy_estimates = []
-    for seq in batch:
-        # Compress the seq
-        seq = seq.tobytes()
-        compressed_data = zlib.compress(seq, level=9)
+    if isinstance(seq, torch.Tensor):
+      seq = seq.cpu().numpy()
 
-        # Calculate entropy as compressed size / original size
-        original_size = len(seq)
-        entropy = len(compressed_data) / original_size if original_size > 0 else 0
-        entropy_estimates.append(entropy)
+    seq = seq.tobytes()
+    compressed_data = zlib.compress(seq, level=9)
 
-    return np.array(entropy_estimates)
+    # Calculate entropy as compressed size / original size
+    original_size = len(seq)
+    return len(compressed_data) / original_size if original_size > 0 else 0
 
 
 if __name__ == "__main__":
     # Example usage
-    batch = np.array(
+    batch = torch.tensor(
         [
             [1, 1, 1, 1, 1, 1, 1],
             [1, 2, 3, 4, 5, 6, 7],
@@ -664,5 +661,5 @@ if __name__ == "__main__":
         ]
     )
 
-    entropy_estimates = estimate_seq_entropy_by_compression(batch)
+    entropy_estimates = list(map(estimate_seq_entropy_by_compression, batch))
     print(entropy_estimates)
