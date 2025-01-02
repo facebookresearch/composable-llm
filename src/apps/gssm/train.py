@@ -117,7 +117,7 @@ def train(config: TrainingConfig) -> None:
         # ---------------------------------------------------------------------
 
         _logger.info("Building optimizer")
-        optimizer = init_optimizer(model, config.optim)
+        optimizer = init_optimizer(model, config.optim, device=cluster.device)
         scheduler = init_scheduler(optimizer, config.optim)
         _logger.info("Done building optimizer")
 
@@ -166,7 +166,8 @@ def train(config: TrainingConfig) -> None:
 
             profiler.start_timer()
             batch, restart_info = next(dataloader)
-            batch = batch.pin_memory()
+            if cluster.device.type == "cuda":
+                batch = batch.pin_memory()
             profiler.end_timer("data_cpu_time")
 
             profiler.start_timer()
