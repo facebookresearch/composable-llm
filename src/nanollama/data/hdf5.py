@@ -31,14 +31,15 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DataConfig:
     path: str = ""
-    n_data: int = -1
-    seq_len: int = -1
-    batch_size: int = -1
+    n_data: int = 0
+    batch_size: int = 0
     seed: int = 0
     asynchronous: bool = True  # asynchronous data loading
     buffer_size: int = 4  # number of batches to bufferize asynchronously for data loading
 
     def __post_init__(self):
+        assert self.n_data, "Number of data must be specified."
+        assert self.batch_size, "Batch size must be specified."
         self.path = os.path.expandvars(self.path)
 
 
@@ -115,7 +116,6 @@ class FileDataLoaderManager:
     def __init__(self, config: DataConfig, state: DataLoaderState):
         self.n_data = config.n_data
         self.batch_size = config.batch_size
-        self.seq_len = config.seq_len
         self.path = config.path
         self.asynchronous = config.asynchronous
 

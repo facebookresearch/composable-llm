@@ -6,7 +6,7 @@
 launcher:
   name: debug_grid_onfly
   overwrite: true
-  dir: $HOME/logs/debug_grid_onfly
+  log_dir: $HOME/logs/debug_grid_onfly
   
   script: src.apps.gssm_onfly.train
 

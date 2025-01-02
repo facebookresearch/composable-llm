@@ -33,26 +33,32 @@ import torch.nn.functional as F
 @dataclass
 class TransformerConfig:
     # Embedding parameters
-    vocab_size: int = -1
-    seq_len: int = -1
-    emb_dim: int = -1
+    vocab_size: int = 0
+    seq_len: int = 0
+    emb_dim: int = 0
 
     # Transformer block parameter
-    nb_heads: int = -1
+    nb_heads: int = 0
     rope_theta: float = 10_000
     ffn_dim: int = None
     norm_eps: float = 1e-5
 
     # Transformer parameters
-    nb_layers: int = -1
+    nb_layers: int = 0
     weight_tying: bool = False
-    # init_std: float = -1
     init_std: Optional[float] = None
 
     def __post_init__(self):
         # hidden feed-forward dimension
         if self.ffn_dim is None:
             self.ffn_dim = 4 * self.emb_dim
+
+    def __check_init__(self):
+        """Check validity of arguments."""
+        assert self.vocab_size, "vocabulary size should be specified"
+        assert self.emb_dim, "embedding dimension should be specified"
+        assert self.nb_heads, "number of heads should be specified"
+        assert self.nb_layers, "number of layers should be specified"
 
 
 # -------------------------------------------------------------------------------

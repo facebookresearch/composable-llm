@@ -1,9 +1,9 @@
 # Debugging configuration
 
 launcher:
-  name: debug_onfly
+  name: debu_
   overwrite: true
-  dir: $HOME/logs/debug_onfly
+  log_dir: $HOME/logs/debug_onfly
 
   script: src.apps.gssm_onfly.train
 

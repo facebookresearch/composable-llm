@@ -55,16 +55,18 @@ class TrainingConfig:
         """
         Check validity of arguments and fill in missing values.
         """
-
-        # Sequence length
-        if self.model.seq_len == -1 and self.data.seq_len == -1:
-            raise ValueError("seq_len must be provided in either model or data")
-        if self.model.seq_len == -1:
+        # sequence length
+        if not self.model.seq_len:
             self.model.seq_len = self.data.seq_len
-        if self.data.seq_len == -1:
-            self.data.seq_len = self.model.seq_len
 
-        # TODO: vocabulary size
+        # vocabulary size
+        if not self.model.vocab_size:
+            nodes = self.data.gssm.nodes
+            for node in nodes:
+                if node.name == "X":
+                    break
+            print(f"Setting vocab size to {node.state_dim}")
+            self.model.vocab_size = node.state_dim
 
         # check validity of submodule
         for module in self.__dict__.values():

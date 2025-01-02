@@ -3,7 +3,7 @@
 launcher:
   name: debug
   overwrite: true
-  dir: $HOME/logs/debug
+  log_dir: $HOME/logs/debug
 
   script: apps.gssm.train
 
@@ -22,13 +22,13 @@ run_config:
   data:
     path: $HOME/data/composition/base/trainset.h5
     n_data: 10_000
-    seq_len: 2048
     batch_size: 16
     seed: 42
     asynchronous: false
 
   model:
     vocab_size: 32
+    seq_len: 2048
     emb_dim: 64
     nb_heads: 2
     ffn_dim: 256

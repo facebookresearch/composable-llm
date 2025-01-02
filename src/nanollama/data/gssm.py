@@ -357,12 +357,9 @@ class NodeConfig:
         else:
             self.alpha = float(self.alpha)
 
-        if not self.name:
-            raise ValueError(f"Node name must be specified. {self}")
-        if self.state_dim == 0:
-            raise ValueError(f"`state_dim` must be specified. {self}")
-        if self.alpha == 0:
-            raise ValueError(f"`alphas` must be a specified. {self}")
+        assert self.name, f"Node name must be specified. {self}"
+        assert self.state_dim, f"`state_dim` must be specified. {self}"
+        assert self.alpha, f"`alpha` must be specified. {self}"
 
 
 @dataclass
@@ -465,9 +462,9 @@ class DataConfig:
     asynchronous: bool = True  # asynchronous data loading
     buffer_size: int = 4  # number of batches to bufferize asynchronously for data loading
 
-    def __check_init__(self):
-        assert self.seq_len, "seq_len was not set"
-        assert self.batch_size, "batch_size was not set"
+    def __post_init__(self):
+        assert self.batch_size, "batch_size should be set"
+        assert self.seq_len, "seq_len should be specified"
 
 
 @dataclass

@@ -2,7 +2,7 @@
 launcher:
   name: debug_grid
   overwrite: true
-  dir: $HOME/logs/debug_grid
+  log_dir: $HOME/logs/debug_grid
 
   script: apps.gss.train
 
@@ -28,6 +28,7 @@ run_config:
 
   model:
     vocab_size: 32
+    seq_len: 2048
     emb_dim: 64
     nb_heads: 2
     ffn_dim: 256
@@ -36,7 +37,6 @@ run_config:
   data:
     path: $HOME/data/composition/base/trainset.h5
     n_data: 10_000
-    seq_len: 2048
     batch_size: 16
     seed: 42
     asynchronous: false
