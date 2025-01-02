@@ -10,17 +10,17 @@ located in the root directory of this repository.
 """
 
 import itertools
+import json
 import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-from omegaconf import OmegaConf
+import yaml
 
-from .cluster import SlurmConfig
-from .monitor import OrchestratorConfig
+from .utils import initialize_nested_dataclass
 
 # -------------------------------------------------------------------------------
 # Configuration Class
@@ -28,27 +28,99 @@ from .monitor import OrchestratorConfig
 
 
 @dataclass
-class TrainingConfig:
-    data: Optional[Any] = None
-    model: Optional[Any] = None
-    optim: Optional[Any] = None
+class SlurmConfig:
+    # basic configuration
+    partition: str = ""
+    nodes: int = 1  # number of nodes to run the job on.
+    nb_gpus: int = 1  # number of GPUs required per node.
+    nb_cpus: int = 16  # number of CPUs allocated per GPU.
+    mem: str = ""  # amount of memory to allocate per node.
+    time: int = -1  # time limit of the job (in minutes).
 
-    cluster: Optional[Any] = None
-    orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
+    # time between USR signal and job terminaion (in seconds)
+    signal_time: int = 120
+
+    # extra configuration
+    slurm_extra: str = field(init=False, default="")  # placeholder
+    constraint: str = ""  # constraint on the nodes.
+    exclude: str = ""  # nodes to exclude.
+    account: str = ""
+    qos: str = ""
+
+    # cluster environment
+    script_extra: str = ""
+
+    def __manual_post_init__(self):
+        self.slurm_extra = ""
+        for name in ["exclude", "qos", "account", "constraint"]:
+            val = getattr(self, name)
+            if val:
+                self.slurm_extra += f"#SBATCH --{name}={val}\n"
+
+        # if partition, time or memory was not set
+        priorities, max_times, memories = {}, {}, {}
+        if self.partition == "" or self.time == -1 or self.mem == "":
+            priorities, max_times, memories = self.extract_slurm_info()
+        if self.partition == "":
+            self.partition = min(priorities.keys(), key=lambda k: priorities[k]["job_factor"])
+            print(f"No partition specified default to {self.partition}")
+        if self.time == -1:
+            self.time = max_times[self.partition]
+            print(f"No time specified, default to {self.time} minutes")
+        if self.mem == "":
+            self.mem = memories[self.partition]
+            print(f"No memory specified, default to {self.mem}MB")
+
+    @staticmethod
+    def extract_slurm_info() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+        # retrieve partition max times (slow but run only once)
+
+        print("Missing Slurm information, extracting them from `sinfo`.")
+        sinfo = json.loads(subprocess.check_output("sinfo --json", shell=True))["sinfo"]
+        priorities: dict[str, int] = {}
+        max_times: dict[str, int] = {}
+        memories: dict[str, int] = {}
+
+        for info in sinfo:
+            partition = info["partition"]["name"]
+            if partition in priorities:
+                continue
+
+            priorities[partition] = info["partition"]["priority"]
+            memories[partition] = info["memory"]["maximum"]  # in MB
+
+            if info["partition"]["maximums"]["time"]["infinite"]:
+                max_times[partition] = 14 * 24 * 60  # 14 days
+            else:
+                max_times[partition] = info["partition"]["maximums"]["time"]["number"]  # in minutes
+
+        return priorities, max_times, memories
 
 
 @dataclass
 class LauncherConfig:
+    name: str = "composition_default"
+
+    dir: str = ""
+    overwrite: bool = False
+    copy_code: bool = True
+
     launcher: str = "sbatch"
     torchrun: bool = False
-    script: str = "apps.train"
-    copy_code: bool = True
     python_env: str = "default"
+    script: str = "apps.train"
+
+    grid: dict[str, Any] = field(default_factory=dict)
+
+    slurm: SlurmConfig = field(default_factory=SlurmConfig)
 
     def __manual_post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
+        if not self.dir:
+            self.dir = str(Path.home() / "logs" / self.name)
+            print(f"No logging directory specified, default to {self.dir}")
 
         # recover python environment from the job was launched.
         if self.python_env:
@@ -57,6 +129,8 @@ class LauncherConfig:
             else:
                 self.python_env = f"{self.python_env}/bin/python"
             assert os.path.isfile(self.python_env)
+
+        self.slurm.__manual_post_init__()
 
 
 # -------------------------------------------------------------------------------
@@ -95,42 +169,20 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
 # -------------------------------------------------------------------------------
 
 
-def flatten_config(config: dict[str, Any], _parent_key: str = "") -> dict[str, Any]:
-    """
-    Flatten a nested configuration into a dot-separated format.
-
-    Parameters
-    ----------
-    config:
-        A nested configuration.
-
-    Returns
-    -------
-    A flattened configuration.
-    """
+def _flatten_config(config: dict[str, Any], _parent_key: str = "") -> dict[str, Any]:
+    """Flatten a nested configuration into a dot-separated format."""
     items = []
     for k, v in config.items():
         new_key = f"{_parent_key}.{k}" if _parent_key else k
         if isinstance(v, dict):
-            items.extend(flatten_config(v, new_key).items())
+            items.extend(_flatten_config(v, new_key).items())
         else:
             items.append((new_key, v))
     return dict(items)
 
 
-def unflatten_config(config: dict[str, Any]) -> dict[str, Any]:
-    """
-    Convert a flat configuration into a nested configuration.
-
-    Parameters
-    ----------
-    config:
-        A flat configuration.
-
-    Returns
-    -------
-    A nested configuration.
-    """
+def _unflatten_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Convert a flat configuration into a nested configuration."""
     nested = {}
     for key, value in config.items():
         keys = key.split(".")
@@ -141,9 +193,9 @@ def unflatten_config(config: dict[str, Any]) -> dict[str, Any]:
     return nested
 
 
-def write_configs_from_grid(config: dict, grid_config: dict, path: str) -> int:
+def get_configs_from_grid(config: dict[str, Any], grid_config: dict[str, Any]) -> list[dict[str, Any]]:
     """
-    Write a set of configurations from a grid configuration.
+    Get a set of configurations from a base configuration and a grid configuration.
 
     Parameters
     ----------
@@ -151,32 +203,20 @@ def write_configs_from_grid(config: dict, grid_config: dict, path: str) -> int:
         The base configuration.
     grid_config:
         The grid configuration to launch a grid job.
-    path:
-        The path to write the configurations.
 
     Returns
     -------
-    The number of configurations written.
+    List of configurations.
     """
 
     # get grid configurations as a list of flatten configs
-    flatten_grid = flatten_config(grid_config)
+    flatten_grid = _flatten_config(grid_config)
     keys, all_values = zip(*flatten_grid.items())
     all_configs = [dict(zip(keys, v)) for v in itertools.product(*all_values)]
 
     # merge on flatten config for simplicity
-    config = flatten_config(config)
-
-    for i, new_config in enumerate(all_configs, start=1):
-        # update base configuration
-        config |= new_config
-        nested_config = unflatten_config(config)
-
-        config_path = os.path.join(path, f"config_{i}.yaml")
-        with open(config_path, "w") as f:
-            f.write(OmegaConf.to_yaml(nested_config))
-
-    return i
+    config = _flatten_config(config)
+    return [_unflatten_config(config | new_config) for new_config in all_configs]
 
 
 # -------------------------------------------------------------------------------
@@ -224,9 +264,7 @@ export LOG_DIR={log_dir}
 """
 
 
-def launch_job(
-    config: LauncherConfig, run_config: TrainingConfig, slurm: SlurmConfig, grid: Optional[dict[str, Any]] = None
-) -> None:
+def launch_job(config: LauncherConfig, run_config: Any) -> None:
     """
     Launch a job on a Slurm cluster.
 
@@ -236,16 +274,13 @@ def launch_job(
         The configuration to launch the job.
     run_config:
         The training configuration of the job.
-    slurm:
-        Slurm ressource configuration.
-    grid:
-        Dictionnary to iterate over to launch a grid job.
     """
-    monitor = OrchestratorConfig(**run_config.orchestration)
+    # alias
+    slurm = config.slurm
 
     # logging directory
-    dir = monitor.dir
-    if os.path.exists(dir) and monitor.overwrite:
+    dir = config.dir
+    if os.path.exists(dir) and config.overwrite:
         confirm = input(
             f"Are you sure you want to delete the directory '{dir}'? This action cannot be undone. (yes/no): "
         )
@@ -267,16 +302,22 @@ def launch_job(
         go_to_code_dir = ""
     print(" Done.")
 
-    # handling potential grid run
-    if grid:
+    # write configs
+    if config.grid:
+        # handling potential grid run
         print("Writing grid configurations ...", end="")
-        nb_configs = write_configs_from_grid(run_config, grid, dir)
-        slurm_extra = f"#SBATCH --array=1-{nb_configs}\n"
+        all_configs = get_configs_from_grid(run_config, config.grid)
+
+        for i, nested_config in enumerate(all_configs, start=1):
+            config_path = os.path.join(dir, f"config_{i}.yaml")
+            with open(config_path, "w") as f:
+                yaml.dump(nested_config, f, default_flow_style=False)
+
+        slurm_extra = f"#SBATCH --array=1-{i}\n"
         config_path = "$LOG_DIR/config_$SLURM_ARRAY_TASK_ID.yaml"
     else:
-        # write config
         with open(f"{dir}/config.yaml", "w") as f:
-            f.write(OmegaConf.to_yaml(run_config))
+            yaml.dump(run_config, f, default_flow_style=False)
         slurm_extra = ""
         config_path = "$LOG_DIR/config.yaml"
 
@@ -303,7 +344,7 @@ def launch_job(
             run_command = f"python -u -m {config.script} config=$LOG_DIR/config.yaml"
 
     bash_command = LAUNCHER_SCRIPT.format(
-        name=monitor.name,
+        name=config.name,
         log_dir=dir,
         partition=slurm.partition,
         nodes=nodes,
@@ -325,7 +366,7 @@ def launch_job(
         f.write(bash_command)
 
     print(f"Launching job with `{config.launcher}` command.")
-    # os.system(f"{config.launcher} {dir}/run.sh")
+    os.system(f"{config.launcher} {dir}/run.sh")
 
 
 def main() -> None:
@@ -339,27 +380,25 @@ def main() -> None:
 
     Non-specified arguments will be filled with the default values of the Config classes.
     """
+    import argparse
+
     # Load config from path specified by the `config` cli argument
-    args = OmegaConf.from_cli()
-    run_config = OmegaConf.load(args.pop("config"))
+    parser = argparse.ArgumentParser(description="Launch job run.")
+    parser.add_argument("config", type=str, help="Path to configuration file")
+    args = parser.parse_args()
+    path = args.config
 
-    # special yaml section
-    grid = run_config.pop("grid", None)
-    slurm = SlurmConfig(**run_config.get("cluster", {}).pop("slurm", {}))
+    with open(path) as f:
+        file_config = yaml.safe_load(f)
 
-    # convert OmegeConf object to dictionnary
-    if grid:
-        grid = OmegaConf.to_object(grid)
+    run_config = file_config.pop("run_config", None)
+    file_config = file_config.pop("launcher", None)
 
-    # Default to default arguments for unspecified values
-    # default_config = OmegaConf.structured(LauncherConfig())
-    # config = OmegaConf.merge(default_config, args)
-    # config: LauncherConfig = OmegaConf.to_object(config)
-    config = LauncherConfig(**args)
+    config = initialize_nested_dataclass(LauncherConfig, file_config)
     config.__manual_post_init__()
 
     # Launch job
-    launch_job(config, run_config, slurm, grid)
+    launch_job(config, run_config)
 
 
 if __name__ == "__main__":

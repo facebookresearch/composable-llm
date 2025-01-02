@@ -9,21 +9,25 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-from .train import TrainState
+from dataclasses import fields, is_dataclass
+from typing import Any, TypeVar
+
+T = TypeVar("T")
 
 
-def trigger_update(state: TrainState, period: int) -> bool:
+def initialize_nested_dataclass(dataclass_type: type[T], data: dict[str, Any]) -> T:
     """
-    Return a boolean indicating whether the current step is a multiple of `period`.
-
-    Parameters
-    ----------
-    state : TrainState
-        Current training state containing optimization and accumulation steps.
-    period : int
-        Number of gradient updates between each check. If -1, always return False.
+    Recursively initializes a dataclass from a nested dictionary.
     """
-
-    if period == -1:
-        return False
-    return (state.optim.step % period == 0) and (state.optim.acc_step == 0)
+    if not is_dataclass(dataclass_type):
+        raise ValueError(f"{dataclass_type} is not a dataclass")
+    field_values = {}
+    for data_field in fields(dataclass_type):
+        fname, ftype = data_field.name, data_field.type
+        if fname in data:
+            value = data[fname]
+            if is_dataclass(ftype):
+                field_values[fname] = initialize_nested_dataclass(ftype, value)
+            else:
+                field_values[fname] = value
+    return dataclass_type(**field_values)

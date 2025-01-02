@@ -33,7 +33,6 @@ logger = getLogger(__name__)
 class OrchestratorConfig:
     dir: str = ""
     name: str = "composition_default"
-    overwrite: bool = False  # whether to overwrite logging directory
 
     # submanagers
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
@@ -44,8 +43,7 @@ class OrchestratorConfig:
 
     def __post_init__(self):
         if not self.dir:
-            dir = Path.home() / "logs" / self.name
-            self.dir = str(dir)
+            self.dir = str(Path.home() / "logs" / self.name)
             print(f"No logging directory set. Setting it to {self.dir}")
 
     def __manual_post_init__(self):
