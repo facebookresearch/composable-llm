@@ -229,7 +229,7 @@ class LightProfiler(BaseProfiler):
         """
         res = {}
         for file_path in path.glob("*.csv"):
-            rank = int(str(file_path).split("_")[1])
+            rank = int(str(file_path.name).split("_")[1])
             header, data = cls._csv_to_numpy(file_path)
             res[rank] = cls._process_data(header, data)
         return res
