@@ -345,14 +345,19 @@ class ObservedNode(Node):
 class NodeConfig:
     name: str = ""
     state_dim: int = 0
-    alpha: float = 0
+    alpha: Union[float, list[float]] = 0
     mode: str = "default"
     parents: list[str] = field(default_factory=list)
 
-    def __manual_post_init__(self):
+    def __post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
+        if isinstance(self.alpha, list):
+            self.alpha = [float(a) for a in self.alpha]
+        else:
+            self.alpha = float(self.alpha)
+
         if not self.name:
             raise ValueError(f"Node name must be specified. {self}")
         if self.state_dim == 0:
@@ -365,14 +370,9 @@ class NodeConfig:
 class GSSMConfig:
     nodes: list[NodeConfig] = field(default_factory=list)
 
-    def __manual_post_init__(self):
-        """
-        Check validity of arguments and fill in missing values.
-        """
+    def __post_init__(self):
         if not self.nodes:
             raise ValueError("At least one node must be specified.")
-        for node in self.nodes:
-            node.__manual_post_init__()
 
 
 def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
@@ -459,12 +459,16 @@ def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
 
 @dataclass
 class DataConfig:
-    seq_len: int = -1
-    batch_size: int = -1
+    seq_len: int = 0
+    batch_size: int = 0
     seed: int = 0
     gssm: GSSMConfig = field(default_factory=GSSMConfig)
     asynchronous: bool = True  # asynchronous data loading
     buffer_size: int = 4  # number of batches to bufferize asynchronously for data loading
+
+    def __check_init__(self):
+        assert self.seq_len, "seq_len was not set"
+        assert self.batch_size, "batch_size was not set"
 
 
 @dataclass

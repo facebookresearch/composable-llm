@@ -12,12 +12,11 @@ located in the root directory of this repository.
 import logging
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from types import TracebackType
-from typing import Optional
+from typing import Any
 
 import wandb
-from omegaconf import OmegaConf
 
 from .monitor import Monitor
 
@@ -26,15 +25,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class WandbConfig:
-    active: Optional[bool] = False
+    active: bool = False
 
     # Wandb user and project name
     entity: str = ""
     project: str = "composition"
-    name: str = field(init=False)
-    id_file: str = field(init=False)
+    name: str = field(init=False, default="")
+    id_file: str = field(init=False, default="")
 
-    def __manual_post_init__(self):
+    def __check_init__(self):
         """Check validity of arguments and fill in missing values."""
         assert self.name, "name was not set"
         assert self.id_file, "name was not set"
@@ -92,8 +91,8 @@ class WandbManager(Monitor):
         """Unused function, call should be made throught the report_metrics method."""
         pass
 
-    def report_objects(self, config: dict = None, **kwargs) -> None:
-        config_dict = OmegaConf.to_container(OmegaConf.structured(config))
+    def report_objects(self, config: Any = None, **kwargs) -> None:
+        config_dict = asdict(config)
         self.run.config.update(config_dict, allow_val_change=True)
         logger.info("Run configuration has been logged to wandb.")
 

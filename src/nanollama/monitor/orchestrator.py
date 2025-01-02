@@ -47,8 +47,8 @@ class OrchestratorConfig:
         """
         # logging directory
         if not self.log_dir:
-            log_dir = str(Path.home() / "logs" / self.name)
-            self.log_dir = log_dir
+            log_dir = Path.home() / "logs" / self.name
+            self.log_dir = str(log_dir)
             print(f"No logging directory set. Setting it to {self.log_dir}")
         else:
             log_dir = Path(self.log_dir)
@@ -85,8 +85,8 @@ class OrchestratorConfig:
 
         # check validity of submodule
         for module in self.__dict__.values():
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
+            if hasattr(module, "__check_init__"):
+                module.__check_init__()
 
 
 class Orchestrator:

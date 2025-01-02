@@ -41,7 +41,7 @@ class SlurmConfig:
     signal_time: int = 120
 
     # extra configuration
-    slurm_extra: str = field(init=False)  # placeholder
+    slurm_extra: str = field(init=False, default="")  # placeholder
     constraint: str = ""  # constraint on the nodes.
     exclude: str = ""  # nodes to exclude.
     account: str = ""
@@ -371,24 +371,21 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         f.write(bash_command)
 
     print(f"Launching job with `{config.launcher}` command.")
-    # os.system(f"{config.launcher} {log_dir}/run.sh")
+    os.system(f"{config.launcher} {log_dir}/run.sh")
 
 
 def main() -> None:
     """
-    Command line interface using OmegaConf
+    Launch a training job (through slurm) from configuration file specified by cli argument.
 
-    Read argument from a config file specified by the `config` cli argument. E.g.,
-    ```bash
-    python -m launchers.stool script=src.apps.my_app.train config=src/apps/my_app/debug.yaml
+    Usage:
     ```
-
-    Non-specified arguments will be filled with the default values of the Config classes.
+    python -m launcher config=src/apps/my_app/debug.yaml
+    ```
     """
     import argparse
 
-    # Load config from path specified by the `config` cli argument
-    parser = argparse.ArgumentParser(description="Launch job run.")
+    parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("config", type=str, help="Path to configuration file")
     args = parser.parse_args()
     path = args.config

@@ -20,7 +20,7 @@ from types import FrameType
 
 import torch
 import torch.nn.functional as F
-from omegaconf import OmegaConf
+import yaml
 
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoaderManager, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_hostname, is_master_process
@@ -32,7 +32,7 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.utils import TrainState
+from ...nanollama.utils import TrainState, initialize_nested_dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -51,14 +51,10 @@ class TrainingConfig:
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
 
-    def __manual_post_init__(self):
+    def __post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
-        # manual post initialization of all modules
-        for module in self.__dict__.values():
-            if hasattr(module, "__manual_post_init__"):
-                module.__manual_post_init__()
 
         # Sequence length
         if self.model.seq_len == -1 and self.data.seq_len == -1:
@@ -69,6 +65,11 @@ class TrainingConfig:
             self.data.seq_len = self.model.seq_len
 
         # TODO: vocabulary size
+
+        # check validity of submodule
+        for module in self.__dict__.values():
+            if hasattr(module, "__check_init__"):
+                module.__check_init__()
 
 
 # -----------------------------------------------------------------------------
@@ -278,25 +279,26 @@ def train(config: TrainingConfig) -> None:
 
 def main() -> None:
     """
-    Command line interface using OmegaConf
+    Launch a training job from configuration file specified by cli argument.
 
-    Read argument from a config file specified by the `config` cli argument. E.g.,
-    ```bash
+    Usage:
+    ```
     python -m apps.my_app.train config=apps/my_app/configs/debug.yaml
     ```
-
-    Non-specified arguments will be filled with the default values of the Config classes.
     """
-    # Load config from path specified by the `config` cli argument
-    args = OmegaConf.from_cli()
-    assert hasattr(args, "config"), "A configuration file must be specified with the `config` argument."
-    file_config = OmegaConf.load(args.config)
+    import argparse
 
-    # Default to default arguments for unspecified values
-    default_config = OmegaConf.structured(TrainingConfig())
-    config = OmegaConf.merge(default_config, file_config)
-    config: TrainingConfig = OmegaConf.to_object(config)
-    config.__manual_post_init__()
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("config", type=str, help="Path to configuration file")
+    args = parser.parse_args()
+    path = args.config
+
+    with open(path) as f:
+        file_config = yaml.safe_load(f)
+    if "run_config" in file_config:
+        file_config = file_config["run_config"]
+
+    config = initialize_nested_dataclass(TrainingConfig, file_config)
 
     # Launch training with the config
     train(config)

@@ -10,7 +10,7 @@ located in the root directory of this repository.
 """
 
 from dataclasses import dataclass, fields, is_dataclass
-from typing import Any, TypeVar
+from typing import Any, TypeVar, get_args, get_origin
 
 from torch.distributed.checkpoint.stateful import Stateful
 
@@ -54,8 +54,23 @@ def initialize_nested_dataclass(dataclass_type: type[T], data: dict[str, Any]) -
         fname, ftype = data_field.name, data_field.type
         if fname in data:
             value = data[fname]
-            if is_dataclass(ftype):
+            # Check if the field is a list
+            if get_origin(ftype) is list:
+                item_type = get_args(ftype)[0]
+                if is_dataclass(item_type):
+                    # Initialize each item in the list
+                    field_values[fname] = [initialize_nested_dataclass(item_type, item) for item in value]
+                else:
+                    # Directly assign the list if items are not dataclasses
+                    field_values[fname] = value
+            elif is_dataclass(ftype):
+                # Recursively initialize nested dataclass
                 field_values[fname] = initialize_nested_dataclass(ftype, value)
             else:
-                field_values[fname] = value
+                try:
+                    # Directly assign the value
+                    field_values[fname] = ftype(value)
+                except TypeError:
+                    print(f"Initializing {fname}:{value} without type checking ({ftype}).")
+                    field_values[fname] = value
     return dataclass_type(**field_values)

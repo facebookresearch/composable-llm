@@ -12,43 +12,40 @@ description = "Get started with LLMs on math tasks"
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 dependencies = [
-    "numpy",
-    "scipy",
-    "torch",
+  "h5py",   # file system
+  "numpy",
+  "scipy",  # for probability distributions
+  "torch",
+  "wandb",  # logging
 
-    # argument parsing
-    "omegaconf",
-
-    # transformer libraries
-    # "sentencepiece",
-    # "tiktoken",
-    # "transformers",
+  # transformer libraries
+  # "sentencepiece",
+  # "tiktoken",
+  # "transformers",
 ]
 
 [project.optional-dependencies]
-# development
 dev = [
-    # logging
-    "wandb",
-
-    # formatting
-    "ruff",
-
-    # profiling,
-    "torch_tb_profiler",
-    "viztracer",
+  "ruff",               # formatting
+  "torch_tb_profiler",  # visualizing profiling trace with tensorboard
+  "viztracer",          # visualizing profiling trace with perfetto
 ]
-# visualization
+
 visu = [
-    "ipykernel",
-    "ipywidgets",
-    "matplotlib",
-    "plotly",
+  "ipykernel",          # jupyter notebooks
+  "ipywidgets",         # jupyter widgets
+  "matplotlib", 
+  "plotly",
+]
+
+mamba = [
+  "causal_conv1d",
+  "mamba_ssm",
 ]
 
 [project.urls]
@@ -65,8 +62,8 @@ line-length = 120
 [tool.ruff.lint]
 select = [
   "E", "F", "W",  # Default rules
-  "ANN001",     # Function arguments should annotate types
-  "ANN201",     # Public function should annotate return type
+  "ANN001",       # Function arguments should annotate types
+  "ANN201",       # Public function should annotate return type
   "B",            # Common bugs
   "DTZ",          # Timezone issues
   "I",            # Sort inputs

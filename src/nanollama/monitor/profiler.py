@@ -280,9 +280,9 @@ class ProfilerConfig:
     wait: int = 1
     steps: int = -1
     heavy: bool = False
-    path: str = field(init=False)
+    path: str = field(init=False, default="")
 
-    def __manual_post_init__(self):
+    def __check_init__(self):
         """Check validity of arguments."""
         assert self.path, "path was not set"
 

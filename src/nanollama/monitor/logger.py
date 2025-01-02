@@ -29,14 +29,14 @@ logger = getLogger(__name__)
 class LoggerConfig:
     period: int = 100
     level: str = "INFO"
-    stdout_path: str = field(init=False)
-    metric_path: str = field(init=False)
+    stdout_path: str = field(init=False, default="")
+    metric_path: str = field(init=False, default="")
 
     def __post_init__(self):
         self.level = self.level.upper()
         assert self.level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
-    def __manual_post_init__(self):
+    def __check_init__(self):
         """Check validity of arguments."""
         assert self.stdout_path, "stdout_path was not set"
         assert self.metric_path, "metric_path was not set"

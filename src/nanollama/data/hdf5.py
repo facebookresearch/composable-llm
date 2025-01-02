@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from queue import Empty, Full
 from types import TracebackType
-from typing import Any, Optional
+from typing import Any
 
 import h5py
 import numpy as np
@@ -43,7 +43,7 @@ class DataLoaderState:
     rng_state: dict[str, Any]
     epoch: int = 0
     step: int = 0  # batch step
-    residual_idx: Optional[np.ndarray[int]] = None  # residual data from the previous epoch
+    residual_idx: np.ndarray[int] = None  # residual data from the previous epoch
 
     def __post_init__(self):
         if self.residual_idx is None:
