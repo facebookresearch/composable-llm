@@ -287,6 +287,7 @@ def main() -> None:
     """
     # Load config from path specified by the `config` cli argument
     args = OmegaConf.from_cli()
+    assert hasattr(args, "config"), "A configuration file must be specified with the `config` argument."
     file_config = OmegaConf.load(args.config)
 
     # Default to default arguments for unspecified values

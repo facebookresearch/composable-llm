@@ -16,9 +16,8 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Optional
 
-from omegaconf import OmegaConf
-
 import wandb
+from omegaconf import OmegaConf
 
 from .monitor import Monitor
 

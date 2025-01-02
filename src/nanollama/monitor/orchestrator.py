@@ -18,7 +18,7 @@ from logging import getLogger
 from pathlib import Path
 from types import TracebackType
 
-from ..cluster import is_master_process
+from ..distributed import is_master_process
 from .checkpoint import CheckpointConfig, Checkpointer
 from .logger import Logger, LoggerConfig
 from .monitor import Monitor

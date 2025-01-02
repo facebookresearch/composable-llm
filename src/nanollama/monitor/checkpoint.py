@@ -21,8 +21,8 @@ import torch
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 
-from ..cluster import get_rank, is_master_process
-from ..train import TrainState
+from ..distributed import get_rank, is_master_process
+from ..utils import TrainState
 from .monitor import Monitor
 
 logger = logging.getLogger(__file__)

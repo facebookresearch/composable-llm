@@ -22,7 +22,7 @@ import numpy as np
 import torch
 from numpy.random import SeedSequence, default_rng
 
-from ..cluster import get_rank
+from ..distributed import get_rank
 
 logger = logging.getLogger(__name__)
 

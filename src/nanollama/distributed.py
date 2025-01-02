@@ -12,8 +12,10 @@ located in the root directory of this repository.
 import logging
 import os
 import random
+import socket
 import subprocess
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from types import TracebackType
 
 import torch
@@ -21,9 +23,68 @@ import torch.distributed as dist
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from .utils import get_local_rank, get_rank, get_world_size, is_distributed_job, is_slurm_job
-
 logger = logging.getLogger(__name__)
+
+
+# -------------------------------------------------------------------------------
+# Utils
+# -------------------------------------------------------------------------------
+
+
+@lru_cache
+def is_torchrun_job() -> bool:
+    return os.environ.get("LOCAL_RANK") is not None
+
+
+@lru_cache
+def is_slurm_job() -> bool:
+    # torch_run preempts slurm jobs
+    return "SLURM_JOB_ID" in os.environ and not is_torchrun_job()
+
+
+@lru_cache
+def is_distributed_job() -> bool:
+    return is_torchrun_job() or is_slurm_job()
+
+
+@lru_cache
+def get_rank() -> int:
+    if is_torchrun_job():
+        return int(os.environ["RANK"])
+    elif is_slurm_job():
+        return int(os.environ["SLURM_PROCID"])
+    else:
+        return 0
+
+
+@lru_cache
+def get_local_rank() -> int:
+    if is_torchrun_job():
+        return int(os.environ["LOCAL_RANK"])
+    elif is_slurm_job():
+        return int(os.environ["SLURM_LOCALID"])
+    else:
+        return 0
+
+
+@lru_cache
+def get_world_size() -> int:
+    if is_torchrun_job():
+        return int(os.environ["WORLD_SIZE"])
+    elif is_slurm_job():
+        return int(os.environ["SLURM_NTASKS"])
+    else:
+        return 1
+
+
+@lru_cache
+def is_master_process() -> bool:
+    return get_rank() == 0
+
+
+@lru_cache
+def get_hostname() -> str:
+    return socket.gethostname()
 
 
 # -------------------------------------------------------------------------------

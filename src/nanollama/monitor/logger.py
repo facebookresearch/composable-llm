@@ -19,7 +19,7 @@ from traceback import format_exception
 from types import TracebackType
 from typing import Any
 
-from ..cluster import get_hostname, get_rank, is_master_process
+from ..distributed import get_hostname, get_rank, is_master_process
 from .monitor import Monitor
 
 logger = getLogger(__name__)

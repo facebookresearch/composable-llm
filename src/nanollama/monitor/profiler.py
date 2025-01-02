@@ -20,8 +20,8 @@ import numpy as np
 import torch
 import torch.profiler as profiler
 
-from ..cluster import get_rank
-from ..train import TrainState
+from ..distributed import get_rank
+from ..utils import TrainState
 from .monitor import Monitor
 
 logger = logging.getLogger(__name__)
