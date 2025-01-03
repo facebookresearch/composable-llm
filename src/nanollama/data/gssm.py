@@ -58,7 +58,7 @@ class TransitionKernel:
         self,
         fan_in: int,
         fan_out: int,
-        alphas: Union[int, float, list[float], np.ndarray],
+        alphas: float | list[float] | np.ndarray[float],
         mode: str = "default",
         rng: Generator = None,
     ):
@@ -110,7 +110,7 @@ class TransitionKernel:
 
         self._cumulative = np.cumsum(self.p_transition, axis=1)
 
-    def __call__(self, state: Union[int, list[int], np.ndarray]) -> Union[int, np.ndarray]:
+    def __call__(self, state: int | list[int] | np.ndarray[float]) -> int | np.ndarray:
         """
         Generate the next state given the current state.
 
@@ -178,7 +178,7 @@ class Node:
     def __init__(
         self,
         state_dim: int,
-        alphas: Union[int, float, list[float], np.ndarray],
+        alphas: float | list[float] | np.ndarray,
         parents: list["Node"] = None,
         mode: str = "default",
         rng: Generator = None,
@@ -283,7 +283,7 @@ class ObservedNode(Node):
     def __init__(
         self,
         state_dim: int,
-        alphas: Union[int, float, list[float], np.ndarray],
+        alphas: float | list[float] | np.ndarray,
         parents: list["Node"] = None,
         mode: str = "default",
         rng: Generator = None,
@@ -293,7 +293,7 @@ class ObservedNode(Node):
     def reinit(
         self,
         state_dim: int,
-        alphas: Union[int, float, list[float], np.ndarray],
+        alphas: float | list[float] | np.ndarray,
         parents: list["Node"] = None,
         mode: str = "default",
         rng: Generator = None,

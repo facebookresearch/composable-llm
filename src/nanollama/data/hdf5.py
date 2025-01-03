@@ -11,7 +11,7 @@ located in the root directory of this repository.
 
 import os
 from collections.abc import Generator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from logging import getLogger
 from multiprocessing import Process, Queue
 from queue import Empty, Full
@@ -48,11 +48,11 @@ class DataLoaderState:
     rng_state: dict[str, Any]
     epoch: int = 0
     step: int = 0  # batch step
-    residual_idx: np.ndarray[int] = None  # residual data from the previous epoch
+    residual_idx: list[int] = field(default_factory=list)  # residual data from the previous epoch
 
     def __post_init__(self):
-        if self.residual_idx is None:
-            self.residual_idx = np.array([], dtype=int)
+        if not isinstance(self.residual_idx, np.ndarray):
+            self.residual_idx = np.array(self.residual_idx, dtype=int)
 
     def state_dict(self) -> dict[str, Any]:
         return {
