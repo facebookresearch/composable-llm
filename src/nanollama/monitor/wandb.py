@@ -59,6 +59,9 @@ class WandbManager:
         self.run_config = run_config
 
     def __enter__(self) -> "WandbManager":
+        if not self.active:
+            return
+
         # Read run id from id file if it exists
         if os.path.exists(self.id_file):
             resuming = True
