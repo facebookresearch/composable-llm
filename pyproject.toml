@@ -41,6 +41,7 @@ visu = [
   "ipykernel",          # jupyter notebooks
   "ipywidgets",         # jupyter widgets
   "matplotlib", 
+  "nbformat",           # jupyter format
   "plotly",
 ]
 
