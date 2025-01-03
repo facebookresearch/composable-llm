@@ -148,7 +148,7 @@ class Checkpointer(Monitor):
         """
         Exit checkpoint context by saving checkpoint if needed
         """
-        if not self.saved_step != self.step:
+        if self.saved_step != self.step:
             self.update()
 
     def _get_last_checkpoint_path(self) -> str:
