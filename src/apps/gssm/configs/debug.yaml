@@ -5,7 +5,7 @@ launcher:
   overwrite: true
   log_dir: $HOME/logs/debug
 
-  script: apps.gssm.train
+  script: src.apps.gssm.train
 
   slurm:
     partition: scavenge

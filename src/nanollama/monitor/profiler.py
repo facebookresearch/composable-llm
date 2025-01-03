@@ -10,6 +10,7 @@ located in the root directory of this repository.
 """
 
 import csv
+import json
 import time
 from dataclasses import dataclass, field
 from logging import getLogger
@@ -142,34 +143,21 @@ class LightProfiler(BaseProfiler):
         Call update function when profiler is active
         """
         if self.step >= self.start_step and self.step <= self.end_step:
-            # write csv header
-            if self.step == self.start_step:
-                header = list(self.times.keys()) + [
-                    "ts",
-                    "step",
-                    "acc_step",
-                    "mem",
-                    "mem_reserved",
-                    "num_alloc_retries",
-                    "num_ooms",
-                    "mem_capacity",
-                ]
-                self.file.write(",".join(header) + "\n")
-
             # log profiler traces
             cuda_info = torch.cuda.memory_stats(self.device)
 
-            data = list(self.times.values()) + [
-                round(time.time(), 6),
-                self.state.optim.step,
-                self.state.optim.acc_step,
-                cuda_info["active_bytes.all.peak"],
-                cuda_info["reserved_bytes.all.peak"],
-                cuda_info["num_alloc_retries"],
-                cuda_info["num_ooms"],
-                self.capacity,
-            ]
-            self.file.write(",".join([str(x) for x in data]) + "\n")
+            metrics = self.times | {
+                "ts": round(time.time(), 6),
+                "step": self.state.optim.step,
+                "acc_step": self.state.optim.acc_step,
+                "mem": cuda_info["active_bytes.all.peak"],
+                "mem_reserved": cuda_info["reserved_bytes.all.peak"],
+                "num_alloc_retries": cuda_info["num_alloc_retries"],
+                "num_ooms": cuda_info["num_ooms"],
+                "mem_capacity": self.capacity,
+            }
+
+            print(json.dumps(metrics), file=self.file, flush=True)
 
             torch.cuda.reset_peak_memory_stats()
 
@@ -298,7 +286,7 @@ class Profiler:
             path = self._unique_path(self.path, f"hprof_{rank}_", ".pt.trace.json")
             self.profilers.append(HeavyProfiler(path, config.wait, config.steps))
         else:
-            path = self._unique_path(self.path, f"prof_{rank}_", ".csv")
+            path = self._unique_path(self.path, f"prof_{rank}_", ".jsonl")
             self.profilers.append(LightProfiler(path, config.wait, config.steps, state=state))
 
     def __enter__(self) -> "Profiler":

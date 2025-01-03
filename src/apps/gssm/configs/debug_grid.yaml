@@ -4,7 +4,7 @@ launcher:
   overwrite: true
   log_dir: $HOME/logs/debug_grid
 
-  script: apps.gssm.train
+  script: src.apps.gssm.train
 
   grid:
     data:

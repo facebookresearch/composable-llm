@@ -50,13 +50,15 @@ class LoggerConfig:
 
 class Logger:
     def __init__(self, config: LoggerConfig):
-        self.stdout_path = Path(config.stdout_path)
-        self.stdout_path.mkdir(parents=True, exist_ok=True)
         rank = get_rank()
-        stdout_file = self.stdout_path / f"device_{rank}.log"
 
-        self.metric = Path(config.metric_path + f"_{rank}.json")
-        self.metric.parent.mkdir(parents=True, exist_ok=True)
+        path = Path(config.metric_path)
+        path.mkdir(parents=True, exist_ok=True)
+        self.metric = str(path / f"raw_{rank}.jsonl")
+
+        path = Path(config.stdout_path)
+        path.mkdir(parents=True, exist_ok=True)
+        stdout_file = path / f"device_{rank}.log"
 
         # remove existing handler
         logger.handlers.clear()
@@ -76,9 +78,9 @@ class Logger:
             handler.setLevel(log_level)
             handler.setFormatter(log_format)
             logger.addHandler(handler)
+            logger.info(f"Logging to {path}")
 
         logger.info(f"Running on machine {get_hostname()}")
-        logger.info(f"Logging to {self.stdout_path}")
 
     def __enter__(self) -> "Logger":
         """

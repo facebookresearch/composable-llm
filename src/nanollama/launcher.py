@@ -234,8 +234,8 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 
 # Logging configuration
 #SBATCH --job-name={name}
-#SBATCH --output={stdout_dir}/main.out
-#SBATCH --error={stdout_dir}/device_0.log
+#SBATCH --output={log_dir}/stdout/%j/main.out
+#SBATCH --error={log_dir}/stdout/%j/main.err
 #SBATCH --open-mode=append
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
@@ -307,9 +307,6 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     else:
         go_to_code_dir = ""
 
-    # stdout directory
-    stdout_dir = log_dir / "logs"
-
     # write configs
     if config.grid:
         # handling potential grid run
@@ -324,13 +321,12 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
                 yaml.dump(nested_config, f, default_flow_style=False)
 
         slurm_extra = f"#SBATCH --array=1-{i}\n"
-        config_path = f"{config_dir}/$SLURM_ARRAY_TASK_ID.yaml"
-        stdout_dir = stdout_dir / "%j"
+        config_path = config_dir / "$SLURM_ARRAY_TASK_ID.yaml"
     else:
-        with open(f"{log_dir}/task.yaml", "w") as f:
+        with open(log_dir / "task.yaml", "w") as f:
             yaml.dump(run_config, f, default_flow_style=False)
         slurm_extra = ""
-        config_path = f"{log_dir}/task.yaml"
+        config_path = log_dir / "task.yaml"
 
     # define proper conda environment
     conda_exe = os.environ.get("CONDA_EXE", "conda")
@@ -343,7 +339,7 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     # define the run command
     if config.launcher == "sbatch":
         if config.torchrun:
-            option_flags = f" --nproc_per_node={nb_gpus}" f" --nnodes={nodes}" " --node_rank=$SLURM_NODEID"
+            option_flags = f" --nproc_per_node={nb_gpus} --nnodes={nodes} --node_rank=$SLURM_NODEID"
             run_command = f"torchrun {option_flags} -m {config.script} {config_path}"
         else:
             run_command = f"srun python -u -m {config.script} {config_path}"
@@ -356,7 +352,7 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
 
     bash_command = LAUNCHER_SCRIPT.format(
         name=config.name,
-        stdout_dir=stdout_dir,
+        log_dir=log_dir,
         partition=slurm.partition,
         nodes=nodes,
         tasks=nodes * nb_gpus,

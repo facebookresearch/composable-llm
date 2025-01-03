@@ -68,25 +68,19 @@ class OrchestratorConfig:
         self.profiler.path = str(log_dir / "metrics" / task_id)
 
         # logging related
-        self.logging.metric_path = str(log_dir / "metrics" / task_id / "raw")
+        self.logging.stdout_path = str(log_dir / "logs" / task_id)
+        self.logging.metric_path = str(log_dir / "metrics" / task_id)
         self.wandb.path = str(log_dir / "wandb" / task_id)
-        self.wandb.name = self.name
-        stdout_dir = log_dir / "logs"
+        self.wandb.name = self.name + (f"_task_{task_id}" if task_id else "")
 
-        # handling grid job
+        # keep a mapping of job_id to task_id
         if task_id:
             job_id = os.environ.get("SLURM_JOB_ID")
-
-            # keep a mapping of job_id to task_id
+            path = log_dir / "logs"
             if is_master_process():
-                stdout_dir.mkdir(parents=True, exist_ok=True)
-                with open(stdout_dir / "id_mapping", "a") as f:
+                path.mkdir(parents=True, exist_ok=True)
+                with open(path / "id_mapping", "a") as f:
                     f.write(f"task {task_id}: {job_id}\n")
-
-            stdout_dir = stdout_dir / job_id
-            self.wandb.name += f"_task_{task_id}"
-
-        self.logging.stdout_path = str(stdout_dir)
 
         # check validity of submodule
         for module in self.__dict__.values():
