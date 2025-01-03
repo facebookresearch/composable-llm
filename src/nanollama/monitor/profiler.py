@@ -133,7 +133,7 @@ class LightProfiler(BaseProfiler):
 
     def __enter__(self):
         logger.info(f"Light profiler active. Traces will be saved at {self.path}")
-        self.file = open(self.path, "w")
+        self.file = open(self.path, "a")
         self.start_timer()
 
     def __call__(self) -> None:
@@ -228,7 +228,7 @@ class Profiler:
             path = self._unique_path(self.path, f"hprof_{rank}_", ".pt.trace.json")
             self.profilers.append(HeavyProfiler(path, config.wait, config.steps))
         else:
-            path = self._unique_path(self.path, f"prof_{rank}_", ".jsonl")
+            path = self.path / f"prof_{rank}.jsonl"
             self.profilers.append(LightProfiler(path, config.wait, config.steps, state=state))
 
     def __enter__(self) -> "Profiler":
