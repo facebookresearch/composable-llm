@@ -14,4 +14,4 @@ from .logger import Logger
 from .orchestrator import OrchestratorConfig
 from .profiler import Profiler
 from .utility import UtilityManager
-from .wandb import WandbManager
+from .wandb import WandbLogger

@@ -25,7 +25,7 @@ import yaml
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoaderManager, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_hostname, is_master_process
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import Checkpointer, Logger, OrchestratorConfig, Profiler, UtilityManager, WandbManager
+from ...nanollama.monitor import Checkpointer, Logger, OrchestratorConfig, Profiler, UtilityManager, WandbLogger
 from ...nanollama.optim import (
     OptimizerConfig,
     init_optimizer,
@@ -120,7 +120,7 @@ def train(config: TrainingConfig) -> None:
 
         logger: Logger = context_stack.enter_context(Logger(config.orchestration.logging))
         utils: UtilityManager = context_stack.enter_context(UtilityManager(config.orchestration.utils))
-        wandb: WandbManager = context_stack.enter_context(WandbManager(config.orchestration.wandb, run_config=config))
+        wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, run_config=config))
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model
@@ -166,10 +166,17 @@ def train(config: TrainingConfig) -> None:
         )
 
         # ---------------------------------------------------------------------
-        # Training loop
+        # Global information
         # ---------------------------------------------------------------------
 
         profiler: Profiler = context_stack.enter_context(Profiler(config.orchestration.profiler, state=state))
+
+        profiler.report_statistics()
+        logger.report_statistics(model)
+
+        # ---------------------------------------------------------------------
+        # Training loop
+        # ---------------------------------------------------------------------
 
         model.train()
 

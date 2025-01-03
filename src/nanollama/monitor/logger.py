@@ -20,6 +20,8 @@ from traceback import format_exception
 from types import TracebackType
 from typing import Any
 
+import torch
+
 from ..distributed import get_hostname, get_rank, is_master_process
 
 logger = getLogger("nanollama")
@@ -51,9 +53,9 @@ class Logger:
     def __init__(self, config: LoggerConfig):
         rank = get_rank()
 
-        path = Path(config.metric_path)
-        path.mkdir(parents=True, exist_ok=True)
-        self.metric = str(path / f"raw_{rank}.jsonl")
+        self.path = Path(config.metric_path)
+        self.path.mkdir(parents=True, exist_ok=True)
+        self.metric = str(self.path / f"raw_{rank}.jsonl")
 
         path = Path(config.stdout_path)
         path.mkdir(parents=True, exist_ok=True)
@@ -79,7 +81,6 @@ class Logger:
             logger.info(f"Logging to {path}")
 
         logger.info(f"Running on machine {get_hostname()}")
-        logger.debug(f"Running on machine {get_hostname()}")
 
     def __enter__(self) -> "Logger":
         """
@@ -103,3 +104,13 @@ class Logger:
         if exc is not None:
             logger.error(f"Exception: {value}")
             logger.info("".join(format_exception(exc, value, tb)))
+
+    def report_statistics(self, model: torch.nn.Module) -> None:
+        """
+        Report gobal statistics about the model.
+        """
+        if is_master_process():
+            numel = sum([p.numel() for _, p in model.named_parameters()])
+            with open(self.path / "info_model.jsonl", "a") as f:
+                print(json.dumps({"model_params": numel}), file=f, flush=True)
+            logger.info(f"Model has {numel} parameters.")

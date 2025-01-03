@@ -42,6 +42,10 @@ class BaseProfiler:
         """Main function ran by the Profiler"""
         pass
 
+    def report_statistics(self) -> None:
+        """Report gobal statistics about the device."""
+        pass
+
     def start_timer(self) -> None:
         """Start a timer"""
         pass
@@ -125,7 +129,6 @@ class LightProfiler(BaseProfiler):
 
         # device
         self.device = torch.device(get_local_rank())
-        self.capacity = torch.cuda.get_device_properties(self.device).total_memory
 
         # various placeholder
         self.times = {}
@@ -152,7 +155,6 @@ class LightProfiler(BaseProfiler):
                 "mem_reserved": cuda_info["reserved_bytes.all.peak"],
                 "num_alloc_retries": cuda_info["num_alloc_retries"],
                 "num_ooms": cuda_info["num_ooms"],
-                "mem_capacity": self.capacity,
             }
 
             print(json.dumps(metrics), file=self.file, flush=True)
@@ -163,6 +165,11 @@ class LightProfiler(BaseProfiler):
             self.__exit__(None, None, None)
 
         self.step += 1
+
+    def report_statistics(self) -> None:
+        capacity = torch.cuda.get_device_properties(get_local_rank()).total_memory
+        with open(self.path.parent / f"info_device_{get_rank()}.jsonl", "a") as f:
+            print(json.dumps({"mem_capacity": capacity}), file=f, flush=True)
 
     def start_timer(self) -> None:
         if self.device:  # act as an active flag
@@ -242,6 +249,13 @@ class Profiler:
         """
         for prof in self.profilers:
             prof()
+
+    def report_statistics(self) -> None:
+        """
+        Report global statistics
+        """
+        for prof in self.profilers:
+            prof.report_statistics()
 
     def start_timer(self) -> None:
         """

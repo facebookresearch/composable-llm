@@ -9,6 +9,7 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
+import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field
@@ -40,7 +41,7 @@ class WandbConfig:
         assert self.path, "path was not set"
 
 
-class WandbManager:
+class WandbLogger:
     def __init__(self, config: WandbConfig, run_config: Any = None):
         self.active = config.active and is_master_process()
         if not self.active:
@@ -58,7 +59,7 @@ class WandbManager:
 
         self.run_config = run_config
 
-    def __enter__(self) -> "WandbManager":
+    def __enter__(self) -> "WandbLogger":
         if not self.active:
             return self
 
@@ -89,6 +90,7 @@ class WandbManager:
         else:
             # Starting a new run
             self.run = wandb.init(
+                config=asdict(self.run_config),
                 project=self.project,
                 entity=self.entity,
                 name=self.name,
@@ -99,12 +101,7 @@ class WandbManager:
             with open(self.id_file, "w") as file:
                 file.write(self.run.id)
 
-        # log run configuration to wandb
-        if self.run_config:
-            config_dict = asdict(self.run_config)
-            self.run.config.update(config_dict, allow_val_change=True)
-            logger.info("Run configuration has been logged to wandb.")
-            self.run_config = None
+        self.run_config = None
 
         return self
 
@@ -128,3 +125,27 @@ class WandbManager:
                 wandb.finish()
         except Exception as e:
             logger.warning(e)
+
+
+def jsonl_to_wandb(
+    path: str,
+    name: str = "composition_default",
+    project: str = "composition",
+    entity: str = "",
+    config: dict[str, Any] = None,
+) -> None:
+    """
+    Push the metric saved locally to wandb for visualization purposes
+    """
+    wandb.init(
+        name=name,
+        project=project,
+        entity=entity,
+        config=config,
+    )
+    with open(path) as f:
+        for line in f:
+            data = json.loads(line)
+            wandb.log(data, step=data["step"])
+
+    wandb.finish()
