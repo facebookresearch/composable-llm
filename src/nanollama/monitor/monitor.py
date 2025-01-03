@@ -10,10 +10,7 @@ located in the root directory of this repository.
 """
 
 from dataclasses import dataclass
-from logging import getLogger
 from types import TracebackType
-
-logger = getLogger(__name__)
 
 
 @dataclass
@@ -32,6 +29,8 @@ class Monitor:
 
     def __call__(self) -> None:
         """Call update function periodically."""
+        if self.period <= 0:
+            return
         self.step += 1
         if self.step % self.period == 0:
             self.update()

@@ -76,7 +76,7 @@ class OrchestratorConfig:
         # keep a mapping of job_id to task_id
         if task_id:
             job_id = os.environ.get("SLURM_JOB_ID")
-            path = log_dir / "logs"
+            path = log_dir / "stdout"
             if is_master_process():
                 path.mkdir(parents=True, exist_ok=True)
                 with open(path / "id_mapping", "a") as f:

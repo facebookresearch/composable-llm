@@ -254,7 +254,7 @@ class LightProfiler(BaseProfiler):
 class ProfilerConfig:
     active: bool = True
     wait: int = 1
-    steps: int = -1
+    steps: int = 1
     heavy: bool = False
     path: str = field(init=False, default="")
 

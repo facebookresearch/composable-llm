@@ -30,8 +30,8 @@ logger = getLogger(__file__)
 
 @dataclass
 class CheckpointConfig:
-    period: int = -1
-    keep_only: int = -1
+    period: int = 0
+    keep_only: int = 0
     sync_step: bool = True  # whether profiler step should be sync with optimizer step
     path: str = field(init=False, default="")
 
@@ -164,7 +164,7 @@ class Checkpointer(Monitor):
         """
         Clean up old checkpoints
         """
-        if self.keep_only == -1:
+        if self.keep_only <= 0:
             return
         all_checkpoints = self._list_checkpoints()
         all_checkpoints.sort(key=lambda p: self._get_key_step(p.name))
