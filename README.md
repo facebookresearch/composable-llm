@@ -54,7 +54,7 @@ python -m src.apps.gssm.data src/apps/gssm/configs/data.yaml
 Here the `data.yaml` is a configuration files to generate various datasets.
 You can modify this configuration to suit your needs.
 
-#### Further Experiments
+#### Cluster runs
 You may launch experiments to run on a cluster with the following command:
 ```bash
 python -m src.nanollama.launcher src/apps/gssm/configs/debug.yaml
@@ -65,6 +65,21 @@ You equally run experiments on multi-gpu locally with torchrun, e.g.,
 OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train src/apps/gssm/configs/debug.yaml
 ```
 You can equally run an array job is you specify a grid to iterate over in your config file.
+
+Running job on a cluster will create a `logging` folder defined by the `log_dir` arguments in the configuration file (by default, it goes to `$HOME/logs`).
+The logging directory is organized in the following fashion.
+```
+root/
+├── checkpoint/: models (and dataloaders, ...) checkpoints
+├── code/: copy of the codebase when launching the job
+├── logs/: run logs
+├── metrics/: metrics logged during the runs
+├── run.sh: the script that was run
+├── stdout/: logs of the stdout
+├── task.yaml: the configuration file
+└── tasks/{id}.yaml: configuration files if the task is an array job
+```
+
 
 #### Command summary
 To summarize the commands, for training while generating data on the fly:
