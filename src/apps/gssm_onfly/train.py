@@ -253,6 +253,7 @@ def train(config: TrainingConfig) -> None:
                     "loss": loss.item(),
                     "step": state.optim.step,
                     "acc_step": state.optim.acc_step,
+                    "deterministic_test": batch[0, 0].item(),
                 }
                 logger(metrics)
                 wandb(metrics)
