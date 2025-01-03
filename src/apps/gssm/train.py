@@ -201,10 +201,6 @@ def train(config: TrainingConfig) -> None:
             if state.optim.acc_step != 0:
                 continue
 
-            # gradient accumulation
-            if state.optim.acc_step != 0:
-                continue
-
             # optimizer step
             optimizer.step()
             scheduler.step()
