@@ -19,7 +19,7 @@ import torch
 
 from .monitor import Monitor
 
-logger = getLogger(__name__)
+logger = getLogger("nanollama")
 
 
 @dataclass

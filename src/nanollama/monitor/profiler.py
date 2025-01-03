@@ -22,7 +22,7 @@ import torch.profiler as profiler
 from ..distributed import get_local_rank, get_rank
 from ..utils import TrainState
 
-logger = getLogger(__name__)
+logger = getLogger("nanollama")
 
 
 # -------------------------------------------------------------------------------

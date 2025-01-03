@@ -22,8 +22,7 @@ from typing import Any
 
 from ..distributed import get_hostname, get_rank, is_master_process
 
-# this file control the global logger
-logger = getLogger()
+logger = getLogger("nanollama")
 
 
 @dataclass
@@ -61,26 +60,26 @@ class Logger:
         stdout_file = path / f"device_{rank}.log"
 
         # remove existing handler
-        logger.handlers.clear()
+        getLogger().handlers.clear()
 
         # Initialize logging stream
         log_format = logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s")
         log_level = getattr(logging, config.level)
+        logger.setLevel(log_level)
 
         handler = logging.FileHandler(stdout_file, "a")
-        handler.setLevel(log_level)
         handler.setFormatter(log_format)
         logger.addHandler(handler)
 
         # log to console
         if is_master_process() and "SLURM_JOB_ID" not in os.environ:
             handler = logging.StreamHandler()
-            handler.setLevel(log_level)
             handler.setFormatter(log_format)
             logger.addHandler(handler)
             logger.info(f"Logging to {path}")
 
         logger.info(f"Running on machine {get_hostname()}")
+        logger.debug(f"Running on machine {get_hostname()}")
 
     def __enter__(self) -> "Logger":
         """

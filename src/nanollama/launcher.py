@@ -23,7 +23,7 @@ import yaml
 
 from .utils import initialize_nested_object
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("nanollama")
 
 
 # -------------------------------------------------------------------------------
@@ -308,13 +308,13 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         go_to_code_dir = ""
 
     # write configs
+    config_dir = log_dir / "tasks"
+    config_dir.mkdir(exist_ok=True)
     if config.grid:
         # handling potential grid run
         logger.info("Writing grid configurations.")
         all_configs = get_configs_from_grid(run_config, config.grid)
 
-        config_dir = log_dir / "tasks"
-        config_dir.mkdir(exist_ok=True)
         for i, nested_config in enumerate(all_configs, start=1):
             config_path = config_dir / f"{i}.yaml"
             with open(config_path, "w") as f:
@@ -323,10 +323,12 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         slurm_extra = f"#SBATCH --array=1-{i}\n"
         config_path = config_dir / "$SLURM_ARRAY_TASK_ID.yaml"
     else:
-        with open(log_dir / "task.yaml", "w") as f:
+        config_path = config_dir / "0.yaml"
+        with open(config_path, "w") as f:
             yaml.dump(run_config, f, default_flow_style=False)
+
         slurm_extra = ""
-        config_path = log_dir / "task.yaml"
+        config_path = config_dir / "0.yaml"
 
     # define proper conda environment
     conda_exe = os.environ.get("CONDA_EXE", "conda")

@@ -76,8 +76,7 @@ root/
 ├── metrics/: metrics logged during the runs
 ├── run.sh: the script that was run
 ├── stdout/: logs of the stdout
-├── task.yaml: the configuration file
-└── tasks/{id}.yaml: configuration files if the task is an array job
+└── tasks/{id}.yaml: configuration files
 ```
 
 

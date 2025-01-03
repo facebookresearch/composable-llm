@@ -25,7 +25,7 @@ from ..distributed import get_rank, is_master_process
 from ..utils import TrainState
 from .monitor import Monitor
 
-logger = getLogger(__file__)
+logger = getLogger("nanollama")
 
 
 @dataclass

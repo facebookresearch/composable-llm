@@ -19,7 +19,7 @@ from torch.distributed.checkpoint.stateful import Stateful
 from .data import DataLoaderState
 from .optim import OptimizerState
 
-logger = getLogger(__name__)
+logger = getLogger("nanollama")
 
 # -------------------------------------------------------------------------------
 # Training state

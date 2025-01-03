@@ -22,7 +22,7 @@ import yaml
 from nanollama.data.gssm import GSSMConfig, OnlineDataLoaderManager, init_dataloader_state
 from nanollama.utils import initialize_nested_object
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("nanollama")
 
 
 @dataclass

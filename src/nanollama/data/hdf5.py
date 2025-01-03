@@ -25,7 +25,7 @@ from numpy.random import SeedSequence, default_rng
 
 from ..distributed import get_rank
 
-logger = getLogger(__name__)
+logger = getLogger("nanollama")
 
 
 @dataclass

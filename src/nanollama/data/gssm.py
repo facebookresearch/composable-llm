@@ -23,7 +23,7 @@ from scipy.stats import dirichlet
 
 from ..distributed import get_rank
 
-logger = getLogger(__name__)
+logger = getLogger("nanollama")
 
 
 # -------------------------------------------------------------------------------

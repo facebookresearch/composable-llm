@@ -21,7 +21,7 @@ import wandb
 
 from ..distributed import is_master_process
 
-logger = getLogger(__name__)
+logger = getLogger("nanollama")
 
 
 @dataclass
@@ -91,7 +91,7 @@ class WandbManager:
             self.run = wandb.init(
                 project=self.project,
                 entity=self.entity,
-                name=self.ame,
+                name=self.name,
             )
             logger.info(f"Starting new run with ID: {self.run.id}")
 

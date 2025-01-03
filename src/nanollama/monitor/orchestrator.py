@@ -21,7 +21,7 @@ from .profiler import ProfilerConfig
 from .utility import UtilityConfig
 from .wandb import WandbConfig
 
-logger = getLogger(__name__)
+logger = getLogger("nanollama")
 
 
 @dataclass
@@ -52,11 +52,7 @@ class OrchestratorConfig:
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # add discriminative information if array job
-        task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
-        if task_id:
-            task_id = str(task_id)
-        else:
-            task_id = ""
+        task_id = os.environ.get("SLURM_ARRAY_TASK_ID", "0")
 
         # checkpoint directory
         self.checkpoint.path = str(log_dir / "checkpoints" / task_id)

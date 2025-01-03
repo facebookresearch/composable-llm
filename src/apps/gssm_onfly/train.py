@@ -34,7 +34,7 @@ from ...nanollama.optim import (
 )
 from ...nanollama.utils import TrainState, initialize_nested_object
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("nanollama")
 
 
 # -------------------------------------------------------------------------------

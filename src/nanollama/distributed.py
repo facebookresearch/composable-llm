@@ -23,7 +23,7 @@ import torch.distributed as dist
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-logger = getLogger(__name__)
+logger = getLogger("nanollama")
 
 
 # -------------------------------------------------------------------------------
