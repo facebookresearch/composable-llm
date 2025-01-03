@@ -32,7 +32,7 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.utils import TrainState, initialize_nested_dataclass
+from ...nanollama.utils import TrainState, initialize_nested_object
 
 _logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class TrainingConfig:
             for node in nodes:
                 if node.name == "X":
                     break
-            print(f"Setting vocab size to {node.state_dim}")
+            _logger.info(f"Setting vocab size to {node.state_dim}")
             self.model.vocab_size = node.state_dim
 
         # restriction for cpu run
@@ -310,7 +310,7 @@ def main() -> None:
 
     file_config["orchestration"] |= {key: launcher[key] for key in ["log_dir", "name"] if key in launcher}
 
-    config = initialize_nested_dataclass(TrainingConfig, file_config)
+    config = initialize_nested_object(TrainingConfig, file_config)
 
     # Launch training with the config
     train(config)

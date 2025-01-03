@@ -20,7 +20,7 @@ import h5py
 import yaml
 
 from nanollama.data.gssm import GSSMConfig, OnlineDataLoaderManager, init_dataloader_state
-from nanollama.utils import initialize_nested_dataclass
+from nanollama.utils import initialize_nested_object
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ def main() -> None:
 
     for env, file_config in file_configs.items():
         logger.info(f"Creating datasets for environment {env}")
-        config = initialize_nested_dataclass(DataGenerationConfig, file_config)
+        config = initialize_nested_object(DataGenerationConfig, file_config)
         create_dataset(config)
 
 

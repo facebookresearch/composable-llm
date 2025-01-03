@@ -32,7 +32,7 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.utils import TrainState, initialize_nested_dataclass
+from ...nanollama.utils import TrainState, initialize_nested_object
 
 _logger = logging.getLogger(__name__)
 
@@ -304,7 +304,7 @@ def main() -> None:
     if "run_config" in file_config:
         file_config = file_config.pop("run_config")
 
-    config = initialize_nested_dataclass(TrainingConfig, file_config | config)
+    config = initialize_nested_object(TrainingConfig, file_config | config)
 
     # Launch training with the config
     train(config)

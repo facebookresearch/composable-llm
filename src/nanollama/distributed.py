@@ -124,7 +124,7 @@ def set_os_environment(config: OsEnvironment) -> None:
     for name, value in env_vars.items():
         if os.environ.get(name) != str(value):
             os.environ[name] = str(value)
-            print(f"WARNING: Setting {name} to {value}")
+            logger.info(f"OS: Setting {name} to {value}")
 
     # set up slurm environment
     if is_slurm_job():
@@ -177,10 +177,10 @@ class ClusterManager:
             local_rank = get_local_rank()
             world_size = get_world_size()
             dist.init_process_group(backend=self.backend, rank=rank, world_size=world_size)
-            print(f"Setting up device ranked {rank + 1} / {world_size}")
+            logger.info(f"Setting up device ranked {rank + 1} / {world_size}")
             self.device = torch.device(f"cuda:{local_rank}")
         else:
-            print(f"Running on {self.device}")
+            logger.info(f"Running on {self.device}")
         return self
 
     def initialize_model(self, model: nn.Module) -> nn.Module:

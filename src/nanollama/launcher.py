@@ -11,6 +11,7 @@ located in the root directory of this repository.
 
 import itertools
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -20,7 +21,10 @@ from typing import Any
 
 import yaml
 
-from .utils import initialize_nested_dataclass
+from .utils import initialize_nested_object
+
+logger = logging.getLogger(__name__)
+
 
 # -------------------------------------------------------------------------------
 # Configuration Class
@@ -63,19 +67,19 @@ class SlurmConfig:
             priorities, max_times, memories = self.extract_slurm_info()
         if self.partition == "":
             self.partition = min(priorities.keys(), key=lambda k: priorities[k]["job_factor"])
-            print(f"No partition specified default to {self.partition}")
+            logger.info(f"No partition specified default to {self.partition}")
         if self.time == -1:
             self.time = max_times[self.partition]
-            print(f"No time specified, default to {self.time} minutes")
+            logger.info(f"No time specified, default to {self.time} minutes")
         if self.mem == "":
             self.mem = memories[self.partition]
-            print(f"No memory specified, default to {self.mem}MB")
+            logger.info(f"No memory specified, default to {self.mem}MB")
 
     @staticmethod
     def extract_slurm_info() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
         # retrieve partition max times (slow but run only once)
 
-        print("Missing Slurm information, extracting them from `sinfo`.")
+        logger.info("Missing Slurm information, extracting them from `sinfo`.")
         sinfo = json.loads(subprocess.check_output("sinfo --json", shell=True))["sinfo"]
         priorities: dict[str, int] = {}
         max_times: dict[str, int] = {}
@@ -122,7 +126,7 @@ class LauncherConfig:
 
         if not self.log_dir:
             self.log_dir = str(Path.home() / "logs" / self.name)
-            print(f"No logging directory specified, default to {self.log_dir}")
+            logger.info(f"No logging directory specified, default to {self.log_dir}")
         else:
             self.log_dir = os.path.expandvars(self.log_dir)
 
@@ -287,9 +291,9 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         )
         if confirm.upper().startswith("Y"):
             shutil.rmtree(log_dir)
-            print(f"Directory '{log_dir}' has been deleted.")
+            logger.info(f"Directory '{log_dir}' has been deleted.")
         else:
-            print("Operation cancelled.")
+            logger.info("Operation cancelled.")
             return
     log_dir.mkdir(exist_ok=True, parents=True)
 
@@ -302,12 +306,11 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     if config.copy_code:
         code_dir = log_dir / "code"
         code_dir.mkdir(exist_ok=True)
-        print(f"Copying code to {code_dir} ...", end="")
+        logger.info(f"Copying code to {code_dir}.")
         copy_dir(os.getcwd(), code_dir)
         go_to_code_dir = f"cd {code_dir}"
     else:
         go_to_code_dir = ""
-    print(" Done.")
 
     # stdout directory
     stdout_dir = log_dir / "logs"
@@ -315,7 +318,7 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     # write configs
     if config.grid:
         # handling potential grid run
-        print("Writing grid configurations ...", end="")
+        logger.info("Writing grid configurations.")
         all_configs = get_configs_from_grid(run_config, config.grid)
 
         config_dir = log_dir / "tasks"
@@ -379,7 +382,7 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     with open(run_path, "w") as f:
         f.write(bash_command)
 
-    print(f"Launching job with `{config.launcher}` command.")
+    logger.info(f"Launching job with `{config.launcher}` command.")
     os.system(f"{config.launcher} {run_path}")
 
 
@@ -394,6 +397,12 @@ def main() -> None:
     """
     import argparse
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
+        handlers=[logging.StreamHandler()],
+    )
+
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("config", type=str, help="Path to configuration file")
     args = parser.parse_args()
@@ -405,7 +414,7 @@ def main() -> None:
     run_config = file_config.pop("run_config", None)
     file_config = file_config.pop("launcher", None)
 
-    config = initialize_nested_dataclass(LauncherConfig, file_config)
+    config = initialize_nested_object(LauncherConfig, file_config)
 
     # Launch job
     launch_job(config, run_config)

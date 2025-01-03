@@ -10,13 +10,16 @@ located in the root directory of this repository.
 """
 
 import copy
+import logging
 from dataclasses import dataclass, fields, is_dataclass
-from typing import Any, TypeVar, get_args, get_origin
+from typing import Any, TypeVar, Union, get_args, get_origin
 
 from torch.distributed.checkpoint.stateful import Stateful
 
 from .data import DataLoaderState
 from .optim import OptimizerState
+
+logger = logging.getLogger(__name__)
 
 # -------------------------------------------------------------------------------
 # Training state
@@ -44,38 +47,51 @@ class TrainState(Stateful):
 T = TypeVar("T")
 
 
-def initialize_nested_dataclass(dataclass_type: type[T], data: dict[str, Any]) -> T:
+def initialize_nested_object(object_type: type[T], data: dict[str, Any], inplace: bool = True) -> T:
     """
-    Recursively initializes a dataclass from a nested dictionary.
+    Recursively initializes a typed object from a nested dictionary.
     """
-    data = copy.deepcopy(data)
-    if not is_dataclass(dataclass_type):
-        raise ValueError(f"{dataclass_type} is not a dataclass")
-    field_values = {}
-    for data_field in fields(dataclass_type):
-        fname, ftype = data_field.name, data_field.type
-        if fname in data:
-            value = data.pop(fname)
-            # Check if the field is a list
-            if get_origin(ftype) is list:
-                item_type = get_args(ftype)[0]
-                if is_dataclass(item_type):
-                    # Initialize each item in the list
-                    field_values[fname] = [initialize_nested_dataclass(item_type, item) for item in value]
-                else:
-                    # Directly assign the list if items are not dataclasses
-                    field_values[fname] = value
-            elif is_dataclass(ftype):
-                # Recursively initialize nested dataclass
-                field_values[fname] = initialize_nested_dataclass(ftype, value)
+    if not inplace:
+        data = copy.deepcopy(data)
+
+    # trivial cases
+    if data is None or object_type is Any:
+        return data
+    args = get_args(object_type)
+
+    # dataclasses
+    if is_dataclass(object_type):
+        field_values = {}
+        for data_field in fields(object_type):
+            fname, ftype = data_field.name, data_field.type
+            if fname in data:
+                value = data.pop(fname)
+                field_values[fname] = initialize_nested_object(ftype, value)
             else:
-                try:
-                    # Directly assign the value
-                    field_values[fname] = ftype(value)
-                except TypeError:
-                    # print(f"Initializing {fname}:{value} without type checking ({ftype}).")
-                    field_values[fname] = value
-    if data:
+                logger.debug(f"Field '{fname}' not found in {object_type}.")
         for fname in data:
-            print(f"Field '{fname}' ignored when initializing {dataclass_type}.")
-    return dataclass_type(**field_values)
+            logger.warning(f"Field '{fname}' ignored when initializing {object_type}.")
+        return object_type(**field_values)
+
+    # list
+    elif get_origin(object_type) is list and len(args) == 1:
+        return [initialize_nested_object(args[0], item) for item in data]
+
+    # dict
+    elif get_origin(object_type) is dict and len(args) == 2:
+        return {initialize_nested_object(args[0], k): initialize_nested_object(args[1], v) for k, v in data.items()}
+
+    # union
+    elif get_origin(object_type) is Union:
+        for arg in args:
+            try:
+                return initialize_nested_object(arg, data)
+            except (TypeError, ValueError):
+                continue
+
+    # primitive types
+    try:
+        return object_type(data)
+    except (TypeError, ValueError):
+        logger.warning(f"Initializing {object_type}:{data} without type checking.")
+        return data

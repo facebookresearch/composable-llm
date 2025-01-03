@@ -11,6 +11,7 @@ located in the root directory of this repository.
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from logging import getLogger
@@ -57,10 +58,9 @@ class Logger:
         self.metric.parent.mkdir(parents=True, exist_ok=True)
 
         # Initialize logging stream
-        if is_master_process():
-            handlers = [logging.StreamHandler()]
-        else:
-            handlers = [logging.FileHandler(stdout_file, "a")]
+        handlers = [logging.FileHandler(stdout_file, "a")]
+        if is_master_process() and "SLURM_JOB_ID" not in os.environ:
+            handlers += [logging.StreamHandler()]
 
         logging.basicConfig(
             level=getattr(logging, config.level),

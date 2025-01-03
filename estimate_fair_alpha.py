@@ -3,11 +3,10 @@ import zlib
 
 import matplotlib.pyplot as plt
 import numpy as np
-from src.nanollama.utils import initialize_nested_dataclass
 from scipy.optimize import minimize_scalar
-import copy
 
 from src.nanollama.data import gssm
+from src.nanollama.utils import initialize_nested_object
 
 
 def estimate_seq_entropy_by_compression(seq):
@@ -19,11 +18,12 @@ def estimate_seq_entropy_by_compression(seq):
     entropy = len(compressed_data) / original_size if original_size > 0 else 0
     return entropy
 
+
 # %%
 
 
 def get_entropy_from_config(gssm_config, bsz=256, seq_len=1024):
-    config = initialize_nested_dataclass(gssm.GSSMConfig, copy.deepcopy(gssm_config))
+    config = initialize_nested_object(gssm.GSSMConfig, gssm_config, inplace=False)
 
     nodes = gssm.build_gssm(config, np.random.default_rng())
     seqs = np.empty((bsz, seq_len), dtype=int)
@@ -80,7 +80,7 @@ def objective(alpha):
 
 # minimize
 result = minimize_scalar(objective, bounds=(0.0001, 10), method="bounded")
-result
+print(result)
 
 # %%
 hs = []
