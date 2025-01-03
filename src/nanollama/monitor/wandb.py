@@ -9,10 +9,10 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-import logging
 import os
 import sys
 from dataclasses import asdict, dataclass, field
+from logging import getLogger
 from pathlib import Path
 from types import TracebackType
 from typing import Any
@@ -21,7 +21,7 @@ import wandb
 
 from ..distributed import is_master_process
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 @dataclass

@@ -9,13 +9,13 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-import logging
 import os
 import random
 import socket
 import subprocess
 from dataclasses import asdict, dataclass, field
 from functools import lru_cache
+from logging import getLogger
 from types import TracebackType
 
 import torch
@@ -23,7 +23,7 @@ import torch.distributed as dist
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 # -------------------------------------------------------------------------------

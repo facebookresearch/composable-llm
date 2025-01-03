@@ -297,11 +297,6 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
             return
     log_dir.mkdir(exist_ok=True, parents=True)
 
-    # casting logging directory to run_config
-    if "orchestration" not in run_config:
-        run_config["orchestration"] = {}
-    run_config["orchestration"] |= {"log_dir": str(log_dir), "name": config.name}
-
     # copy code
     if config.copy_code:
         code_dir = log_dir / "code"
@@ -403,20 +398,27 @@ def main() -> None:
         handlers=[logging.StreamHandler()],
     )
 
+    # parse file configuration path
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("config", type=str, help="Path to configuration file")
     args = parser.parse_args()
     path = args.config
 
+    # obtain configuration from file
     with open(path) as f:
         file_config = yaml.safe_load(f)
-
     run_config = file_config.pop("run_config", None)
     file_config = file_config.pop("launcher", None)
 
+    # initialize configuration
     config = initialize_nested_object(LauncherConfig, file_config)
 
-    # Launch job
+    # casting logging directory to run_config
+    if "orchestration" not in run_config:
+        run_config["orchestration"] = {}
+    run_config["orchestration"] |= {"log_dir": config.log_dir, "name": config.name}
+
+    # launch job
     launch_job(config, run_config)
 
 

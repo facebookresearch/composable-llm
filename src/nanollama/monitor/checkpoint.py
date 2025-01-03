@@ -10,10 +10,10 @@ located in the root directory of this repository.
 """
 
 import json
-import logging
 import re
 import shutil
 from dataclasses import dataclass, field
+from logging import getLogger
 from pathlib import Path, PosixPath
 from types import TracebackType
 
@@ -25,7 +25,7 @@ from ..distributed import get_rank, is_master_process
 from ..utils import TrainState
 from .monitor import Monitor
 
-logger = logging.getLogger(__file__)
+logger = getLogger(__file__)
 
 
 @dataclass
@@ -133,7 +133,7 @@ class Checkpointer(Monitor):
             json.dump(self.state.state_dict(), f, indent=2)
 
         if is_master_process():
-            logging.info("Saving model, optimizer and scheduler")
+            logger.info("Saving model, optimizer and scheduler")
             state_dict = {
                 "model": self.model.state_dict(),
                 "optim": self.optimizer.state_dict(),

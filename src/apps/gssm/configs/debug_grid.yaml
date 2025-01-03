@@ -48,7 +48,7 @@ run_config:
     warmup: 10
     lr_min_ratio: 0
 
-  monitor:
+  orchestration:
     utils:
       seed: 100
 

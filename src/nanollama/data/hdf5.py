@@ -9,10 +9,10 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-import logging
 import os
 from collections.abc import Generator
 from dataclasses import dataclass
+from logging import getLogger
 from multiprocessing import Process, Queue
 from queue import Empty, Full
 from types import TracebackType
@@ -25,7 +25,7 @@ from numpy.random import SeedSequence, default_rng
 
 from ..distributed import get_rank
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 @dataclass

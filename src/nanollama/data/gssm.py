@@ -9,8 +9,8 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-import logging
 from dataclasses import dataclass, field
+from logging import getLogger
 from multiprocessing import Process, Queue
 from queue import Empty, Full
 from types import TracebackType
@@ -23,7 +23,7 @@ from scipy.stats import dirichlet
 
 from ..distributed import get_rank
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 # -------------------------------------------------------------------------------

@@ -22,7 +22,8 @@ from typing import Any
 
 from ..distributed import get_hostname, get_rank, is_master_process
 
-logger = getLogger(__name__)
+# this file control the global logger
+logger = getLogger()
 
 
 @dataclass
@@ -57,16 +58,24 @@ class Logger:
         self.metric = Path(config.metric_path + f"_{rank}.json")
         self.metric.parent.mkdir(parents=True, exist_ok=True)
 
-        # Initialize logging stream
-        handlers = [logging.FileHandler(stdout_file, "a")]
-        if is_master_process() and "SLURM_JOB_ID" not in os.environ:
-            handlers += [logging.StreamHandler()]
+        # remove existing handler
+        logger.handlers.clear()
 
-        logging.basicConfig(
-            level=getattr(logging, config.level),
-            format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
-            handlers=handlers,
-        )
+        # Initialize logging stream
+        log_format = logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s")
+        log_level = getattr(logging, config.level)
+
+        handler = logging.FileHandler(stdout_file, "a")
+        handler.setLevel(log_level)
+        handler.setFormatter(log_format)
+        logger.addHandler(handler)
+
+        # log to console
+        if is_master_process() and "SLURM_JOB_ID" not in os.environ:
+            handler = logging.StreamHandler()
+            handler.setLevel(log_level)
+            handler.setFormatter(log_format)
+            logger.addHandler(handler)
 
         logger.info(f"Running on machine {get_hostname()}")
         logger.info(f"Logging to {self.stdout_path}")

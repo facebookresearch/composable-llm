@@ -10,8 +10,8 @@ located in the root directory of this repository.
 """
 
 import copy
-import logging
 from dataclasses import dataclass, fields, is_dataclass
+from logging import getLogger
 from typing import Any, TypeVar, Union, get_args, get_origin
 
 from torch.distributed.checkpoint.stateful import Stateful
@@ -19,7 +19,7 @@ from torch.distributed.checkpoint.stateful import Stateful
 from .data import DataLoaderState
 from .optim import OptimizerState
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 # -------------------------------------------------------------------------------
 # Training state

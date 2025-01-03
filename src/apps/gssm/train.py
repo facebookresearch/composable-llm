@@ -285,28 +285,37 @@ def main() -> None:
     """
     import argparse
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
+        handlers=[logging.StreamHandler()],
+    )
+
+    # parse file configuration path
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("config", type=str, help="Path to configuration file")
     path = parser.parse_args().config
 
-    with open(path) as f:
+    # obtain configuration from file
+    with open(os.path.expandvars(path)) as f:
         file_config = yaml.safe_load(f)
-
-    # get arguments from launcher config
-    config = {}
-    if "launcher" in file_config:
-        launcher = file_config.pop("launcher")
-        for key in ["name", "log_dir"]:
-            val = launcher.pop(key, None)
-            if val:
-                config[key] = val
-
     if "run_config" in file_config:
-        file_config = file_config.pop("run_config")
+        run_config = file_config.pop("run_config")
+    else:
+        run_config = file_config
 
-    config = initialize_nested_object(TrainingConfig, file_config | config)
+    # casting logging directory to run_config
+    if "orchestration" not in run_config:
+        run_config["orchestration"] = {}
+    if "launcher" in file_config:
+        for key in ["name", "log_dir"]:
+            if key in file_config["launcher"]:
+                run_config["orchestration"][key] = file_config["launcher"][key]
 
-    # Launch training with the config
+    # initialize configuration
+    config = initialize_nested_object(TrainingConfig, run_config)
+
+    # launch job
     train(config)
 
 

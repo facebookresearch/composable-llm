@@ -10,9 +10,9 @@ located in the root directory of this repository.
 """
 
 import csv
-import logging
 import time
 from dataclasses import dataclass, field
+from logging import getLogger
 from pathlib import Path, PosixPath
 from types import TracebackType
 
@@ -23,7 +23,7 @@ import torch.profiler as profiler
 from ..distributed import get_local_rank, get_rank
 from ..utils import TrainState
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 # -------------------------------------------------------------------------------
