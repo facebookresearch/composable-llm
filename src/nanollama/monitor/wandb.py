@@ -50,19 +50,19 @@ class WandbManager:
         os.environ["WANDB_DIR"] = config.path
         id_file = Path(config.path) / "wandb.id"
         id_file.parent.mkdir(parents=True, exist_ok=True)
-        self.open(config.entity, config.project, id_file, config.name)
 
-        # log run configuration to wandb
-        if run_config:
-            config_dict = asdict(run_config)
-            self.run.config.update(config_dict, allow_val_change=True)
-            logger.info("Run configuration has been logged to wandb.")
+        self.entity = config.entity
+        self.project = config.project
+        self.id_file = id_file
+        self.name = config.name
 
-    def open(self, entity: str, project: str, id_file: str, name: str) -> None:
+        self.run_config = run_config
+
+    def __enter__(self) -> "WandbManager":
         # Read run id from id file if it exists
-        if os.path.exists(id_file):
+        if os.path.exists(self.id_file):
             resuming = True
-            with open(id_file) as file:
+            with open(self.id_file) as file:
                 run_id = file.read().strip()
         else:
             resuming = False
@@ -70,14 +70,14 @@ class WandbManager:
         if resuming:
             # Check whether run is still alive
             api = wandb.Api()
-            run_state = api.run(f"{entity}/{project}/{run_id}").state
+            run_state = api.run(f"{self.entity}/{self.project}/{run_id}").state
             if run_state == "running":
                 logger.warning(f"Run with ID: {run_id} is currently active and running.")
                 sys.exit(1)
 
             self.run = wandb.init(
-                project=project,
-                entity=entity,
+                project=self.project,
+                entity=self.entity,
                 id=run_id,
                 resume="must",
             )
@@ -86,17 +86,23 @@ class WandbManager:
         else:
             # Starting a new run
             self.run = wandb.init(
-                project=project,
-                entity=entity,
-                name=name,
+                project=self.project,
+                entity=self.entity,
+                name=self.ame,
             )
             logger.info(f"Starting new run with ID: {self.run.id}")
 
             # Save run id to id file
-            with open(id_file, "w") as file:
+            with open(self.id_file, "w") as file:
                 file.write(self.run.id)
 
-    def __enter__(self) -> "WandbManager":
+        # log run configuration to wandb
+        if self.run_config:
+            config_dict = asdict(self.run_config)
+            self.run.config.update(config_dict, allow_val_change=True)
+            logger.info("Run configuration has been logged to wandb.")
+            self.run_config = None
+
         return self
 
     def __call__(self, metrics: dict) -> None:

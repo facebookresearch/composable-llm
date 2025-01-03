@@ -1,8 +1,5 @@
 """
-Generic Orchestrator managing:
-- garbage collection
-- logging to file
-- logging to wandb
+Generic Orchestrator Configuration
 
 License
 -------

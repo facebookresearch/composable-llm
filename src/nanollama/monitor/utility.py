@@ -1,8 +1,7 @@
 """
-Generic Orchestrator managing:
+Utility Manager:
+- seed setting
 - garbage collection
-- logging to file
-- logging to wandb
 
 License
 -------
