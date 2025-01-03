@@ -60,7 +60,7 @@ class WandbManager:
 
     def __enter__(self) -> "WandbManager":
         if not self.active:
-            return
+            return self
 
         # Read run id from id file if it exists
         if os.path.exists(self.id_file):
