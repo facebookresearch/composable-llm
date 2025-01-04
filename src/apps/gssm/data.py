@@ -1,7 +1,7 @@
 """
 Scripts to create datasets from configuration files
 
-This file save to a file a dataset generated on the fly by the nanollama.data.gssm DataLoaderManager.
+This file save to a file a dataset generated on the fly by the nanollama.data.gssm DataLoader.
 
 License
 -------
@@ -19,7 +19,7 @@ from pathlib import Path
 import h5py
 import yaml
 
-from nanollama.data.gssm import GSSMConfig, OnlineDataLoaderManager, init_dataloader_state
+from nanollama.data.gssm import GSSMConfig, OnlineDataLoader, init_dataloader_state
 from nanollama.utils import initialize_nested_object
 
 logger = logging.getLogger("nanollama")
@@ -73,7 +73,7 @@ def create_dataset(config: DataGenerationConfig) -> None:
     chunk_size = config.chunk_size
     seq_len = config.seq_len
 
-    with OnlineDataLoaderManager(config, state) as dataloader:
+    with OnlineDataLoader(config, state) as dataloader:
         # iterate over the datasets to create
         for set_config in config.sets:
             n_data = set_config.n_data

@@ -9,19 +9,17 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
+from collections.abc import Generator
 from dataclasses import dataclass, field
 from logging import getLogger
-from multiprocessing import Process, Queue
-from queue import Empty, Full
-from types import TracebackType
 from typing import Any, Union
 
 import numpy as np
-import torch
-from numpy.random import Generator, SeedSequence, default_rng
+from numpy.random import SeedSequence, default_rng
 from scipy.stats import dirichlet
 
 from ..distributed import get_rank
+from .loader import DataLoader
 
 logger = getLogger("nanollama")
 
@@ -60,7 +58,7 @@ class TransitionKernel:
         fan_out: int,
         alphas: float | list[float] | np.ndarray[float],
         mode: str = "default",
-        rng: Generator = None,
+        rng: np.random.Generator = None,
     ):
         # handle various types for concentration parameters
         if isinstance(alphas, float) or isinstance(alphas, int):
@@ -181,7 +179,7 @@ class Node:
         alphas: float | list[float] | np.ndarray,
         parents: list["Node"] = None,
         mode: str = "default",
-        rng: Generator = None,
+        rng: np.random.Generator = None,
     ):
         self.parents = parents if parents is not None else []
 
@@ -286,7 +284,7 @@ class ObservedNode(Node):
         alphas: float | list[float] | np.ndarray,
         parents: list["Node"] = None,
         mode: str = "default",
-        rng: Generator = None,
+        rng: np.random.Generator = None,
     ):
         self.reinit(state_dim, alphas, parents, mode, rng)
 
@@ -296,7 +294,7 @@ class ObservedNode(Node):
         alphas: float | list[float] | np.ndarray,
         parents: list["Node"] = None,
         mode: str = "default",
-        rng: Generator = None,
+        rng: np.random.Generator = None,
     ) -> None:
         self.parents = parents if parents is not None else []
 
@@ -371,7 +369,7 @@ class GSSMConfig:
             raise ValueError("At least one node must be specified.")
 
 
-def build_gssm(config: GSSMConfig, rng: Generator = None) -> dict[str, Node]:
+def build_gssm(config: GSSMConfig, rng: np.random.Generator = None) -> dict[str, Node]:
     """
     Build a graph from a configuration.
 
@@ -485,6 +483,10 @@ class DataLoaderState:
     def report_restart_info(self, rng_state: dict[str, Any]) -> None:
         """
         Report the restart information to the state.
+
+        See Also
+        --------
+        OnlineDataLoader.get_restart_info
         """
         self.rng_state = rng_state
 
@@ -510,7 +512,7 @@ def init_dataloader_state(config: DataConfig) -> DataLoaderState:
 # -------------------------------------------------------------------------------
 
 
-class OnlineDataLoaderManager:
+class OnlineDataLoader(DataLoader):
     """
     Context manager for the online data loader.
 
@@ -533,95 +535,49 @@ class OnlineDataLoaderManager:
     """
 
     def __init__(self, config: DataConfig, state: DataLoaderState):
+        super().__init__(config)
+
+        # data loader configuration
         self.batch_size = config.batch_size
         self.seq_len = config.seq_len
-        self.asynchronous = config.asynchronous
 
         # track randomness
-        self.rng = default_rng()
-
-        # ensure consistency of transition kernels over restart
-        self.rng.bit_generator.state = state.graph_rng_state
-        self.nodes = build_gssm(config.gssm, rng=self.rng)
-        assert "X" in self.nodes, "The graph must contain a node named 'X', acting as the observed node."
-
-        # ensure randomness consistency
-        self.rng.bit_generator.state = state.rng_state
+        self.gssm = config.gssm
+        self.graph_rng_state = state.graph_rng_state
+        self.rng_state = state.rng_state
         logger.debug(f"RNG: {state}")
 
-        # asynchronous data loader: a worker writes batches in a buffer, that a reader consumes
-        if self.asynchronous:
-            self.process = Process(target=self.async_create_batch)
-            self.buffer = Queue(maxsize=config.buffer_size)
-
-    def __enter__(self):
-        logger.info("Entering dataloader.")
-        if self.asynchronous:
-            self.process.start()
-        return self
-
-    def get_batch(self) -> np.ndarray:
+    def batch_iterator(self) -> Generator[np.ndarray, None, None]:
         """
-        Generate a batch of sentences.
+        Generate batches of sentences iteratively.
         """
+        # ensure consistency of transition kernels over restart
+        rng = default_rng()
+        rng.bit_generator.state = self.graph_rng_state
+        nodes = build_gssm(self.gssm, rng=rng)
+        rng.bit_generator.state = self.rng_state
+
+        assert "X" in nodes, "The graph must contain a node named 'X', acting as the observed node."
+        self.gssm = None
+
         batch = np.empty((self.batch_size, self.seq_len), dtype=int)
-        self.nodes["X"].initialize(self.batch_size)
 
-        for t in range(self.seq_len):
-            assert self.nodes["X"].time == t, f"Discrepancy in time: {self.nodes["X"].time} and {t}."
-            self.nodes["X"].evolve()
-            batch[:, t] = self.nodes["X"].state
-
-        return batch
-
-    def async_create_batch(self) -> None:
-        """
-        Asynchronous batch generation, writting batches to the buffer.
-        """
-        # loop on batch creation
         while True:
-            batch = self.get_batch()
-            restart_info = self.rng.bit_generator.state
-            batch = torch.from_numpy(batch).long()
+            nodes["X"].initialize(self.batch_size)
 
-            # put it in the buffer
-            while True:
-                try:
-                    self.buffer.put((batch, restart_info), timeout=0.1)
-                    break
-                # if the buffer is full, wait until there is space
-                except Full:
-                    logger.debug("Buffer is full. Waiting for data comsumption.")
-            logger.debug("New batch put in the buffer.")
+            for t in range(self.seq_len):
+                assert nodes["X"].time == t, f"Discrepancy in time: {nodes["X"].time} and {t}."
+                nodes["X"].evolve()
+                batch[:, t] = nodes["X"].state
 
-    def async_get_batch(self) -> tuple[torch.Tensor, dict[str, Any]]:
+            yield batch
+
+    def get_restart_info(self) -> dict[str, Any]:
         """
-        Asynchronous batch acquisition, reading batches from the buffer.
+        Get restart information.
+
+        See Also
+        --------
+        DataLoaderState.report_restart_info
         """
-        # read batch from the buffer
-        while True:
-            try:
-                return self.buffer.get(timeout=0.1)
-            # if the buffer is full, wait until it is filled
-            except Empty:
-                logger.debug("Buffer is empty. Waiting for data.")
-
-    def __next__(self) -> tuple[torch.Tensor, dict[str, Any]]:
-        if self.asynchronous:
-            return self.async_get_batch()
-        else:
-            batch = self.get_batch()
-            restart_info = self.rng.bit_generator.state
-            batch = torch.from_numpy(batch).long()
-            return (batch, restart_info)
-
-    def __exit__(
-        self,
-        exc: type[BaseException],
-        value: BaseException,
-        tb: TracebackType,
-    ):
-        logger.info("Exiting dataloader.")
-        if self.asynchronous:
-            self.process.kill()
-            self.buffer.close()
+        return self.rng_state

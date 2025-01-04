@@ -22,7 +22,7 @@ import torch
 import torch.nn.functional as F
 import yaml
 
-from ...nanollama.data.gssm import DataConfig, OnlineDataLoaderManager, init_dataloader_state
+from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_hostname, is_master_process
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import Checkpointer, Logger, OrchestratorConfig, Profiler, UtilityManager, WandbLogger
@@ -158,8 +158,8 @@ def train(config: TrainingConfig) -> None:
         # DataLoader
         # ---------------------------------------------------------------------
 
-        dataloader: OnlineDataLoaderManager = context_stack.enter_context(
-            OnlineDataLoaderManager(
+        dataloader: OnlineDataLoader = context_stack.enter_context(
+            OnlineDataLoader(
                 config=config.data,
                 state=state.data,
             )
