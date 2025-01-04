@@ -34,7 +34,6 @@ class Monitor:
         self.step += 1
         if self.step % self.period == 0:
             self.update()
-            self.step = 0
 
     def update(self) -> None:
         """Main function ran by the Manager."""
