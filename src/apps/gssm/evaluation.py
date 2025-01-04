@@ -15,8 +15,10 @@ from logging import getLogger
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from ...nanollama.data.hdf5 import DataConfig, FileEvaluator
+from ...nanollama.distributed import get_local_rank
 
 logger = getLogger("nanollama")
 
@@ -39,7 +41,7 @@ def launch_evaluation(config: EvaluationConfig, model: nn.Module) -> None:
     nb_chunks = 0
     with FileEvaluator(config.data) as loader:
         for batch, _ in loader:
-            batch = batch.to("cuda")
+            batch = batch.to(get_local_rank())
             X_batch = batch[:, :-1]
             y_batch = batch[:, 1:]
 
@@ -47,6 +49,13 @@ def launch_evaluation(config: EvaluationConfig, model: nn.Module) -> None:
             preds = model(X_batch)
             loss += loss_func(preds, y_batch)
             nb_chunks += 1
+
+        if isinstance(model, DDP):
+            logger.info(f"Model running on {model.module.embeddings.weight.device}")
+            logger.info(f"Batch on {batch.device}")
+        else:
+            logger.info(f"Model running on {model.embeddings.weight.device}")
+            logger.info(f"Batch on {batch.device}")
 
     loss /= nb_chunks
     return loss.item()

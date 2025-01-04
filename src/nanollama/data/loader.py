@@ -116,7 +116,7 @@ class DataLoader:
         """
         return self
 
-    def __next__(self) -> tuple[np.ndarray, Any]:
+    def __next__(self) -> tuple[torch.Tensor, Any]:
         """
         Get the next batch of sentences.
         """
