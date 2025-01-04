@@ -4,7 +4,6 @@
 
 - [ ] Write visualization scripts/notebooks to visualize logs without wandb.
     - Option to log metrics to wandb after the end of a run.
-- [ ] Check determinism if training if stopped and restart when training from file
 
 - [ ] Write an evaluation script from file.
     - Implement KV cache at generation
