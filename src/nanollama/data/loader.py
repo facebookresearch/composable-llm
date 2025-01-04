@@ -41,6 +41,8 @@ class DataLoader:
         The state of the data loader.
     """
 
+    TYPE = "train"
+
     def __init__(self, config: DataConfig):
         # data loader configuration
         self.asynchronous = config.asynchronous
@@ -54,7 +56,8 @@ class DataLoader:
         self.generator = self.batch_iterator()
 
     def __enter__(self):
-        logger.info("Entering dataloader.")
+        if self.TYPE == "train":
+            logger.info("Entering dataloader.")
         if self.asynchronous:
             self.process.start()
         return self
@@ -122,7 +125,8 @@ class DataLoader:
             return batch, restart_info
 
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
-        logger.info("Exiting dataloader.")
+        if self.TYPE == "train":
+            logger.info("Exiting dataloader.")
         if self.asynchronous:
             self.process.kill()
             self.buffer.close()
