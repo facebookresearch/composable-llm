@@ -1,5 +1,5 @@
 """
-Dataloader from hdf5 file
+Dataloader
 
 License
 -------
@@ -39,16 +39,6 @@ class DataLoader:
         The configuration of the data loader.
     state:
         The state of the data loader.
-
-    Attributes
-    ----------
-    rng:
-        Random number generator.
-
-    Yields
-    ------
-    tuple[np.ndarray, dict[str, Any]]
-        The generated batch of sentences and the state of the random number generator.
     """
 
     def __init__(self, config: DataConfig):

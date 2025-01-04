@@ -33,6 +33,7 @@ from ...nanollama.optim import (
     init_scheduler,
 )
 from ...nanollama.utils import TrainState, initialize_nested_object
+from .evaluation import EvaluationConfig, launch_evaluation
 
 _logger = logging.getLogger("nanollama")
 
@@ -49,6 +50,7 @@ class TrainingConfig:
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
+    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
 
     def __post_init__(self):
@@ -255,8 +257,10 @@ def train(config: TrainingConfig) -> None:
             # Evaluation
             # -----------------------------------------------------------------
 
-            # if trigger_update(state, config.orchestration.evaluation.period):
-            #     pass
+            if state.optim.step % config.evaluation.period == 0:
+                model.eval()
+                test_loss = launch_evaluation(config.evaluation, model)
+                _logger.info(f"Test Loss: {test_loss}")
 
             # -----------------------------------------------------------------
             # Handle preemption

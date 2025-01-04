@@ -98,16 +98,6 @@ class FileDataLoader(DataLoader):
         The configuration of the data loader.
     state:
         The state of the data loader.
-
-    Attributes
-    ----------
-    rng:
-        Random number generator.
-
-    Yields
-    ------
-    tuple[np.ndarray, dict[str, Any]]
-        The generated batch of sentences and the state of the random number generator.
     """
 
     def __init__(self, config: DataConfig, state: DataLoaderState):
@@ -182,3 +172,39 @@ class FileDataLoader(DataLoader):
         Get restart information.
         """
         return self.rng_state, self.epoch, self.step, self.residual_idx
+
+
+class FileEvaluator(DataLoader):
+    """
+    Context manager for the evaluation data loader from file.
+
+    Parameters
+    ----------
+    config:
+        The configuration of the data loader.
+    """
+
+    def __init__(self, config: DataConfig):
+        super().__init__(config)
+
+        # data loader configuration
+        self.n_data = config.n_data
+        self.batch_size = config.batch_size
+        self.path = config.path
+
+    def batch_iterator(self) -> Generator[np.ndarray, None, None]:
+        """
+        Generate batches of sentences.
+        """
+        # iterate over batches
+        end = 0
+        while end < self.n_data:
+            begin, end = end, end + self.batch_size
+
+            # read from hdf5 data file
+            with h5py.File(self.path, "r") as f:
+                batch = f["data"][begin:end]
+            yield batch
+
+    def get_restart_info(self) -> None:
+        return
