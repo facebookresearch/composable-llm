@@ -80,9 +80,13 @@ class DataLoader:
         """
         # loop on batch creation
         while True:
-            batch = next(self.generator)
-            restart_info = self.get_restart_info()
-            batch = torch.from_numpy(batch).long()
+            try:
+                batch = next(self.generator)
+                restart_info = self.get_restart_info()
+                batch = torch.from_numpy(batch).long()
+            # handle end of data asynchrounously
+            except StopIteration:
+                batch = restart_info = None
 
             # put it in the buffer
             while True:
@@ -117,12 +121,15 @@ class DataLoader:
         Get the next batch of sentences.
         """
         if self.asynchronous:
-            return self.async_get_batch()
+            batch, restart_info = self.async_get_batch()
+            # handle end of data asynchrounously
+            if batch is None:
+                raise StopIteration
         else:
             batch = next(self.generator)
             restart_info = self.get_restart_info()
             batch = torch.from_numpy(batch).long()
-            return batch, restart_info
+        return batch, restart_info
 
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         if self.TYPE == "train":
