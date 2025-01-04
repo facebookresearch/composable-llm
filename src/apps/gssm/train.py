@@ -11,21 +11,25 @@ located in the root directory of this repository.
 
 import logging
 import os
-import signal
-import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
-from signal import Signals
-from types import FrameType
 
 import torch
 import torch.nn.functional as F
 import yaml
 
 from ...nanollama.data.hdf5 import DataConfig, FileDataLoader, init_dataloader_state
-from ...nanollama.distributed import ClusterConfig, ClusterManager, get_hostname, is_master_process
+from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import Checkpointer, Logger, OrchestratorConfig, Profiler, UtilityManager, WandbLogger
+from ...nanollama.monitor import (
+    Checkpointer,
+    Logger,
+    OrchestratorConfig,
+    PreemptionHandler,
+    Profiler,
+    UtilityManager,
+    WandbLogger,
+)
 from ...nanollama.optim import (
     OptimizerConfig,
     init_optimizer,
@@ -79,24 +83,13 @@ def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 
 
 def train(config: TrainingConfig) -> None:
-    # -------------------------------------------------------------------------
-    # Handle preemption
-    # -------------------------------------------------------------------------
-
-    preemption_flag = dict(flag=False)
-
-    def signal_handler(signum: Signals, frame: FrameType):
-        _logger.warning("Signal handler called with signal " + str(signum))
-        preemption_flag["flag"] = True
-
-    def term_handler(signum: Signals, frame: FrameType):
-        _logger.warning("Received termination signal " + str(signum))
-        # do not requeue to avoid requeuing on `scancel`
-
-    signal.signal(signal.SIGUSR1, signal_handler)
-    signal.signal(signal.SIGTERM, term_handler)
-
     with ExitStack() as context_stack:
+        # ---------------------------------------------------------------------
+        # Handle preemption
+        # ---------------------------------------------------------------------
+
+        preemption: PreemptionHandler = context_stack.enter_context(PreemptionHandler())
+
         # ---------------------------------------------------------------------
         # Computing Environment
         # ---------------------------------------------------------------------
@@ -257,27 +250,22 @@ def train(config: TrainingConfig) -> None:
             # Evaluation
             # -----------------------------------------------------------------
 
+            profiler.start_timer()
+
             if state.optim.step % config.evaluation.period == 0:
                 model.eval()
                 test_loss = launch_evaluation(config.evaluation, model)
                 _logger.info(f"Test Loss: {test_loss}")
 
+            profiler.end_timer("evaluation")
+
             # -----------------------------------------------------------------
             # Handle preemption
             # -----------------------------------------------------------------
 
-            if preemption_flag["flag"]:
+            if preemption():
+                _logger.warning("Preemption flag set")
                 break
-
-    if preemption_flag["flag"]:
-        prod_id = int(os.environ["SLURM_PROCID"])
-        _logger.warning(f"Host: {get_hostname()} - Global rank: {prod_id}")
-        if prod_id == 0:
-            _logger.warning("Requeuing job " + os.environ["SLURM_JOB_ID"])
-            os.system("scontrol requeue " + os.environ["SLURM_JOB_ID"])
-        else:
-            _logger.warning("Not the master process, no need to requeue.")
-        sys.exit(0)
 
     _logger.info("Training done.")
 
