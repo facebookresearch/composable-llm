@@ -97,12 +97,12 @@ def create_dataset(config: DataGenerationConfig) -> None:
                 for i in range(nb_chunks):
                     logger.info(f"Creating chunk {i + 1}/{nb_chunks}")
                     begin, end = i * chunk_size, (i + 1) * chunk_size
-                    dset[begin:end] = dataloader.get_batch()
+                    dset[begin:end] = next(dataloader.generator)
 
                 dataloader.batch_size = n_data % chunk_size
                 if dataloader.batch_size:
                     logger.info("Creating residual chunk")
-                    dset[end:] = dataloader.get_batch()
+                    dset[end:] = next(dataloader.generator)
 
             logger.info(f"Dataset saved to {path}")
 
