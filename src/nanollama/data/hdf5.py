@@ -13,13 +13,14 @@ import os
 from collections.abc import Generator
 from dataclasses import dataclass, field
 from logging import getLogger
+from types import TracebackType
 from typing import Any
 
 import h5py
 import numpy as np
 from numpy.random import SeedSequence, default_rng
 
-from ..distributed import get_rank
+from ..distributed import get_rank, get_world_size
 from .loader import DataLoader
 
 logger = getLogger("nanollama")
@@ -174,7 +175,7 @@ class FileDataLoader(DataLoader):
         return self.rng_state, self.epoch, self.step, self.residual_idx
 
 
-class FileEvaluator(DataLoader):
+class ChunkEvaluator(DataLoader):
     """
     Context manager for the evaluation data loader from file.
 
@@ -186,22 +187,26 @@ class FileEvaluator(DataLoader):
 
     TYPE = "test"
 
-    def __init__(self, config: DataConfig):
+    def __init__(self, config: DataConfig, start_ind: int, end_ind: int):
         super().__init__(config)
 
         # data loader configuration
-        self.n_data = config.n_data
         self.batch_size = config.batch_size
         self.path = config.path
+
+        # chunk info
+        self.start_ind = start_ind
+        self.end_ind = end_ind
 
     def batch_iterator(self) -> Generator[np.ndarray, None, None]:
         """
         Generate batches of sentences.
         """
         # iterate over batches
-        end = 0
-        while end < self.n_data:
+        end = self.start_ind
+        while end < self.end_ind:
             begin, end = end, end + self.batch_size
+            end = min(end, self.end_ind)
 
             # read from hdf5 data file
             with h5py.File(self.path, "r") as f:
@@ -210,3 +215,32 @@ class FileEvaluator(DataLoader):
 
     def get_restart_info(self) -> None:
         return
+
+
+class FileEvaluator:
+    """
+    DDP Context manager for the evaluation data loader from file.
+
+    Parameters
+    ----------
+    config:
+        The configuration of the data loader.
+    """
+
+    TYPE = "test"
+
+    def __init__(self, config: DataConfig):
+        # create chunks
+        rank = get_rank()
+        world_size = get_world_size()
+        start_ind = rank * config.n_data // world_size
+        end_ind = (rank + 1) * config.n_data // world_size
+
+        logger.info(f"Intializing Evaluator on device {rank + 1}/{world_size}")
+        self.worker = ChunkEvaluator(config, start_ind, end_ind)
+
+    def __enter__(self):
+        return self.worker.__enter__()
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
+        return self.worker.__exit__(exc, value, tb)
