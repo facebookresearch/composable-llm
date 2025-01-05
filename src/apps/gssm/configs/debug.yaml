@@ -22,9 +22,15 @@ run_config:
   data:
     path: $HOME/data/composition/base/trainset.h5
     n_data: 10_000
-    batch_size: 16
+    batch_size: 128
     seed: 42
-    asynchronous: false
+
+  evaluation:
+    period: 15
+    data:
+      path: $HOME/data/composition/base/testset.h5
+      n_data: 1_000
+      batch_size: 16
 
   model:
     vocab_size: 32
