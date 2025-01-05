@@ -37,7 +37,7 @@ from ...nanollama.optim import (
     init_scheduler,
 )
 from ...nanollama.utils import TrainState, initialize_nested_object
-from .evaluation import EvaluationConfig, launch_evaluation
+from .evaluation import EvaluationConfig, run_evaluation
 
 _logger = logging.getLogger("nanollama")
 
@@ -65,6 +65,11 @@ class TrainingConfig:
         if self.cluster.device.type == "cpu":
             assert self.optim.fused is False, "Fused Adam is not supported on CPU"
             assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
+
+        # evaluation
+        self.evaluation.path = self.orchestration.logging.metric_path
+        if self.evaluation.data.batch_size == 0:
+            self.evaluation.data.batch_size = self.data.batch_size
 
         # manual post initialization of all modules
         for module in self.__dict__.values():
@@ -162,13 +167,17 @@ def train(config: TrainingConfig) -> None:
 
         model.train()
 
+        # aliases
+        log_period = config.orchestration.logging.period
+        eval_period = config.evaluation.period
+
         while state.optim.step < config.optim.steps:
             # accumulation step
             state.optim.acc_step += 1
             state.optim.acc_step = state.optim.acc_step % config.optim.grad_acc_steps
 
             # -----------------------------------------------------------------
-            # Batch of data (with random state for reproducibility)
+            # Batch of data (with reproducibility information)
             # -----------------------------------------------------------------
 
             profiler.start_timer()
@@ -216,6 +225,9 @@ def train(config: TrainingConfig) -> None:
             # Call monitors for garbage collection, checkpointing...
             # -----------------------------------------------------------------
 
+            # alias
+            step = state.optim.step
+
             profiler.start_timer()
             checkpoint()
             profiler()
@@ -228,12 +240,12 @@ def train(config: TrainingConfig) -> None:
 
             profiler.start_timer()
 
-            if state.optim.step % config.orchestration.logging.period == 0:
-                # For logging we undo that scaling
+            if log_period > 0 and step % log_period == 0:
+                # For logging we undo gradient accumulation scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
                 metrics = {
                     "loss": loss.item(),
-                    "step": state.optim.step,
+                    "step": step,
                     "acc_step": state.optim.acc_step,
                     "deterministic_test": batch[0, 0].item(),
                 }
@@ -252,10 +264,13 @@ def train(config: TrainingConfig) -> None:
 
             profiler.start_timer()
 
-            if state.optim.step % config.evaluation.period == 0:
-                model.eval()
-                test_loss = launch_evaluation(config.evaluation, model)
-                _logger.info(f"Test Loss: {test_loss}")
+            if eval_period > 0 and step % eval_period == 0:
+                if config.evaluation.asynchronous:
+                    # run evaluation as a separate process
+                    raise NotImplementedError
+
+                else:
+                    run_evaluation(config.evaluation, model=model, step=step)
 
             profiler.end_timer("evaluation")
 

@@ -31,3 +31,6 @@ Improvement for `train.py`
 
 Improvement for `profiler`
 1. Add option to log HFU, MFU...
+
+Improvement for `evaluation`
+1. Implement parallelization logic beyond DDP.

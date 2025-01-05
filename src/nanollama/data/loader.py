@@ -31,7 +31,14 @@ class DataConfig:
 
 class DataLoader:
     """
-    Context manager for the data loader from file.
+    Dataloader
+
+    Usage:
+    ```python
+    with DataLoader(*args) as data_loader:
+        for batch, _ in data_loader:
+            pass
+    ```
 
     Parameters
     ----------
