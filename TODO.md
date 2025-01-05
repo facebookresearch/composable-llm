@@ -2,12 +2,12 @@
 
 #### Vivien's Current TODO
 
-- [ ] Write visualization scripts/notebooks to visualize logs without wandb.
-    - Option to log metrics to wandb after the end of a run.
-
 - [ ] Write an evaluation script from file.
     - Implement KV cache at generation
     - Add an eval flag to the checkpoint to avoid deleting checkpointing that are going to be used for evaluation, and have not been evaluated yet.
+
+- [ ] Write visualization scripts/notebooks to visualize logs without wandb.
+    - Option to log metrics to wandb after the end of a run.
 
 - [ ] Run script to evaluate gzip of data.
 
@@ -34,3 +34,6 @@ Improvement for `profiler`
 
 Improvement for `evaluation`
 1. Implement parallelization logic beyond DDP.
+
+Improvmenet for `checkpoint`
+1. Save consolitated checkpoints.
