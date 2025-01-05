@@ -96,15 +96,6 @@ class Logger:
         metrics |= {"ts": time.time()}
         print(json.dumps(metrics), file=self.metric, flush=True)
 
-    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
-        """
-        Close logging files. Log exceptions if any.
-        """
-        self.metric.close()
-        if exc is not None:
-            logger.error(f"Exception: {value}")
-            logger.info("".join(format_exception(exc, value, tb)))
-
     def report_statistics(self, model: torch.nn.Module) -> None:
         """
         Report gobal statistics about the model.
@@ -114,3 +105,12 @@ class Logger:
             with open(self.path / "info_model.jsonl", "a") as f:
                 print(json.dumps({"model_params": numel}), file=f, flush=True)
             logger.info(f"Model has {numel} parameters.")
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
+        """
+        Close logging files. Log exceptions if any.
+        """
+        self.metric.close()
+        if exc is not None:
+            logger.error(f"Exception: {value}")
+            logger.info("".join(format_exception(exc, value, tb)))
