@@ -26,6 +26,11 @@ from .loader import DataLoader
 logger = getLogger("nanollama")
 
 
+# ------------------------------------------------------------------------------
+# DataLoader for training
+# ------------------------------------------------------------------------------
+
+
 @dataclass
 class DataConfig:
     path: str = ""
@@ -173,6 +178,11 @@ class FileDataLoader(DataLoader):
         Get restart information.
         """
         return self.rng_state, self.epoch, self.step, self.residual_idx
+
+
+# ------------------------------------------------------------------------------
+# DataLoader for testing
+# ------------------------------------------------------------------------------
 
 
 class ChunkEvaluator(DataLoader):
