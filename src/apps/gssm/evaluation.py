@@ -10,6 +10,8 @@ located in the root directory of this repository.
 """
 
 import json
+import logging
+import os
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from logging import getLogger
@@ -19,11 +21,13 @@ from types import TracebackType
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import yaml
 
 from ...nanollama.data.hdf5 import DataConfig, FileEvaluator
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_local_rank, get_rank, is_master_process
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import Logger, OrchestratorConfig, PreemptionHandler
+from ...nanollama.monitor import Checkpointer, Logger, OrchestratorConfig, PreemptionHandler
+from ...nanollama.utils import initialize_nested_object
 
 logger = getLogger("nanollama")
 
@@ -34,8 +38,10 @@ logger = getLogger("nanollama")
 
 @dataclass
 class EvaluationConfig:
+    # useful for training run
     period: int = 0
     asynchronous: bool = False
+
     path: str = field(init=False, default="")
     data: DataConfig = field(default_factory=DataConfig)
 
@@ -156,11 +162,22 @@ def run_evaluation(config: EvaluationConfig, model: nn.Module, step: int) -> Non
 @dataclass
 class EvaluationRunConfig:
     train_step: int = 0
+    task_id: int = 0
+
+    path: str = field(init=False, default="")
+
     data: DataConfig = field(default_factory=DataConfig)
     model: TransformerConfig = field(default_factory=TransformerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
+
+    def __post_init__(self):
+        """
+        Check validity of arguments and fill in missing values.
+        """
+        # path to stored results
+        self.path = self.orchestration.logging.metric_path
 
 
 @torch.no_grad()
@@ -192,13 +209,19 @@ def eval(config: EvaluationRunConfig) -> None:
         model = Transformer(config.model)
         model = cluster.initialize_model(model)
 
-        # TODO: load model from checkpoint
+        # ---------------------------------------------------------------------
+        # Recover Checkpoint
+        # ---------------------------------------------------------------------
+
+        step = config.train_step
+        path = config.orchestration.checkpoint.path
+        Checkpointer.load_eval_model(model, path, step)
 
         # ---------------------------------------------------------------------
         # Run evaluation into chunks
         # ---------------------------------------------------------------------
 
-        computer = context_stack.enter_context(EvalComputer(config.data, model, config.train_step))
+        computer: EvalComputer = context_stack.enter_context(EvalComputer(config, model, config.train_step))
 
         while next(computer):
             # -----------------------------------------------------------------
@@ -209,12 +232,60 @@ def eval(config: EvaluationRunConfig) -> None:
                 logger.warning("Preemption flag set")
                 break
 
+            logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss,4):>7}")
+
+    if is_master_process():
+        logger.info(f"Test loss: {round(computer.loss, 4):>7}")
+
     logger.info("Evaluation done.")
 
     # TODO: add wandb logging?
 
 
 def main() -> None:
-    # parse config
-    # launch eval
-    pass
+    """
+    Launch a evaluation job from configuration file specified by cli argument.
+
+    Usage:
+    ```
+    python -m apps.my_app.eval apps/my_app/configs/my_config.yaml
+    ```
+    """
+    import argparse
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
+        handlers=[logging.StreamHandler()],
+    )
+
+    # parse file configuration path
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("config", type=str, help="Path to configuration file")
+    path = parser.parse_args().config
+
+    # obtain configuration from file
+    with open(os.path.expandvars(path)) as f:
+        file_config = yaml.safe_load(f)
+    if "run_config" in file_config:
+        run_config = file_config.pop("run_config")
+    else:
+        run_config = file_config
+
+    # casting logging directory to run_config
+    if "orchestration" not in run_config:
+        run_config["orchestration"] = {}
+    if "launcher" in file_config:
+        for key in ["name", "log_dir"]:
+            if key in file_config["launcher"]:
+                run_config["orchestration"][key] = file_config["launcher"][key]
+
+    # initialize configuration
+    config = initialize_nested_object(EvaluationRunConfig, run_config)
+
+    # launch job
+    eval(config)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,51 @@
+# Debugging configuration
+
+launcher:
+  name: debug
+  overwrite: false
+  log_dir: $HOME/logs/debug
+
+  script: src.apps.gssm.evaluation
+
+  slurm:
+    partition: scavenge
+    mem: 16G
+    nodes: 1
+    nb_gpus: 2        # use torchrun, or slurm, for multi-gpu runs
+    time: 10          # job time in minutes
+    signal_time: 60   # alert time in seconds
+
+run_config:
+  task_id: 0
+  train_step: 20
+
+  cluster:
+    compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
+
+  data:
+    path: $HOME/data/composition/base/testset.h5
+    n_data: 1_000
+    batch_size: 128
+
+  model:
+    vocab_size: 32
+    seq_len: 2048
+    emb_dim: 64
+    nb_heads: 2
+    ffn_dim: 256
+    nb_layers: 2
+
+  orchestration:
+    utils:
+      seed: 100
+
+    logging:
+      period: 1
+      level: debug
+    wandb:
+      active: false
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1

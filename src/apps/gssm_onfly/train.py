@@ -281,7 +281,7 @@ def main() -> None:
 
     Usage:
     ```
-    python -m apps.my_app.train apps/my_app/configs/debug.yaml
+    python -m apps.my_app.train apps/my_app/configs/my_config.yaml
     ```
     """
     import argparse

@@ -144,12 +144,16 @@ class Checkpointer(Monitor):
 
         self.saved_step = self.step
 
-    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
+    @classmethod
+    @torch.no_grad()
+    def load_eval_model(cls, model: nn.Module, path: str, step: int):
         """
-        Exit checkpoint context by saving checkpoint if needed
+        Load model from checkpoint
         """
-        if self.saved_step != self.step:
-            self.update()
+        path = Path(path) / cls.folder_name.format(step)
+        logger.info(f"Loading from: {str(path)}")
+        state_dict = torch.load(path / "checkpoint.pth", weights_only=True)
+        model.load_state_dict(state_dict["model"])
 
     def _get_last_checkpoint_path(self) -> str:
         """
@@ -181,3 +185,10 @@ class Checkpointer(Monitor):
     @classmethod
     def _get_key_step(cls, name: str) -> int:
         return int(re.findall(cls.re_digits, name)[-1])
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
+        """
+        Exit checkpoint context by saving checkpoint if needed
+        """
+        if self.saved_step != self.step:
+            self.update()
