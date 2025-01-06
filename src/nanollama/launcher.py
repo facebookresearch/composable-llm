@@ -35,11 +35,11 @@ logger = logging.getLogger("nanollama")
 class SlurmConfig:
     # basic configuration
     partition: str = ""
+    time: int = -1  # time limit of the job (in minutes).
+    mem: str = ""  # amount of memory to allocate per node.
     nodes: int = 1  # number of nodes to run the job on.
     nb_gpus: int = 1  # number of GPUs required per node.
     nb_cpus: int = 16  # number of CPUs allocated per GPU.
-    mem: str = ""  # amount of memory to allocate per node.
-    time: int = -1  # time limit of the job (in minutes).
 
     # time between USR signal and job terminaion (in seconds)
     signal_time: int = 120

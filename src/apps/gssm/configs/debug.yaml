@@ -66,20 +66,3 @@ run_config:
       path: $HOME/data/composition/base/testset.h5
       n_data: 1_000
       batch_size: 16
-
-    cluster:
-      compile_model: false
-    orchestration:
-      utils:
-        seed: 100
-
-      logging:
-        period: 1
-        level: info
-      wandb:
-        active: false
-
-      profiler:
-        active: true
-        wait: 1
-        steps: -1

@@ -10,9 +10,9 @@ located in the root directory of this repository.
 """
 
 from .checkpoint import Checkpointer, EvalCheckpointer
-from .logger import Logger
+from .logger import Logger, LoggerConfig
 from .orchestrator import EvalOrchestratorConfig, OrchestratorConfig
 from .preemption import PreemptionHandler
-from .profiler import Profiler
-from .utility import UtilityManager
-from .wandb import WandbLogger
+from .profiler import Profiler, ProfilerConfig
+from .utility import UtilityConfig, UtilityManager
+from .wandb import WandbConfig, WandbLogger

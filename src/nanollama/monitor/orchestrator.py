@@ -88,9 +88,9 @@ class OrchestratorConfig:
 
 @dataclass
 class EvalOrchestratorConfig:
+    name: str = "composition_default"
     parent_dir: str = ""  # log dir of parent training run
     log_dir: str = ""
-    name: str = "composition_default"
 
     train_step: int = 0  # train step at which evaluation is performed
     task_id: str = "0"  # task id of the training job

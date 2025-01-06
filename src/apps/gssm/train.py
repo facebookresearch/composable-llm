@@ -22,15 +22,18 @@ import yaml
 
 from ...nanollama.data.hdf5 import DataConfig, FileDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
-from ...nanollama.launcher import LauncherConfig, launch_job
+from ...nanollama.launcher import LauncherConfig, SlurmConfig, launch_job
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import (
     Checkpointer,
     Logger,
+    LoggerConfig,
     OrchestratorConfig,
     PreemptionHandler,
     Profiler,
+    UtilityConfig,
     UtilityManager,
+    WandbConfig,
     WandbLogger,
 )
 from ...nanollama.optim import (
@@ -69,16 +72,8 @@ class TrainingConfig:
             assert self.optim.fused is False, "Fused Adam is not supported on CPU"
             assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
 
-        # evaluation
-        # ... data
-        if self.evaluation.data.batch_size == 0:
-            self.evaluation.data.batch_size = self.data.batch_size
-
-        # ... paths
+        # evaluation paths
         self.evaluation.path = self.orchestration.logging.metric_path
-
-        # ... cluster
-        # TODO
 
         # manual post initialization of all modules
         for module in self.__dict__.values():
@@ -90,10 +85,15 @@ def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]
     """
     Cast training configuration arguments into evaluation configuration.
     """
+    if eval_config.get("period", 0) <= 0 or not eval_config.get("asynchronous", False):
+        train_config["evaluation"] = eval_config
+        return
+
     # flatten configurations for easier access
     flat_config = flatten_config(train_config)
     eval_config = flatten_config(eval_config)
 
+    # special inheritance
     # orchestration
     eval_config["orchestration.name"] = flat_config["orchestration.name"] + "_eval"
     eval_config["orchestration.parent_dir"] = flat_config["orchestration.log_dir"]
@@ -101,8 +101,24 @@ def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]
     eval_config["orchestration.log_dir"] = str(Path(flat_config["orchestration.log_dir"]) / "evals" / task_id)
     eval_config["orchestration.task_id"] = int(task_id)
 
-    # slurm
-    # TODO
+    # generic inheritance
+    configs_keys = [
+        (SlurmConfig, "slurm"),
+        (ClusterConfig, "cluster"),
+        (DataConfig, "data"),
+        (LoggerConfig, "orchestration.logging"),
+        (LoggerConfig, "orchestration.profiler"),
+        (UtilityConfig, "orchestration.utils"),
+        (WandbConfig, "orchestration.wandb"),
+    ]
+
+    for config_cls, cls_key in configs_keys:
+        for key, finfo in config_cls.__dataclass_fields__.items():
+            if not finfo.init:
+                continue
+            flat_key = f"{cls_key}.{key}"
+            if flat_key not in eval_config and flat_key in flat_config:
+                eval_config[flat_key] = flat_config[flat_key]
 
     # merge configuration
     train_config["evaluation"] = unflatten_config(eval_config)
