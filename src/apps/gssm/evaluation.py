@@ -13,7 +13,7 @@ import json
 import logging
 import os
 from contextlib import ExitStack
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
 from types import TracebackType
@@ -252,7 +252,7 @@ def eval(config: EvaluationRunConfig) -> None:
             logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss,4):>7}")
 
         # wandb logging
-        wandb_logger: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, asdict(config)))
+        wandb_logger: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, config))
         wandb_logger({"test_loss": computer.loss, "step": train_step})
 
     if is_master_process():
