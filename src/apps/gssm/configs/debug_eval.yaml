@@ -2,8 +2,9 @@
 
 launcher:
   name: debug
+  log_dir: $HOME/logs/debug/evals/0/000000500
   overwrite: false
-  log_dir: $HOME/logs/debug
+  copy_code: false
 
   script: src.apps.gssm.evaluation
 
@@ -16,8 +17,6 @@ launcher:
     signal_time: 60   # alert time in seconds
 
 run_config:
-  task_id: 0
-  train_step: 20
 
   cluster:
     compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
@@ -36,6 +35,10 @@ run_config:
     nb_layers: 2
 
   orchestration:
+    parent_dir: $HOME/logs/debug/
+    task_id: 0
+    train_step: 500
+
     utils:
       seed: 100
 

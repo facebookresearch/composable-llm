@@ -26,14 +26,14 @@ import yaml
 from ...nanollama.data.hdf5 import DataConfig, FileEvaluator
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_local_rank, get_rank, is_master_process
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import Checkpointer, Logger, OrchestratorConfig, PreemptionHandler
+from ...nanollama.monitor import Checkpointer, EvalOrchestratorConfig, Logger, PreemptionHandler
 from ...nanollama.utils import initialize_nested_object
 
 logger = getLogger("nanollama")
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Online Evaluation
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 @dataclass
@@ -73,20 +73,20 @@ class EvalComputer:
             pass
     """
 
-    def __init__(self, config: EvaluationConfig, model: nn.Module, step: int) -> None:
+    def __init__(self, config: EvaluationConfig, model: nn.Module, train_step: int) -> None:
+        self.train_step = train_step
         self.model = model
-        self.train_step = step
         self.data_config = config.data
 
         self.path = Path(config.path) / f"eval_{get_rank()}.jsonl"
-        self.tmp_file = Path(config.path) / f".{get_rank()}_{step}.tmp"
+        self.tmp_file = Path(config.path) / f".{get_rank()}_{train_step}.tmp"
 
         self.step = 0
         self.loss = 0
         self.scaling = 0
 
     def __enter__(self) -> "EvalComputer":
-        logger.info(f"Entering evaluation at step {self.train_step}")
+        logger.info("Evaluating model.")
         self.model.eval()
 
         # retrieve previous computations
@@ -154,23 +154,20 @@ def run_evaluation(config: EvaluationConfig, model: nn.Module, step: int) -> Non
         logger.info(f"Test loss: {round(computer.loss, 4):>7}")
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Evaluation Run
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 @dataclass
 class EvaluationRunConfig:
-    train_step: int = 0
-    task_id: int = 0
-
     path: str = field(init=False, default="")
 
     data: DataConfig = field(default_factory=DataConfig)
     model: TransformerConfig = field(default_factory=TransformerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
-    orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
+    orchestration: EvalOrchestratorConfig = field(default_factory=EvalOrchestratorConfig)
 
     def __post_init__(self):
         """
@@ -213,15 +210,15 @@ def eval(config: EvaluationRunConfig) -> None:
         # Recover Checkpoint
         # ---------------------------------------------------------------------
 
-        step = config.train_step
-        path = config.orchestration.checkpoint.path
-        Checkpointer.load_eval_model(model, path, step)
+        # alias
+        train_step = config.orchestration.train_step
+        Checkpointer.load_model(model, config.orchestration.checkpoint_path, train_step)
 
         # ---------------------------------------------------------------------
         # Run evaluation into chunks
         # ---------------------------------------------------------------------
 
-        computer: EvalComputer = context_stack.enter_context(EvalComputer(config, model, config.train_step))
+        computer: EvalComputer = context_stack.enter_context(EvalComputer(config, model, train_step))
 
         while next(computer):
             # -----------------------------------------------------------------

@@ -377,7 +377,7 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         f.write(bash_command)
 
     logger.info(f"Launching job with `{config.launcher}` command.")
-    # os.system(f"{config.launcher} {run_path}")
+    os.system(f"{config.launcher} {run_path}")
 
 
 def main() -> None:
@@ -415,7 +415,9 @@ def main() -> None:
     # casting logging directory to run_config
     if "orchestration" not in run_config:
         run_config["orchestration"] = {}
-    run_config["orchestration"] |= {"log_dir": config.log_dir, "name": config.name}
+    for key in ["name", "log_dir"]:
+        if key not in run_config["orchestration"]:
+            run_config["orchestration"][key] = getattr(config, key)
 
     # launch job
     launch_job(config, run_config)
