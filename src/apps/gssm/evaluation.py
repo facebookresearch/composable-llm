@@ -252,8 +252,8 @@ def eval(config: EvaluationRunConfig) -> None:
             logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss,4):>7}")
 
         # wandb logging
-        wandb_logger: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, config))
-        wandb_logger({"test_loss": computer.loss, "step": train_step})
+        wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, config))
+        wandb({"test_loss": computer.loss, "step": train_step})
 
     if is_master_process():
         logger.info(f"Test loss: {round(computer.loss, 4):>7}")
