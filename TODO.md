@@ -37,3 +37,4 @@ Improvement for `evaluation`
 
 Improvmenet for `checkpoint`
 1. Save consolitated checkpoints.
+1. Load checkpoint before DDP / save it after DDP / or use `import torch.distributed.checkpoint as dcp`.
