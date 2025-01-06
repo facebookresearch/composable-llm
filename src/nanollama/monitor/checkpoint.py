@@ -120,6 +120,17 @@ class Checkpointer(Monitor):
 
         return self
 
+    @classmethod
+    @torch.no_grad()
+    def load_model(cls, model: nn.Module, path: str, train_step: int) -> None:
+        """
+        Load model from checkpoint
+        """
+        path = Path(path) / cls.folder_name.format(train_step) / "checkpoint.pth"
+        logger.info(f"Loading from: {str(path)}")
+        state_dict = torch.load(path, weights_only=True)
+        model.load_state_dict(state_dict["model"])
+
     def update(self) -> None:
         """
         Checkpoint model, optimizer, scheduler and training state
@@ -143,17 +154,6 @@ class Checkpointer(Monitor):
             self._cleaning()
 
         self.saved_step = self.step
-
-    @classmethod
-    @torch.no_grad()
-    def load_eval_model(cls, model: nn.Module, path: str, step: int):
-        """
-        Load model from checkpoint
-        """
-        path = Path(path) / cls.folder_name.format(step)
-        logger.info(f"Loading from: {str(path)}")
-        state_dict = torch.load(path / "checkpoint.pth", weights_only=True)
-        model.load_state_dict(state_dict["model"])
 
     def _get_last_checkpoint_path(self) -> str:
         """

@@ -26,9 +26,9 @@ from .utils import initialize_nested_object
 logger = logging.getLogger("nanollama")
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Configuration Class
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 @dataclass
@@ -139,9 +139,9 @@ class LauncherConfig:
             assert os.path.isfile(self.python_env)
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Utility Functions
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 def copy_dir(input_dir: str, output_dir: str) -> None:
@@ -161,6 +161,7 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
         "--exclude logs/ "
         "--exclude savings/ "
         "--exclude wandb/ "
+        "--exclude core.* "
         # personal files and folders
         "--exclude '*.ipynb' "
         "--exclude 'tmp_*' "
@@ -170,9 +171,9 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
     subprocess.call([rsync_cmd], shell=True)
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Grid job utilities
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 def _flatten_config(config: dict[str, Any], _parent_key: str = "") -> dict[str, Any]:
@@ -225,9 +226,9 @@ def get_configs_from_grid(config: dict[str, Any], grid_config: dict[str, Any]) -
     return [_unflatten_config(config | new_config) for new_config in all_configs]
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Job Launcher
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 LAUNCHER_SCRIPT = """#!/bin/bash
@@ -376,7 +377,7 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
         f.write(bash_command)
 
     logger.info(f"Launching job with `{config.launcher}` command.")
-    os.system(f"{config.launcher} {run_path}")
+    # os.system(f"{config.launcher} {run_path}")
 
 
 def main() -> None:
