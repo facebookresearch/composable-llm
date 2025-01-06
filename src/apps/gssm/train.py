@@ -21,7 +21,7 @@ import torch.nn.functional as F
 import yaml
 
 from ...nanollama.data.hdf5 import DataConfig, FileDataLoader, init_dataloader_state
-from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
+from ...nanollama.distributed import ClusterConfig, ClusterManager, clean_environment, is_master_process
 from ...nanollama.launcher import LauncherConfig, SlurmConfig, launch_job
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import (
@@ -219,6 +219,11 @@ def train(config: TrainingConfig) -> None:
         eval_period = config.evaluation.period
 
         while state.optim.step < config.optim.steps:
+            # handle preemption
+            if preemption():
+                _logger.warning("Preemption flag set")
+                break
+
             # accumulation step
             state.optim.acc_step += 1
             state.optim.acc_step = state.optim.acc_step % config.optim.grad_acc_steps
@@ -346,19 +351,14 @@ def train(config: TrainingConfig) -> None:
                         "cluster": config.evaluation.cluster.to_dict(),
                         "orchestration": orchestration_config.to_dict(),
                     }
-                    launch_job(launch_config, eval_config)
+
+                    # luanch job without device binding
+                    with clean_environment():
+                        launch_job(launch_config, eval_config)
 
                     orchestration_config.log_dir = str(Path(orchestration_config.log_dir).parent)
 
             profiler.end_timer("evaluation")
-
-            # -----------------------------------------------------------------
-            # Handle preemption
-            # -----------------------------------------------------------------
-
-            if preemption():
-                _logger.warning("Preemption flag set")
-                break
 
     _logger.info("Training done.")
 
@@ -387,23 +387,25 @@ def main() -> None:
 
     # obtain configuration from file
     with open(os.path.expandvars(path)) as f:
-        file_config = yaml.safe_load(f)
+        file_config: dict[str, Any] = yaml.safe_load(f)
     if "run_config" in file_config:
-        run_config = file_config.pop("run_config")
+        run_config: dict[str, Any] = file_config.pop("run_config")
     else:
         run_config = file_config
+    launcher: dict[str, Any] = file_config.pop("launcher", {})
 
     # casting logging directory to run_config
     if "orchestration" not in run_config:
         run_config["orchestration"] = {}
-    if "launcher" in file_config:
-        for key in ["name", "log_dir"]:
-            if key in file_config["launcher"] and key not in run_config["orchestration"]:
-                run_config["orchestration"][key] = file_config["launcher"][key]
+    for key in ["name", "log_dir"]:
+        if key in launcher and key not in run_config["orchestration"]:
+            run_config["orchestration"][key] = launcher[key]
 
     # configuration inheritance between training and evaluation
     eval_config = run_config.pop("evaluation", {})
+    run_config["slurm"] = launcher.pop("slurm", {})
     config_inheritance(run_config, eval_config)
+    run_config.pop("slurm")
 
     # initialize configuration
     config = initialize_nested_object(TrainingConfig, run_config)

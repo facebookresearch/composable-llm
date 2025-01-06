@@ -34,7 +34,7 @@ run_config:
     nb_layers: 2
 
   optim:
-    steps: 500
+    steps: 50
     lr: 1e-2
     weight_decay: 0.1
     warmup: 10

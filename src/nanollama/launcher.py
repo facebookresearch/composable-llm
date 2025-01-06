@@ -169,7 +169,7 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
         "--exclude logs/ "
         "--exclude savings/ "
         "--exclude wandb/ "
-        "--exclude core.* "
+        "--exclude 'core.*' "
         # personal files and folders
         "--exclude '*.ipynb' "
         "--exclude 'tmp_*' "
@@ -390,22 +390,13 @@ def main() -> None:
 
     # obtain configuration from file
     with open(path) as f:
-        file_config = yaml.safe_load(f)
-    run_config = file_config.pop("run_config", None)
-    file_config = file_config.pop("launcher", None)
+        file_config: dict[str, Any] = yaml.safe_load(f)
 
     # initialize configuration
-    config = initialize_nested_object(LauncherConfig, file_config)
-
-    # casting logging directory to run_config
-    if "orchestration" not in run_config:
-        run_config["orchestration"] = {}
-    for key in ["name", "log_dir"]:
-        if key not in run_config["orchestration"]:
-            run_config["orchestration"][key] = getattr(config, key)
+    config = initialize_nested_object(LauncherConfig, file_config["launcher"], inplace=False)
 
     # launch job
-    launch_job(config, run_config)
+    launch_job(config, file_config)
 
 
 if __name__ == "__main__":

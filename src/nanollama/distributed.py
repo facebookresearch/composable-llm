@@ -13,6 +13,8 @@ import os
 import random
 import socket
 import subprocess
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from functools import lru_cache
 from logging import getLogger
@@ -139,6 +141,29 @@ def set_os_environment(config: OsEnvironment) -> None:
 
         os.environ["MASTER_ADDR"] = master_addr
         os.environ["MASTER_PORT"] = str(master_port)
+
+
+@contextmanager
+def clean_environment() -> Generator[None, None, None]:
+    distrib_names = (
+        "MASTER_ADDR",
+        "MASTER_PORT",
+        "RANK",
+        "WORLD_SIZE",
+        "LOCAL_RANK",
+        "LOCAL_WORLD_SIZE",
+        "TORCHELASTIC_RUN_ID",
+        "DORA_FORCE_DISTRIB",
+    )
+    os_environment = {
+        x: os.environ.pop(x)
+        for x in os.environ
+        if x.startswith(("SLURM_", "SLURMD_", "SRUN_", "SBATCH_", "SUBMITIT_", "WANDB_")) or x in distrib_names
+    }
+    try:
+        yield
+    finally:
+        os.environ.update(os_environment)
 
 
 # -----------------------------------------------------------------------------
