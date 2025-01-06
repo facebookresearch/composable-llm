@@ -15,13 +15,13 @@ import logging
 import os
 import shutil
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from .utils import initialize_nested_object
+from .utils import flatten_config, initialize_nested_object, unflatten_config
 
 logger = logging.getLogger("nanollama")
 
@@ -100,6 +100,14 @@ class SlurmConfig:
 
         return priorities, max_times, memories
 
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert configuration to dictionnary to reinitialize it.
+        """
+        output = asdict(self)
+        output.pop("slurm_extra")
+        return output
+
 
 @dataclass
 class LauncherConfig:
@@ -176,30 +184,6 @@ def copy_dir(input_dir: str, output_dir: str) -> None:
 # -----------------------------------------------------------------------------
 
 
-def _flatten_config(config: dict[str, Any], _parent_key: str = "") -> dict[str, Any]:
-    """Flatten a nested configuration into a dot-separated format."""
-    items = []
-    for k, v in config.items():
-        new_key = f"{_parent_key}.{k}" if _parent_key else k
-        if isinstance(v, dict):
-            items.extend(_flatten_config(v, new_key).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-
-def _unflatten_config(config: dict[str, Any]) -> dict[str, Any]:
-    """Convert a flat configuration into a nested configuration."""
-    nested = {}
-    for key, value in config.items():
-        keys = key.split(".")
-        d = nested
-        for k in keys[:-1]:
-            d = d.setdefault(k, {})
-        d[keys[-1]] = value
-    return nested
-
-
 def get_configs_from_grid(config: dict[str, Any], grid_config: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Get a set of configurations from a base configuration and a grid configuration.
@@ -217,13 +201,13 @@ def get_configs_from_grid(config: dict[str, Any], grid_config: dict[str, Any]) -
     """
 
     # get grid configurations as a list of flatten configs
-    flatten_grid = _flatten_config(grid_config)
+    flatten_grid = flatten_config(grid_config)
     keys, all_values = zip(*flatten_grid.items())
     all_configs = [dict(zip(keys, v)) for v in itertools.product(*all_values)]
 
     # merge on flatten config for simplicity
-    config = _flatten_config(config)
-    return [_unflatten_config(config | new_config) for new_config in all_configs]
+    config = flatten_config(config)
+    return [unflatten_config(config | new_config) for new_config in all_configs]
 
 
 # -----------------------------------------------------------------------------
@@ -262,6 +246,7 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 eval "$({conda_exe} shell.bash hook)"
 conda activate {conda_env_path}
 
+# go to code directory
 {go_to_code_dir}
 
 # launch the job

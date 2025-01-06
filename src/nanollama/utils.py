@@ -40,8 +40,32 @@ class TrainState(Stateful):
 
 
 # -----------------------------------------------------------------------------
-# Initialization of nested configuration classes
+# Configuration utilities
 # -----------------------------------------------------------------------------
+
+
+def flatten_config(config: dict[str, Any], _parent_key: str = "") -> dict[str, Any]:
+    """Flatten a nested configuration into a dot-separated format."""
+    items = []
+    for k, v in config.items():
+        new_key = f"{_parent_key}.{k}" if _parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_config(v, new_key).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def unflatten_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Convert a flat configuration into a nested configuration."""
+    nested = {}
+    for key, value in config.items():
+        keys = key.split(".")
+        d = nested
+        for k in keys[:-1]:
+            d = d.setdefault(k, {})
+        d[keys[-1]] = value
+    return nested
 
 
 T = TypeVar("T")
