@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass, field
 from functools import lru_cache
 from logging import getLogger
 from types import TracebackType
+from typing import Any
 
 import torch
 import torch.distributed as dist
@@ -159,6 +160,11 @@ class ClusterConfig:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         if isinstance(self.device, str):
             self.device = torch.device(self.device)
+
+    def to_dict(self) -> dict[str, Any]:
+        output = asdict(self)
+        output["device"] = str(self.device)
+        return output
 
 
 class ClusterManager:

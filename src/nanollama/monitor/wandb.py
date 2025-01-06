@@ -40,6 +40,15 @@ class WandbConfig:
         assert self.name, "name was not set"
         assert self.path, "path was not set"
 
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert configuration to dictionnary to reinitialize it.
+        """
+        output = asdict(self)
+        output.pop("name")
+        output.pop("path")
+        return output
+
 
 class WandbLogger:
     def __init__(self, config: WandbConfig, run_config: Any = None):

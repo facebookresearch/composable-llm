@@ -11,10 +11,11 @@ located in the root directory of this repository.
 
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from logging import getLogger
 from pathlib import Path, PosixPath
 from types import TracebackType
+from typing import Any
 
 import torch
 import torch.profiler as profiler
@@ -210,6 +211,14 @@ class ProfilerConfig:
     def __check_init__(self):
         """Check validity of arguments."""
         assert self.path, "path was not set"
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert configuration to dictionnary to reinitialize it.
+        """
+        output = asdict(self)
+        output.pop("path")
+        return output
 
 
 class Profiler:

@@ -25,8 +25,9 @@ import yaml
 
 from ...nanollama.data.hdf5 import DataConfig, FileEvaluator
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_local_rank, get_rank, is_master_process
+from ...nanollama.launcher import SlurmConfig
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import Checkpointer, EvalOrchestratorConfig, Logger, PreemptionHandler
+from ...nanollama.monitor import EvalCheckpointer, EvalOrchestratorConfig, Logger, PreemptionHandler
 from ...nanollama.utils import initialize_nested_object
 
 logger = getLogger("nanollama")
@@ -38,12 +39,17 @@ logger = getLogger("nanollama")
 
 @dataclass
 class EvaluationConfig:
-    # useful for training run
+    # evaluation period in training run
     period: int = 0
-    asynchronous: bool = False
 
     path: str = field(init=False, default="")
     data: DataConfig = field(default_factory=DataConfig)
+
+    # for asynchronous evaluation
+    asynchronous: bool = False
+    slurm: SlurmConfig = field(default_factory=SlurmConfig)
+    cluster: ClusterConfig = field(default_factory=ClusterConfig)
+    orchestration: EvalOrchestratorConfig = field(default_factory=EvalOrchestratorConfig)
 
     def __check_init__(self) -> None:
         """Check validity of arguments"""
@@ -176,6 +182,14 @@ class EvaluationRunConfig:
         # path to stored results
         self.path = self.orchestration.logging.metric_path
 
+        # keep a mapping of job_id to task_id
+        self.orchestration.report_job_id()
+
+        # manual post initialization of all modules
+        for module in self.__dict__.values():
+            if hasattr(module, "__check_init__"):
+                module.__check_init__()
+
 
 @torch.no_grad()
 def eval(config: EvaluationRunConfig) -> None:
@@ -212,7 +226,7 @@ def eval(config: EvaluationRunConfig) -> None:
 
         # alias
         train_step = config.orchestration.train_step
-        Checkpointer.load_model(model, config.orchestration.checkpoint_path, train_step)
+        context_stack.enter_context(EvalCheckpointer(model, config.orchestration.checkpoint_path, train_step))
 
         # ---------------------------------------------------------------------
         # Run evaluation into chunks

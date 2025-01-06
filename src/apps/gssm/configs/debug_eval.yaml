@@ -1,7 +1,7 @@
 # Debugging configuration
 
 launcher:
-  name: debug
+  name: debug_eval
   log_dir: $HOME/logs/debug/evals/0/000000500
   overwrite: false
   copy_code: false

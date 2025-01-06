@@ -120,23 +120,27 @@ class Checkpointer(Monitor):
 
         return self
 
-    @classmethod
-    @torch.no_grad()
-    def load_model(cls, model: nn.Module, path: str, train_step: int) -> None:
-        """
-        Load model from checkpoint
-        """
-        path = Path(path) / cls.folder_name.format(train_step) / "checkpoint.pth"
-        logger.info(f"Loading from: {str(path)}")
-        state_dict = torch.load(path, weights_only=True)
-        model.load_state_dict(state_dict["model"])
-
-    def update(self) -> None:
+    def update(self, eval: bool = False) -> None:
         """
         Checkpoint model, optimizer, scheduler and training state
+
+        Parameters
+        ----------
+        eval:
+            Whether to save the checkpoint for evaluation
         """
         save_dir = self.path / self.folder_name.format(self.state.optim.step)
         save_dir.mkdir(parents=False, exist_ok=True)
+
+        # add evaluation flag, if needed
+        if eval:
+            eval_flag = save_dir / "eval"
+            eval_flag.touch()
+
+        # do not checkpoint twice
+        if self.saved_step == self.step:
+            return
+
         logger.info(f"Saving checkpoint at step {self.state.optim.step} to {str(save_dir)}")
 
         filename = self.state_name.format(self.device_rank)
@@ -173,8 +177,9 @@ class Checkpointer(Monitor):
         all_checkpoints = self._list_checkpoints()
         all_checkpoints.sort(key=lambda p: self._get_key_step(p.name))
         for prefix in all_checkpoints[: -self.keep_only]:
-            logger.info(f"Removing: {str(prefix)}")
-            shutil.rmtree(prefix)
+            if not (prefix / "eval").exists():
+                logger.info(f"Removing: {str(prefix)}")
+                shutil.rmtree(prefix)
 
     def _list_checkpoints(self) -> list[PosixPath]:
         """
@@ -190,5 +195,32 @@ class Checkpointer(Monitor):
         """
         Exit checkpoint context by saving checkpoint if needed
         """
-        if self.saved_step != self.step:
-            self.update()
+        self.update()
+
+
+# -----------------------------------------------------------------------------
+# Evaluation logic
+# -----------------------------------------------------------------------------
+
+
+class EvalCheckpointer:
+    def __init__(self, model: nn.Module, path: str, train_step: int) -> None:
+        self.model = model
+        self.save_dir = Path(path) / Checkpointer.folder_name.format(train_step)
+
+    def __enter__(self):
+        logger.info(f"Loading model from: {str(self.save_dir)}")
+        state_dict = torch.load(self.save_dir / "checkpoint.pth", weights_only=True)
+        self.model.load_state_dict(state_dict["model"])
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
+        """
+        Exit checkpoint context by remove `eval` flag
+
+        See Also
+        --------
+        Checkpointer.update(eval=True)
+        """
+        eval_flag = self.save_dir / "eval"
+        if eval_flag.exists():
+            eval_flag.unlink()

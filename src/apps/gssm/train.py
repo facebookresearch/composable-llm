@@ -12,7 +12,9 @@ located in the root directory of this repository.
 import logging
 import os
 from contextlib import ExitStack
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -20,6 +22,7 @@ import yaml
 
 from ...nanollama.data.hdf5 import DataConfig, FileDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
+from ...nanollama.launcher import LauncherConfig, launch_job
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import (
     Checkpointer,
@@ -36,8 +39,8 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.utils import TrainState, initialize_nested_object
-from .evaluation import EvaluationConfig, run_evaluation
+from ...nanollama.utils import TrainState, flatten_config, initialize_nested_object, unflatten_config
+from .evaluation import EvaluationConfig, EvaluationRunConfig, run_evaluation
 
 _logger = logging.getLogger("nanollama")
 
@@ -67,14 +70,42 @@ class TrainingConfig:
             assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
 
         # evaluation
-        self.evaluation.path = self.orchestration.logging.metric_path
+        # ... data
         if self.evaluation.data.batch_size == 0:
             self.evaluation.data.batch_size = self.data.batch_size
+
+        # ... paths
+        self.evaluation.path = self.orchestration.logging.metric_path
+
+        # ... cluster
+        # TODO
 
         # manual post initialization of all modules
         for module in self.__dict__.values():
             if hasattr(module, "__check_init__"):
                 module.__check_init__()
+
+
+def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]) -> None:
+    """
+    Cast training configuration arguments into evaluation configuration.
+    """
+    # flatten configurations for easier access
+    flat_config = flatten_config(train_config)
+    eval_config = flatten_config(eval_config)
+
+    # orchestration
+    eval_config["orchestration.name"] = flat_config["orchestration.name"] + "_eval"
+    eval_config["orchestration.parent_dir"] = flat_config["orchestration.log_dir"]
+    task_id = os.environ.get("SLURM_ARRAY_TASK_ID", "0")
+    eval_config["orchestration.log_dir"] = str(Path(flat_config["orchestration.log_dir"]) / "evals" / task_id)
+    eval_config["orchestration.task_id"] = int(task_id)
+
+    # slurm
+    # TODO
+
+    # merge configuration
+    train_config["evaluation"] = unflatten_config(eval_config)
 
 
 # -----------------------------------------------------------------------------
@@ -265,12 +296,43 @@ def train(config: TrainingConfig) -> None:
             profiler.start_timer()
 
             if eval_period > 0 and step % eval_period == 0:
-                if config.evaluation.asynchronous:
-                    # run evaluation as a separate process
-                    raise NotImplementedError
-
-                else:
+                # run evaluation now
+                if not config.evaluation.asynchronous:
                     run_evaluation(config.evaluation, model=model, step=step)
+
+                # launch evaluation job on slurm
+                elif is_master_process():
+                    # checkpoint
+                    checkpoint.update(eval=True)
+
+                    # alias
+                    orchestration_config = config.evaluation.orchestration
+                    orchestration_config.log_dir = str(Path(orchestration_config.log_dir) / f"{step:010d}")
+
+                    # launcher config
+                    launch_config = initialize_nested_object(
+                        LauncherConfig,
+                        {
+                            "name": orchestration_config.name,
+                            "log_dir": orchestration_config.log_dir,
+                            "overwrite": False,
+                            "copy_code": False,
+                            "script": "src.apps.gssm.evaluation",
+                            "slurm": config.evaluation.slurm.to_dict(),
+                        },
+                    )
+
+                    # run config
+                    orchestration_config.train_step = step
+                    eval_config: EvaluationRunConfig = {
+                        "model": asdict(config.model),
+                        "data": asdict(config.evaluation.data),
+                        "cluster": config.evaluation.cluster.to_dict(),
+                        "orchestration": orchestration_config.to_dict(),
+                    }
+                    launch_job(launch_config, eval_config)
+
+                    orchestration_config.log_dir = str(Path(orchestration_config.log_dir).parent)
 
             profiler.end_timer("evaluation")
 
@@ -322,6 +384,10 @@ def main() -> None:
         for key in ["name", "log_dir"]:
             if key in file_config["launcher"] and key not in run_config["orchestration"]:
                 run_config["orchestration"][key] = file_config["launcher"][key]
+
+    # configuration inheritance between training and evaluation
+    eval_config = run_config.pop("evaluation", {})
+    config_inheritance(run_config, eval_config)
 
     # initialize configuration
     config = initialize_nested_object(TrainingConfig, run_config)

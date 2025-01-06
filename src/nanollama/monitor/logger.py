@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from logging import getLogger
 from pathlib import Path
 from traceback import format_exception
@@ -42,6 +42,15 @@ class LoggerConfig:
         """Check validity of arguments."""
         assert self.stdout_path, "stdout_path was not set"
         assert self.metric_path, "metric_path was not set"
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert configuration to dictionnary to reinitialize it.
+        """
+        output = asdict(self)
+        output.pop("stdout_path")
+        output.pop("metric_path")
+        return output
 
 
 # -----------------------------------------------------------------------------

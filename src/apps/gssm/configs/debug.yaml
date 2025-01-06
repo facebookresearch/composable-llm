@@ -25,13 +25,6 @@ run_config:
     batch_size: 128
     seed: 42
 
-  evaluation:
-    period: 15
-    data:
-      path: $HOME/data/composition/base/testset.h5
-      n_data: 1_000
-      batch_size: 16
-
   model:
     vocab_size: 32
     seq_len: 2048
@@ -57,7 +50,7 @@ run_config:
 
     logging:
       period: 1
-      level: debug
+      level: info
     wandb:
       active: false
 
@@ -65,3 +58,28 @@ run_config:
       active: true
       wait: 1
       steps: -1
+
+  evaluation:
+    period: 15
+    asynchronous: true
+    data:
+      path: $HOME/data/composition/base/testset.h5
+      n_data: 1_000
+      batch_size: 16
+
+    cluster:
+      compile_model: false
+    orchestration:
+      utils:
+        seed: 100
+
+      logging:
+        period: 1
+        level: info
+      wandb:
+        active: false
+
+      profiler:
+        active: true
+        wait: 1
+        steps: -1
