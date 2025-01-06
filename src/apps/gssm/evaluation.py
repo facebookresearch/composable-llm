@@ -13,7 +13,7 @@ import json
 import logging
 import os
 from contextlib import ExitStack
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from logging import getLogger
 from pathlib import Path
 from types import TracebackType
@@ -27,7 +27,13 @@ from ...nanollama.data.hdf5 import DataConfig, FileEvaluator
 from ...nanollama.distributed import ClusterConfig, ClusterManager, get_local_rank, get_rank, is_master_process
 from ...nanollama.launcher import SlurmConfig
 from ...nanollama.model import Transformer, TransformerConfig
-from ...nanollama.monitor import EvalCheckpointer, EvalOrchestratorConfig, Logger, PreemptionHandler
+from ...nanollama.monitor import (
+    EvalCheckpointer,
+    EvalOrchestratorConfig,
+    Logger,
+    PreemptionHandler,
+    WandbLogger,
+)
 from ...nanollama.utils import initialize_nested_object
 
 logger = getLogger("nanollama")
@@ -245,12 +251,14 @@ def eval(config: EvaluationRunConfig) -> None:
 
             logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss,4):>7}")
 
+        # wandb logging
+        wandb_logger: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, asdict(config)))
+        wandb_logger({"test_loss": computer.loss, "step": train_step})
+
     if is_master_process():
         logger.info(f"Test loss: {round(computer.loss, 4):>7}")
 
     logger.info("Evaluation done.")
-
-    # TODO: add wandb logging?
 
 
 def main() -> None:
