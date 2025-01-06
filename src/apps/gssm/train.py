@@ -320,7 +320,7 @@ def main() -> None:
         run_config["orchestration"] = {}
     if "launcher" in file_config:
         for key in ["name", "log_dir"]:
-            if key in file_config["launcher"]:
+            if key in file_config["launcher"] and key not in run_config["orchestration"]:
                 run_config["orchestration"][key] = file_config["launcher"][key]
 
     # initialize configuration
