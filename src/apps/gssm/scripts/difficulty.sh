@@ -2,8 +2,8 @@
 
 # Logging configuration
 #SBATCH --job-name=difficulty_estimation
-#SBATCH --output=/private/home/$u/logs/difficulty/logs/estimation_%j.log
-#SBATCH --error=/private/home/$u/logs/difficulty/logs/estimation_%j.err
+#SBATCH --output=/private/home/%u/logs/difficulty/logs/%t.log
+#SBATCH --error=/private/home/%u/logs/difficulty/logs/%t.err
 #SBATCH --open-mode=append
 
 # Job specification
@@ -13,7 +13,7 @@
 #SBATCH --gres=gpu:0
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=16G
-#SBATCH --array=1-10
+#SBATCH --array=1-500
 #SBATCH --time=12:00:00
 
 # activate conda environment
