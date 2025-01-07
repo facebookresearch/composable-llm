@@ -36,37 +36,37 @@ gssm:
 Then determine some equivalent pairs for `(alpha_X, alpha_Z)` with a small `alpha_X` and a big `alpha_Z`, and a big `alpha_X` and a small `alpha_Z`.
 This could be done by running
 ```bash
-python -m src.apps.gssm.difficulty src/apps/gssm/experiment1/difficulty.yaml
+python -m src.apps.gssm.difficulty src/apps/experiment1/difficulty.yaml
 ```
 Or run on the cluster with
 ```bash
-sbtach src/apps/gssm/experiment1/difficulty.sh
+sbtach src/apps/experiment1/difficulty.sh
 ```
 
 #### Run with infinite data
 After choosing two pairs, you can generate a training run where you generate new data on the fly.
 ```bash
-python -m src.apps.gssm_onfly.train src/apps/gssm/experiment1/onfly_small_X.yaml
-python -m src.apps.gssm_onfly.train src/apps/gssm/experiment1/onfly_small_Y.yaml
+python -m src.apps.gssm_onfly.train src/apps/experiment1/onfly_small_X.yaml
+python -m src.apps.gssm_onfly.train src/apps/experiment1/onfly_small_Y.yaml
 ```
 Or run it the cluster with
 ```bash
-python -m src.nanollama.launcher src/apps/gssm/experiment1/onfly_small_X.yaml
-python -m src.nanollama.launcher src/apps/gssm/experiment1/onfly_small_Z.yaml
+python -m src.nanollama.launcher src/apps/experiment1/onfly_small_X.yaml
+python -m src.nanollama.launcher src/apps/experiment1/onfly_small_Z.yaml
 ```
 
 #### Generate finite data
 You may equally fix the number of data in advance by running
 ```bash
-python -m src.apps.gssm.data src/apps/gssm/experiment1/data.yaml
+python -m src.apps.gssm.data src/apps/experiment1/data.yaml
 ```
 Before running the training with these data
 ```bash
-python -m src.apps.gssm.train src/apps/gssm/experiment1/small_X.yaml
-python -m src.apps.gssm.train src/apps/gssm/experiment1/small_Z.yaml
+python -m src.apps.gssm.train src/apps/experiment1/small_X.yaml
+python -m src.apps.gssm.train src/apps/experiment1/small_Z.yaml
 ```
 You can also run it on the cluster with
 ```bash
-python -m src.nanollama.launcher src/apps/gssm/experiment1/small_X.yaml
-python -m src.nanollama.launcher src/apps/gssm/experiment1/small_Z.yaml
+python -m src.nanollama.launcher src/apps/experiment1/small_X.yaml
+python -m src.nanollama.launcher src/apps/experiment1/small_Z.yaml
 ```
