@@ -222,8 +222,6 @@ LAUNCHER_SCRIPT = """#!/bin/bash
 #SBATCH --output={log_dir}/stdout/%j/main.out
 #SBATCH --error={log_dir}/stdout/%j/main.err
 #SBATCH --open-mode=append
-#SBATCH --mail-type=END
-#SBATCH --mail-user=%u@meta.com
 
 # Job specification
 #SBATCH --partition={partition}
@@ -371,7 +369,7 @@ def main() -> None:
 
     Usage:
     ```
-    python -m launcher config=src/apps/my_app/debug.yaml
+    python -m launcher src/apps/my_app/my_config.yaml
     ```
     """
     import argparse

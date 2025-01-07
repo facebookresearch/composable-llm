@@ -182,11 +182,11 @@ def estimate_difficulty(config: DifficultyEstimationConfig, task_id: int = 1, nb
 
 def main() -> None:
     """
-    Launch a training job (through slurm) from configuration file specified by cli argument.
+    Launch a difficulty estimation job from configuration file specified by cli argument.
 
     Usage:
     ```
-    python -m launcher config=src/apps/my_app/debug.yaml
+    python -m --task-id 1 --nb-tasks 4 difficulty src/apps/my_app/my_config.yaml
     ```
     """
     import argparse
