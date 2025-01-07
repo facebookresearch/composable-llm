@@ -3,6 +3,9 @@
 **Question:**
 Does a transformer do better with a small alpha_X and a big alpha_Z, or a big alpha_X and a small alpha_Z?
 
+**Layman Question**
+Does a transformer prefer easy to infer latents, or easy to predict latents?
+
 **How to interpret the results:**
 A small alpha_X mean "easy to infer the latent variables from observations"
 A small alpha_Z mean "easy to predict the evolution of the latent variables" 

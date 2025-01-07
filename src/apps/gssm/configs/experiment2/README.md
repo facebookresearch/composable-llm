@@ -3,6 +3,9 @@
 **Question:**
 Does a transformer do better with a lot of small independent latent variables or a big one?
 
+**Layman Question**
+Is a transformer particularly good at leveraging latents mechanism?
+
 **How to interpret the results:**
 Many nodes mean many independent mechanisms.
 
