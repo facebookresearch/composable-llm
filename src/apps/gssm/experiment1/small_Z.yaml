@@ -1,0 +1,68 @@
+# First experiments:
+# Debugging configuration
+
+launcher:
+  name: exp1_small_Z
+  overwrite: true
+  log_dir: $HOME/logs/exp1/small_Z
+
+  script: src.apps.gssm.train
+
+  slurm:
+    nodes: 1
+    nb_gpus: 2        # use torchrun, or slurm, for multi-gpu runs
+    time: 10          # job time in minutes
+    signal_time: 60   # alert time in seconds
+
+run_config:
+  cluster:
+    compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
+
+  data:
+    seq_len: 2048
+    n_data: !TODO!
+    path: $HOME/data/composition/exp1/small_Z/trainset.h5
+    batch_size: 16
+    seed: 0
+
+  model:
+    vocab_size: 32
+    emb_dim: 64
+    nb_heads: 2
+    ffn_dim: 256
+    nb_layers: 2
+
+  optim:
+    steps: 100
+    lr: 1e-2
+    weight_decay: 0
+    warmup: 0
+    lr_min_ratio: 1
+
+  orchestration:
+    utils:
+      seed: 100
+
+    checkpoint:
+      period: 20
+      keep_only: 3
+
+    logging:
+      period: 1
+      level: info
+
+    profiler:
+      active: false
+      wait: 1
+      steps: -1
+
+    wandb:
+      active: true
+
+  evaluation:
+    period: 15
+    asynchronous: false
+    data:
+      path: $HOME/data/composition/exp1/small_Z/testset.h5
+      n_data: !TODO!
+      batch_size: 16

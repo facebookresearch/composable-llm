@@ -2,14 +2,11 @@
 
 #### Vivien's Current TODO
 
-- [ ] Write an evaluation script from file.
-    - Implement KV cache at generation
-    - Add an eval flag to the checkpoint to avoid deleting checkpointing that are going to be used for evaluation, and have not been evaluated yet.
+- [ ] Make a simple scheduler that keep a constant learning rate.
+    - log the learning rate
 
 - [ ] Write visualization scripts/notebooks to visualize logs without wandb.
     - Option to log metrics to wandb after the end of a run.
-
-- [ ] Run script to evaluate gzip of data.
 
 - [ ] Implement a probe to log activations, and so on.
 

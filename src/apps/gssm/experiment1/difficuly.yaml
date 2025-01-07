@@ -1,0 +1,63 @@
+# Run with the `difficulty` script
+# python -m src.apps.gssm.difficulty src/apps/gssm/experiments/exp1_alpha.yaml
+# Script to fit the pairs (alpha_X, alpha_Z) for the first experiment
+
+small_alpha_X:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/exp1/difficulty/small_alpha_X.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+
+small_alpha_Z:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    num: 20
+    min: 1e-3
+    max: 1e1
+  alpha_Z:
+    min: 1e-3
+    num: 1
+  path: $HOME/logs/exp1/difficulty/small_alpha_Z.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]

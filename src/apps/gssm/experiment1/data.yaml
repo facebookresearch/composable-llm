@@ -1,0 +1,65 @@
+# Data configurations
+
+small_X:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      alpha: !TODO!
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      alpha: !TODO!
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      alpha: !TODO!
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      alpha: !TODO!
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-3
+  sets:
+  - n_data: !TODO|
+    path: $HOME/data/composition/exp1/small_X/trainset.h5
+  - n_data: !TODO|
+    path: $HOME/data/composition/exp1/small_X/testset.h5
+
+small_Z:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      alpha: 1e-3
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      alpha: 1e-3
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      alpha: 1e-3
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      alpha: 1e-3
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: !TODO!
+  sets:
+  - n_data: !TODO|
+    path: $HOME/data/composition/exp1/small_Z/trainset.h5
+  - n_data: !TODO|
+    path: $HOME/data/composition/exp1/small_Z/testset.h5
