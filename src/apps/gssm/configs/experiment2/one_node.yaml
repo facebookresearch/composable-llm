@@ -2,9 +2,9 @@
 # Debugging configuration
 
 launcher:
-  name: exp2_four_nodes
+  name: exp2_one_node
   overwrite: true
-  log_dir: $HOME/logs/exp2/four_nodes
+  log_dir: $HOME/logs/exp2/one_node
 
   script: src.apps.gssm.train
 
@@ -21,7 +21,7 @@ run_config:
   data:
     seq_len: 2048
     n_data: !TODO!
-    path: $HOME/data/composition/exp2/four_nodes/trainset.h5
+    path: $HOME/data/composition/exp2/one_node/trainset.h5
     batch_size: 16
     seed: 0
 
