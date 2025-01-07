@@ -59,3 +59,14 @@ python -m src.nanollama.launcher src/apps/gssm/experiment1/onfly_small_Z.yaml
 You may equally fix the number of data in advance by running
 ```bash
 python -m src.apps.gssm.data src/apps/gssm/experiment1/data.yaml
+```
+Before running the training with these data
+```bash
+python -m src.apps.gssm.train src/apps/gssm/experiment1/small_X.yaml
+python -m src.apps.gssm.train src/apps/gssm/experiment1/small_Z.yaml
+```
+You can also run it on the cluster with
+```bash
+python -m src.nanollama.launcher src/apps/gssm/experiment1/small_X.yaml
+python -m src.nanollama.launcher src/apps/gssm/experiment1/small_Z.yaml
+```
