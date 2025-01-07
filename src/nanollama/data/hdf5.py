@@ -18,7 +18,7 @@ from typing import Any
 
 import h5py
 import numpy as np
-from numpy.random import SeedSequence, default_rng
+from numpy.random import default_rng
 
 from ..distributed import get_rank, get_world_size
 from .loader import DataLoader
@@ -84,13 +84,8 @@ def init_dataloader_state(config: DataConfig) -> DataLoaderState:
     """
     Initialize the state of random number generators.
     """
-    # generate independent seeds
-    ss = SeedSequence(config.seed)
-    rank = get_rank()
-    seed = ss.spawn(rank + 1)[-1]
-
-    # recover state from seeds
-    rng_state = default_rng(seed).bit_generator.state
+    # recover state from seed
+    rng_state = default_rng(config.seed).bit_generator.state
     return DataLoaderState(rng_state=rng_state)
 
 
