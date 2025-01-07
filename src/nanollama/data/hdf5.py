@@ -121,6 +121,19 @@ class FileDataLoader(DataLoader):
         self.rng_state = state.rng_state
         logger.debug(f"RNG: {state}")
 
+        # get the start and end indices of the data to be processed by the current device.
+        world_size = get_world_size()
+        n_local_data = self.n_data // world_size
+        residual = self.n_data % world_size
+        rank = get_rank()
+        if rank < residual:
+            self.start = (n_local_data + 1) * rank
+            self.end = self.start + (n_local_data + 1)
+        else:
+            self.start = (n_local_data + 1) * residual + n_local_data * (rank - residual)
+            self.end = self.start + n_local_data
+        logger.debug(f"Data range: {self.start} - {self.end} ({rank + 1}/{world_size})")
+
     def batch_iterator(self) -> Generator[np.ndarray, None, None]:
         """
         Generate batches of sentences.
@@ -137,13 +150,16 @@ class FileDataLoader(DataLoader):
             # schedule data processing order
             epoch_idx = rng.permutation(self.n_data)
 
+            # restrict data to the device's range
+            device_idx = epoch_idx[self.start : self.end]
+
             # add residual data from the previous epoch
-            epoch_idx = np.append(self.residual_idx, epoch_idx)
+            device_idx = np.append(self.residual_idx, device_idx)
 
             # iterate over batches
             while True:
                 begin, end = self.step * self.batch_size, (self.step + 1) * self.batch_size
-                batch_idx = epoch_idx[begin:end]
+                batch_idx = device_idx[begin:end]
 
                 # do not process last batch alone if it is smaller than batch_size
                 if batch_idx.shape[0] < self.batch_size:
@@ -172,6 +188,7 @@ class FileDataLoader(DataLoader):
 
                 self.step += 1
                 yield batch
+                logger.debug(f"Epoch {self.epoch}, Step {self.step}")
 
     def get_restart_info(self) -> tuple[dict[str, Any], int, int, np.ndarray[int]]:
         """
