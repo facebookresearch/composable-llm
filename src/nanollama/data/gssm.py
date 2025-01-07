@@ -16,7 +16,6 @@ from typing import Any, Union
 
 import numpy as np
 from numpy.random import SeedSequence, default_rng
-from scipy.stats import dirichlet
 
 from ..distributed import get_rank
 from .loader import DataLoader
@@ -83,7 +82,7 @@ class TransitionKernel:
             self.fan_in = fan_in
             return
 
-        self.p_transition = dirichlet.rvs(alphas, size=fan_in, random_state=rng)
+        self.p_transition = self.rng.dirichlet(alphas, size=fan_in)
 
         # in the `slow` mode, argmax p(state[t+1] | state[t], parents) = x
         if self.mode == "slow":
@@ -134,7 +133,7 @@ class TransitionKernel:
 
         # in-context learning mode
         if self.p_transition is None:
-            p_transition = dirichlet.rvs(self.alphas, size=self.fan_in, random_state=self.rng)
+            p_transition = self.rng.dirichlet(self.alphas, size=self.fan_in)
             p_cumulative = np.cumsum(p_transition, axis=1)[state]
         else:
             p_cumulative = self._cumulative[state]
