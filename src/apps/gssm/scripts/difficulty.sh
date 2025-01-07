@@ -2,8 +2,8 @@
 
 # Logging configuration
 #SBATCH --job-name=difficulty_estimation
-#SBATCH --output=/private/home/%u/logs/difficulty/logs/%t.log
-#SBATCH --error=/private/home/%u/logs/difficulty/logs/%t.err
+#SBATCH --output=/private/home/%u/logs/difficulty/logs/%a.log
+#SBATCH --error=/private/home/%u/logs/difficulty/logs/%a.err
 #SBATCH --open-mode=append
 
 # Job specification
