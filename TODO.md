@@ -1,9 +1,17 @@
 # TODOS
 
+Compute entropy in close form.
+Think about the entropy baseline for "in-context learning" experiments.
+
 #### Vivien's Current TODO
 
 - [ ] Make a simple scheduler that keep a constant learning rate.
     - log the learning rate
+
+- [ ] Make a first experiments.
+    - Ensure full utilization of GPU.
+    - Log relevant metrics
+    - Write visualization tools
 
 - [ ] Write visualization scripts/notebooks to visualize logs without wandb.
     - Option to log metrics to wandb after the end of a run.
