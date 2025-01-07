@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Logging configuration
-#SBATCH --job-name=difficulty_estimation
+#SBATCH --job-name=difficulty
 #SBATCH --output=/private/home/%u/logs/difficulty/logs/%a.log
 #SBATCH --error=/private/home/%u/logs/difficulty/logs/%a.err
 #SBATCH --open-mode=append
@@ -21,7 +21,8 @@ eval "$(/private/home/vivc/miniconda/bin/conda shell.bash hook)"
 conda activate /private/home/vivc/miniconda/envs/llm
 
 # go to code directory
-cd /private/home/vivc/logs/debug_grid/code
+export PATH_TO_CODE_DIR=<PATH TO CODE DIR>
+cd $PATH_TO_CODE_DIR
 
 # handle missing slurm variables
 if [ -z "$SLURM_ARRAY_TASK_ID" ]; then
@@ -31,4 +32,4 @@ fi
 
 echo "Running task $SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
 
-python -m apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT /private/home/vivc/code/composable-llm/src/apps/gssm/configs/difficulty.yaml 
+python -m apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/debug/difficulty.yaml 

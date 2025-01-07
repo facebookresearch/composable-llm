@@ -14,7 +14,7 @@ base:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/base.jsonl
+  path: $HOME/logs/difficulty/base.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -36,7 +36,7 @@ sparse:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/sparse.jsonl
+  path: $HOME/logs/difficulty/sparse.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -67,7 +67,7 @@ very_sparse:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/very_sparse.jsonl
+  path: $HOME/logs/difficulty/very_sparse.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -110,7 +110,7 @@ dense:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/dense.jsonl
+  path: $HOME/logs/difficulty/dense.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -141,7 +141,7 @@ very_dense:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/very_dense.jsonl
+  path: $HOME/logs/difficulty/very_dense.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -172,7 +172,7 @@ slow:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/slow.jsonl
+  path: $HOME/logs/difficulty/slow.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -207,7 +207,7 @@ dead:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/dead.jsonl
+  path: $HOME/logs/difficulty/dead.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -242,7 +242,7 @@ base_big:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/base_big.jsonl
+  path: $HOME/logs/difficulty/base_big.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -264,7 +264,7 @@ sparse_big:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/sparse_big.jsonl
+  path: $HOME/logs/difficulty/sparse_big.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -295,7 +295,7 @@ very_sparse_big:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/very_sparse_big.jsonl
+  path: $HOME/logs/difficulty/very_sparse_big.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -338,7 +338,7 @@ dense_big:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/dense_big.jsonl
+  path: $HOME/logs/difficulty/dense_big.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -369,7 +369,7 @@ very_dense_big:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/very_dense_big.jsonl
+  path: $HOME/logs/difficulty/very_dense_big.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -400,7 +400,7 @@ slow_big:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/slow_big.jsonl
+  path: $HOME/logs/difficulty/slow_big.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -435,7 +435,7 @@ dead_big:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/difficulties/dead_big.jsonl
+  path: $HOME/logs/difficulty/dead_big.jsonl
   gssm:
     nodes:
     - name: Z1

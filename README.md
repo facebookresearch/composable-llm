@@ -40,7 +40,7 @@ pip install -e . [dev,visu]
 #### First run
 You can run a debug script with the following command:
 ```bash
-python -m src.apps.gssm_onfly.train src/apps/gssm_onfly/configs/debug.yaml
+python -m src.apps.gssm.train_on_fly src/apps/gssm/configs/onfly.yaml
 ```
 In this online setting, data are generated on the fly. 
 The configuration file `debug.yaml` is a simple configuration file that will run a simple experiment.
@@ -49,7 +49,7 @@ The configuration file `debug.yaml` is a simple configuration file that will run
 The previous config will generate batch of data on the fly. Each new batch will be made of new data.
 If you want to generate data offline first, and only read from these datasets, you can do so with the following command to generate datasets:
 ```bash
-python -m src.apps.gssm.data src/apps/gssm/configs/data.yaml
+python -m src.apps.gssm.data src/apps/gssm/configs/debug/data.yaml
 ```
 Here the `data.yaml` is a configuration files to generate various datasets.
 You can modify this configuration to suit your needs.
@@ -57,12 +57,12 @@ You can modify this configuration to suit your needs.
 #### Cluster runs
 You may launch experiments to run on a cluster with the following command:
 ```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/debug.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/debug/train.yaml
 ```
 This will launch them on a slurm cluster (assuming your are logged into one).
 You equally run experiments on multi-gpu locally with torchrun, e.g.,
 ```bash
-OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train src/apps/gssm/configs/debug.yaml
+OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train src/apps/gssm/configs/debug/train.yaml
 ```
 You can equally run an array job is you specify a grid to iterate over in your config file.
 
@@ -72,6 +72,7 @@ The logging directory is organized in the following fashion.
 root/
 ├── checkpoint/: models (and dataloaders, ...) checkpoints
 ├── code/: copy of the codebase when launching the job
+├── evals/: evaluation tasks
 ├── logs/: run logs
 ├── metrics/: metrics logged during the runs
 ├── run.sh: the script that was run
@@ -83,20 +84,20 @@ root/
 #### Command summary
 To summarize the commands, for training while generating data on the fly:
 ```bash
-python -m src.apps.gssm_onfly.train src/apps/gssm_onfly/configs/debug.yaml
+python -m src.apps.gssm.train_on_fly src/apps/gssm/configs/debug/onfly.yaml
 ```
 For generating data first, and then training from them:
 ```bash
-python -m src.apps.gssm.train src/apps/gssm/configs/debug.yaml
-python -m src.apps.gssm.train src/apps/gssm/configs/debug.yaml
+python -m src.apps.gssm.train src/apps/gssm/configs/debug/train.yaml
+python -m src.apps.gssm.train src/apps/gssm/configs/debug/train.yaml
 ```
 For launching a run on a Slurm cluster:
 ```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/debug.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/debug/train.yaml
 ```
 For launching an array job on a Slurm cluster:
 ```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/debug_grid.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/debug/grid.yaml
 ```
 
 ## Development

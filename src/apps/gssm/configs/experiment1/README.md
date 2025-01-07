@@ -1,46 +1,23 @@
-# First experiment
+# Second experiment
 
 **Question:**
-Does a transformer do better with a small alpha_X and a big alpha_Z, or a big alpha_X and a small alpha_Z?
+Does a transformer do better with a lot of small independent latent variables or a big one?
 
 **How to interpret the results:**
-A small alpha_X mean "easy to infer the latent variables from observations"
-A small alpha_Z mean "easy to predict the evolution of the latent variables" 
-
-**Caveat:**
-Does the result of the experiments depend on the graph?
+Many nodes mean many independent mechanisms.
 
 ## Experiment order
-#### Choose a graph
-First choose a graph. By default, I have set it to be (with our configuration notation):
-```yaml
-gssm:
-    - name: Z1
-      state_dim: 4
-      parents: [X]
-    - name: Z2
-      state_dim: 4
-      parents: [X]
-    - name: Z3
-      state_dim: 4
-      parents: [X]
-    - name: Z4
-      state_dim: 4
-      parents: [X]
-    - name: X
-      state_dim: 32
-      parents: [Z1, Z2, Z3, Z4]
-```
+Choose a emission concentration parameter `alpha_X`.
 
 #### Set difficulty level
-Then determine some equivalent pairs for `(alpha_X, alpha_Z)` with a small `alpha_X` and a big `alpha_Z`, and a big `alpha_X` and a small `alpha_Z`.
+Then determine some equivalent `alpha_Z` for various graphs.
 This could be done by running
 ```bash
-python -m src.apps.gssm.difficulty src/apps/experiment1/difficulty.yaml
+python -m src.apps.gssm.difficulty src/apps/experiment2/difficulty.yaml
 ```
 Or run on the cluster with
 ```bash
-sbtach src/apps/experiment1/difficulty.sh
+sbtach src/apps/experiment2/difficulty.sh
 ```
 
 #### Run with infinite data
