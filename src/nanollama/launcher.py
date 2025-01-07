@@ -9,13 +9,13 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-import itertools
 import json
 import logging
 import os
 import shutil
 import subprocess
 from dataclasses import asdict, dataclass, field
+from itertools import product
 from pathlib import Path
 from typing import Any
 
@@ -203,7 +203,7 @@ def get_configs_from_grid(config: dict[str, Any], grid_config: dict[str, Any]) -
     # get grid configurations as a list of flatten configs
     flatten_grid = flatten_config(grid_config)
     keys, all_values = zip(*flatten_grid.items())
-    all_configs = [dict(zip(keys, v)) for v in itertools.product(*all_values)]
+    all_configs = [dict(zip(keys, v)) for v in product(*all_values)]
 
     # merge on flatten config for simplicity
     config = flatten_config(config)
