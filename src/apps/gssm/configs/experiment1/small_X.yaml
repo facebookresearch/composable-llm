@@ -65,4 +65,3 @@ run_config:
     data:
       path: $HOME/data/composition/exp1/small_X/testset.h5
       n_data: !TODO!
-      batch_size: 16
