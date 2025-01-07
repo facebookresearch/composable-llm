@@ -34,10 +34,10 @@ run_config:
     nb_layers: 2
 
   optim:
-    steps: 50
+    steps: 100
     lr: 1e-2
     weight_decay: 0.1
-    warmup: 10
+    warmup: 15
     lr_min_ratio: 0
 
   orchestration:
@@ -50,7 +50,7 @@ run_config:
 
     logging:
       period: 1
-      level: info
+      level: debug
     wandb:
       active: false
 
@@ -61,7 +61,7 @@ run_config:
 
   evaluation:
     period: 15
-    asynchronous: true
+    asynchronous: false
     data:
       path: $HOME/data/composition/base/testset.h5
       n_data: 1_000
