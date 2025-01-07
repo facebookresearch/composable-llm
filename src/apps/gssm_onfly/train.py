@@ -13,6 +13,7 @@ import logging
 import os
 from contextlib import ExitStack
 from dataclasses import dataclass, field
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -173,7 +174,15 @@ def train(config: TrainingConfig) -> None:
 
         model.train()
 
+        # aliases
+        log_period = config.orchestration.logging.period
+
         while state.optim.step < config.optim.steps:
+            # handle preemption
+            if preemption():
+                _logger.warning("Preemption flag set")
+                break
+
             # accumulation step
             state.optim.acc_step += 1
             state.optim.acc_step = state.optim.acc_step % config.optim.grad_acc_steps
@@ -227,6 +236,9 @@ def train(config: TrainingConfig) -> None:
             # Call monitors for garbage collection, checkpointing...
             # -----------------------------------------------------------------
 
+            # alias
+            step = state.optim.step
+
             profiler.start_timer()
             checkpoint()
             profiler()
@@ -239,12 +251,12 @@ def train(config: TrainingConfig) -> None:
 
             profiler.start_timer()
 
-            if state.optim.step % config.orchestration.logging.period == 0:
+            if log_period > 0 and step % log_period == 0:
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
                 metrics = {
                     "loss": loss.item(),
-                    "step": state.optim.step,
+                    "step": step,
                     "acc_step": state.optim.acc_step,
                     "deterministic_test": batch[0, 0].item(),
                 }
@@ -256,21 +268,6 @@ def train(config: TrainingConfig) -> None:
                     _logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
 
             profiler.end_timer("log_time")
-
-            # -----------------------------------------------------------------
-            # Evaluation
-            # -----------------------------------------------------------------
-
-            # if trigger_update(state, config.monitor.evaluation.period):
-            #     pass
-
-            # -----------------------------------------------------------------
-            # Handle preemption
-            # -----------------------------------------------------------------
-
-            if preemption():
-                _logger.warning("Preemption flag set")
-                break
 
     _logger.info("Training done.")
 
@@ -304,16 +301,14 @@ def main() -> None:
         run_config = file_config.pop("run_config")
     else:
         run_config = file_config
-    with open(path) as f:
-        file_config = yaml.safe_load(f)
+    launcher: dict[str, Any] = file_config.pop("launcher", {})
 
     # casting logging directory to run_config
     if "orchestration" not in run_config:
         run_config["orchestration"] = {}
-    if "launcher" in file_config:
-        for key in ["name", "log_dir"]:
-            if key in file_config["launcher"] and key not in run_config["orchestration"]:
-                run_config["orchestration"][key] = file_config["launcher"][key]
+    for key in ["name", "log_dir"]:
+        if key in launcher and key not in run_config["orchestration"]:
+            run_config["orchestration"][key] = launcher[key]
 
     # initialize configuration
     config = initialize_nested_object(TrainingConfig, run_config)
