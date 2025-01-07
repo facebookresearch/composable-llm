@@ -1,0 +1,52 @@
+
+base:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    min: 1e-3
+    max: 1e3
+    num: 10
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 256
+      parents: []
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+  path: $HOME/logs/difficulties/base.jsonl
+
+sparse:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    min: 1e-3
+    max: 1e3
+    num: 10
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+  path: $HOME/logs/difficulties/sparse.jsonl
