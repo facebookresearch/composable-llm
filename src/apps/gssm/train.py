@@ -85,7 +85,7 @@ def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]
     """
     Cast training configuration arguments into evaluation configuration.
     """
-    if eval_config.get("period", 0) <= 0 or not eval_config.get("asynchronous", False):
+    if eval_config.get("period", 0) <= 0:
         train_config["evaluation"] = eval_config
         return
 
@@ -103,14 +103,18 @@ def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]
 
     # generic inheritance
     configs_keys = [
-        (SlurmConfig, "slurm"),
-        (ClusterConfig, "cluster"),
         (DataConfig, "data"),
-        (LoggerConfig, "orchestration.logging"),
-        (LoggerConfig, "orchestration.profiler"),
-        (UtilityConfig, "orchestration.utils"),
-        (WandbConfig, "orchestration.wandb"),
     ]
+
+    if eval_config.get("asynchronous"):
+        configs_keys += [
+            (SlurmConfig, "slurm"),
+            (ClusterConfig, "cluster"),
+            (LoggerConfig, "orchestration.logging"),
+            (LoggerConfig, "orchestration.profiler"),
+            (UtilityConfig, "orchestration.utils"),
+            (WandbConfig, "orchestration.wandb"),
+        ]
 
     for config_cls, cls_key in configs_keys:
         for key, finfo in config_cls.__dataclass_fields__.items():
