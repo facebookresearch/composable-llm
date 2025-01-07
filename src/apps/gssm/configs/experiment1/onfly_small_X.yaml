@@ -6,7 +6,7 @@ launcher:
   overwrite: true
   log_dir: $HOME/logs/exp1/onfly_small_X
 
-  script: src.apps.gssm_onfly.train
+  script: src.apps.gssm.train_onfly
 
   slurm:
     nodes: 1
