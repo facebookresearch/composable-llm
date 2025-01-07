@@ -62,7 +62,11 @@ class EvaluationConfig:
         assert self.path, "path was not set"
 
         # manual post initialization of all modules
-        for module in self.__dict__.values():
+        if self.asynchronous:
+            modules = self.__dict__.values()
+        else:
+            modules = [self.data]
+        for module in modules:
             if hasattr(module, "__check_init__"):
                 module.__check_init__()
 
@@ -187,9 +191,6 @@ class EvaluationRunConfig:
         """
         # path to stored results
         self.path = self.orchestration.logging.metric_path
-
-        # keep a mapping of job_id to task_id
-        self.orchestration.report_job_id()
 
         # manual post initialization of all modules
         for module in self.__dict__.values():

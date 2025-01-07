@@ -115,7 +115,6 @@ class EvalOrchestratorConfig:
         else:
             self.parent_dir = os.path.expandvars(self.parent_dir)
             parent_dir = Path(self.parent_dir)
-        parent_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_path = str(parent_dir / "checkpoints" / str(self.task_id))
 
         # logging directory
@@ -126,7 +125,6 @@ class EvalOrchestratorConfig:
         else:
             self.log_dir = os.path.expandvars(self.log_dir)
             log_dir = Path(self.log_dir)
-        log_dir.mkdir(parents=True, exist_ok=True)
 
         # wandb directory (single dir for any steps)
         task_id = os.environ.get("SLURM_ARRAY_TASK_ID", "0")
@@ -142,7 +140,11 @@ class EvalOrchestratorConfig:
             if hasattr(module, "__check_init__"):
                 module.__check_init__()
 
-    def report_job_id(self) -> None:
+    def __check_init__(self) -> None:
+        # create directory
+        Path(self.parent_dir).mkdir(parents=True, exist_ok=True)
+        Path(self.log_dir).mkdir(parents=True, exist_ok=True)
+
         # keep a mapping of job_id to task_id
         task_id = os.environ.get("SLURM_ARRAY_TASK_ID", "0")
         if task_id != "0" and is_master_process():
