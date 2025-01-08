@@ -88,8 +88,11 @@ class HeavyProfiler(BaseProfiler):
             with_flops=True,
         )
 
+        self.active = False
+
     def __enter__(self):
         self.profiler.__enter__()
+        self.active = True
         logger.info(f"Pytorch profiler active. Traces will be saved at {self.path}")
 
     def __call__(self) -> None:
@@ -109,8 +112,9 @@ class HeavyProfiler(BaseProfiler):
         self.profiler = None
 
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
-        if self.profiler:
+        if self.profiler and self.active:
             self.profiler.__exit__(exc, value, tb)
+            self.active = False
 
 
 class LightProfiler(BaseProfiler):
