@@ -2,8 +2,8 @@
 
 # Logging configuration
 #SBATCH --job-name=difficulty
-#SBATCH --output=/private/home/%u/logs/exp0/difficulty/logs/%a.log
-#SBATCH --error=/private/home/%u/logs/exp0/difficulty/logs/%a.err
+#SBATCH --output=/checkpoint/%u/icml/exp0/difficulty/logs/%a.log
+#SBATCH --error=/checkpoint/%u/icml/exp0/difficulty/logs/%a.err
 #SBATCH --open-mode=append
 
 # Job specification
@@ -13,7 +13,7 @@
 #SBATCH --gres=gpu:0
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=16G
-#SBATCH --array=1-10
+#SBATCH --array=1-500
 #SBATCH --time=1:00:00
 
 # activate conda environment
@@ -32,4 +32,4 @@ fi
 
 echo "Running task $SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
 
-python -m apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/experiment0/difficulty.yaml 
+python -m apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment0/difficulty.yaml 

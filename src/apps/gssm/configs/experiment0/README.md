@@ -39,6 +39,11 @@ gpt2-xl:      {n_layer: 48, n_head: 25, n_embd: 1600}, # 1558M params
 vocab size: 50304 
 ```
 
+First I debug it locally on P100 GPUs.
+```
+python -m src.apps.gssm.train src/apps/gssm/configs/experiment0/utilization_small.yaml
+```
+
 I will launch this on V100 GPUs.
 
 
