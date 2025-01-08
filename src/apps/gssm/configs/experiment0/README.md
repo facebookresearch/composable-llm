@@ -41,7 +41,7 @@ vocab size: 50304
 
 First I debug it locally on P100 GPUs.
 ```
-python -m src.apps.gssm.train src/apps/gssm/configs/experiment0/utilization_small.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment0/utilization_small.yaml
 ```
 
 I will launch this on V100 GPUs.
@@ -69,8 +69,8 @@ sbatch src/apps/gssm/configs/experiment1/difficulty.sh
 #### Run with infinite data
 After choosing two pairs, you can generate a training run where you generate new data on the fly.
 ```bash
-python -m src.apps.gssm.train_on_fly src/apps/gssm/configs/experiment1/onfly_small_X.yaml
-python -m src.apps.gssm.train_on_fly src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly_small_X.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
 ```
 Or run it the cluster with
 ```bash

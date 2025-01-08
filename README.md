@@ -40,7 +40,7 @@ pip install -e . [dev,visu]
 #### First run
 You can run a debug script with the following command:
 ```bash
-python -m src.apps.gssm.train_on_fly src/apps/gssm/configs/onfly.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/onfly.yaml
 ```
 In this online setting, data are generated on the fly. 
 The configuration file `debug.yaml` is a simple configuration file that will run a simple experiment.
@@ -84,7 +84,7 @@ root/
 #### Command summary
 To summarize the commands, for training while generating data on the fly:
 ```bash
-python -m src.apps.gssm.train_on_fly src/apps/gssm/configs/debug/onfly.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/debug/onfly.yaml
 ```
 For generating data first, and then training from them:
 ```bash

@@ -49,8 +49,8 @@ sbatch src/apps/gssm/configs/experiment1/difficulty.sh
 #### Run with infinite data
 After choosing two pairs, you can generate a training run where you generate new data on the fly.
 ```bash
-python -m src.apps.gssm.train_on_fly src/apps/gssm/configs/experiment1/onfly_small_X.yaml
-python -m src.apps.gssm.train_on_fly src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly_small_X.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
 ```
 Or run it the cluster with
 ```bash

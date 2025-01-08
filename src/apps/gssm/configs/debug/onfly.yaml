@@ -5,7 +5,7 @@ launcher:
   overwrite: true
   log_dir: $HOME/logs/debug_onfly
 
-  script: src.apps.gssm.train_on_fly
+  script: src.apps.gssm.train_onfly
 
   slurm:
     nodes: 1
