@@ -10,15 +10,15 @@ launcher:
 
   slurm:
     nodes: 1
-    nb_gpus: 1        # use torchrun, or slurm, for multi-gpu runs
+    nb_gpus: 8        # use torchrun, or slurm, for multi-gpu runs
     time: 10          # job time in minutes
     signal_time: 60   # alert time in seconds
 
   grid:
     model:
+      emb_dim: [36, 72, 144, 288]
       nb_heads: [2, 4, 8, 12]
       nb_layers: [2, 4, 8, 12]
-      emb_dim: [32, 64, 128, 256]
 
     data:
       batch_size: [1, 2, 4, 8, 16, 32, 64]
@@ -40,7 +40,7 @@ run_config:
 
   model:
     vocab_size: 64
-    emb_dim: 256
+    emb_dim: 288
     nb_layers: 12
     nb_heads: 12
 
