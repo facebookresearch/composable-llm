@@ -24,6 +24,17 @@ Or on the cluster with
 sbatch src/apps/gssm/configs/experiment0/difficulty.sh
 ```
 
+For example, with 32 observable tokens and four hidden nodes with four states, one can flag
+```yaml
+setup1: {alpha_X: 1e-3, alpha_Z: 0.125, difficulty: 0.74},
+setup2: {alpha_X: 5e-2, alpha_Z: 1e-3, difficulty: 0.72}
+```
+While with 64 observable tokens and eight hidden nodes with four states, one can flag
+```yaml
+setup1: {alpha_X: 1e-3, alpha_Z: 4e-3, difficulty: 0.74},
+setup2: {alpha_X: 2e-3, alpha_Z: 1e-3, difficulty: 0.73}
+```
+
 #### Second experiments: GPU utilization
 Maximize the batch size to utilize fully memory.
 This would ensure high GPU utilization.
@@ -39,14 +50,33 @@ gpt2-xl:      {n_layer: 48, n_head: 25, n_embd: 1600}, # 1558M params
 vocab size: 50304 
 ```
 
-First I debug it locally on P100 GPUs.
+First I debug it locally on P100 GPUs, with a single GPU
 ```
 python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment0/utilization_small.yaml
 ```
+With a two GPUs
+```
+OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment0/utilization_small.yaml
+```
+I found the that the following saturate memory, and lead to 98% GPU utilization (which I check with the heavy profiler):
+```yaml
+cluster:
+    mem: 16G
+data:
+    seq_len: 2048
+    batch_size: 16
+model:
+    vocab_size: 32
+    emb_dim: 288
+    nb_layers: 12
+    nb_heads: 12
+```
 
-I will launch this on V100 GPUs.
+#### Third experiments: Learning range
 
+TODO: I (Vivien) have here
 
+Let us know look at data to learn
 Learn first with infinite data.
 Check how many optimization steps, which learning rates, are needed to converge, and what model size is needed to achieve the lowest possible error.
 
@@ -54,42 +84,3 @@ Repeat the experiments with fixed dataset size.
 
 #### Play with various graphs and models size
 This is to check that the hyperparameters work well in various settings.
-
-<!-- #### Set difficulty level
-Then determine some equivalent pairs for `(alpha_X, alpha_Z)` with a small `alpha_X` and a big `alpha_Z`, and a big `alpha_X` and a small `alpha_Z`.
-This could be done by running
-```bash
-python -m src.apps.gssm.difficulty src/apps/gssm/configs/experiment1/difficulty.yaml
-```
-Or run on the cluster with
-```bash
-sbatch src/apps/gssm/configs/experiment1/difficulty.sh
-```
-
-#### Run with infinite data
-After choosing two pairs, you can generate a training run where you generate new data on the fly.
-```bash
-python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly_small_X.yaml
-python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
-```
-Or run it the cluster with
-```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/onfly_small_X.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
-```
-
-#### Generate finite data
-You may equally fix the number of data in advance by running
-```bash
-python -m src.apps.gssm.data src/apps/gssm/configs/experiment1/data.yaml
-```
-Before running the training with these data
-```bash
-python -m src.apps.gssm.train src/apps/gssm/configs/experiment1/small_X.yaml
-python -m src.apps.gssm.train src/apps/gssm/configs/experiment1/small_Z.yaml
-```
-You can also run it on the cluster with
-```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/small_X.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/small_Z.yaml
-``` -->
