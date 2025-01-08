@@ -1,0 +1,112 @@
+# First experiments:
+# Debugging configuration
+
+launcher:
+  name: exp0_onfly_small
+  overwrite: true
+  log_dir: $HOME/logs/exp0/onfly_small
+
+  script: src.apps.gssm.train_onfly
+
+  slurm:
+    nodes: 1
+    nb_gpus: 8        # use torchrun, or slurm, for multi-gpu runs
+    time: 10          # job time in minutes
+    signal_time: 60   # alert time in seconds
+
+  grid:
+    model:
+      emb_dim: [36, 72, 144, 288]
+      nb_heads: [2, 4, 8, 12]
+      nb_layers: [2, 4, 8, 12]
+
+    optim:
+      lr: [1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1]
+
+
+run_config:
+  cluster:
+    compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
+
+  data:
+    seq_len: 2048
+    batch_size: 16  # set this as big as possible to saturate your gpu memory
+    seed: 42
+    gssm:
+      nodes:
+      - name: Z1
+        state_dim: 4
+        parents: [X]
+        alpha: 0.125
+      - name: Z2
+        state_dim: 4
+        parents: [X]
+        alpha: 0.125
+      - name: Z3
+        state_dim: 4
+        parents: [X]
+        alpha: 0.125
+      - name: Z4
+        state_dim: 4
+        parents: [X]
+        alpha: 0.125
+      - name: X
+        state_dim: 32
+        parents: [Z1, Z2, Z3, Z4]
+        alpha: 1e-3
+      # nodes:
+      # - name: Z1
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z2
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z3
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z4
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: X
+      #   state_dim: 32
+      #   parents: [Z1, Z2, Z3, Z4]
+      #   alpha: 1e-3
+
+  model:
+    vocab_size: 32
+    emb_dim: 288
+    nb_heads: 12
+    nb_layers: 12
+    vocab_size: 32
+
+  optim:
+    steps: 1000
+    lr: 1e-2
+    weight_decay: 0
+    scheduler: constant
+
+  orchestration:
+    utils:
+      seed: 100
+
+    checkpoint:
+      period: 100
+      keep_only: 3
+
+    logging:
+      period: 1
+      level: info
+
+    profiler:
+      active: true
+      heavy: true
+      wait: 1
+      steps: 10
+
+    wandb:
+      active: true
+      project: exp0

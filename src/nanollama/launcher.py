@@ -253,7 +253,7 @@ export OMP_NUM_THREADS=1
 """
 
 
-def launch_job(config: LauncherConfig, run_config: Any) -> None:
+def launch_job(config: LauncherConfig, file_config: Any) -> None:
     """
     Launch a job on a Slurm cluster.
 
@@ -266,6 +266,7 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
     """
     # alias
     slurm = config.slurm
+    run_config = file_config["run_config"]
 
     # logging directory
     log_dir = Path(config.log_dir)
@@ -301,15 +302,16 @@ def launch_job(config: LauncherConfig, run_config: Any) -> None:
 
         for i, nested_config in enumerate(all_configs, start=1):
             config_path = config_dir / f"{i}.yaml"
+            file_config["run_config"] = nested_config
             with open(config_path, "w") as f:
-                yaml.dump(nested_config, f, default_flow_style=False)
+                yaml.dump(file_config, f, default_flow_style=False)
 
         slurm_extra = f"#SBATCH --array=1-{i}\n"
         config_path = config_dir / "$SLURM_ARRAY_TASK_ID.yaml"
     else:
         config_path = config_dir / "0.yaml"
         with open(config_path, "w") as f:
-            yaml.dump(run_config, f, default_flow_style=False)
+            yaml.dump(file_config, f, default_flow_style=False)
 
         slurm_extra = ""
         config_path = config_dir / "0.yaml"

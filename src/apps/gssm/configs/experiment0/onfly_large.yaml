@@ -2,9 +2,9 @@
 # Debugging configuration
 
 launcher:
-  name: exp1_onfly_small_Z
+  name: exp0_onfly_large
   overwrite: true
-  log_dir: $HOME/logs/exp1/onfly_small_Z_cosine
+  log_dir: $HOME/logs/exp0/onfly_large
 
   script: src.apps.gssm.train_onfly
 
@@ -16,72 +16,86 @@ launcher:
 
 run_config:
   cluster:
-    compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
+    compile_model: false
 
   data:
-    seq_len: 2048
-    batch_size: 16  # set this as big as possible to saturate your gpu memory
+    seq_len: 4096
+    batch_size: 8
     seed: 42
     gssm:
       nodes:
       - name: Z1
         state_dim: 4
         parents: [X]
-        alpha: 1e-2
+        alpha: 4e-3
       - name: Z2
         state_dim: 4
         parents: [X]
-        alpha: 1e-2
+        alpha: 4e-3
       - name: Z3
         state_dim: 4
         parents: [X]
-        alpha: 1e-2
+        alpha: 4e-3
       - name: Z4
         state_dim: 4
         parents: [X]
-        alpha: 1e-2
-      - name: X
-        state_dim: 32
-        parents: [Z1, Z2, Z3, Z4]
-        alpha: 1e-1
-
-      nodes:
-      - name: Z1
-        state_dim: 4
-        parents: [X]
-        alpha: 1e-2
-      - name: Z2
-        state_dim: 4
-        parents: [X]
-        alpha: 1e-2
-      - name: Z3
-        state_dim: 4
-        parents: [X]
-        alpha: 1e-2
-      - name: Z4
-        state_dim: 4
-        parents: [X]
-        alpha: 1e-2
+        alpha: 4e-3
       - name: Z5
         state_dim: 4
         parents: [X]
-        alpha: 1e-2
+        alpha: 4e-3
       - name: Z6
         state_dim: 4
         parents: [X]
-        alpha: 1e-2
+        alpha: 4e-3
       - name: Z7
         state_dim: 4
         parents: [X]
-        alpha: 1e-2
+        alpha: 4e-3
       - name: Z8
         state_dim: 4
         parents: [X]
-        alpha: 1e-2
+        alpha: 4e-3
       - name: X
         state_dim: 64
         parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
-        alpha: 1e-1
+        alpha: 1e-3
+      # - name: Z1
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z2
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z3
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z4
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z5
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z6
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z7
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: Z8
+      #   state_dim: 4
+      #   parents: [X]
+      #   alpha: 1e-3
+      # - name: X
+      #   state_dim: 64
+      #   parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+      #   alpha: 2e-3
 
   model:
     vocab_size: 32

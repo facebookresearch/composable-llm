@@ -4,6 +4,7 @@
 .ruff_cache
 *.egg-info
 *__pycache__
+.nfs*
 
 # Checkpointing and runs
 logs/

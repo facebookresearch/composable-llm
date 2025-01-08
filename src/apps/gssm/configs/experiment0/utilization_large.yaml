@@ -30,11 +30,11 @@ run_config:
   data:
     seq_len: 4096
     seed: 42
-    batch_size: 16
+    batch_size: 8
     gssm:
       nodes:
       - name: X
-        state_dim: 32
+        state_dim: 64
         parents: [X]
         alpha: 1e-1
 

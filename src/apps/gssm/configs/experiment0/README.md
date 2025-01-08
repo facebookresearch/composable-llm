@@ -74,13 +74,15 @@ model:
 
 #### Third experiments: Learning range
 
-TODO: I (Vivien) have here
+First grid run to look for a good range of hyperparameters.
+How big the model should be to learn? How many optimization steps are needed?
+```
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment0/onfly_small.yaml
+```
+I have started in a setting with 262144 tokens (nb_gpus * batch_size * seq_len * grad_acc = 8 * 16 * 2048 * 1 = 262144) per optimization steps.
+I have started with new data being generated for each batch (on the fly).
 
-Let us know look at data to learn
-Learn first with infinite data.
-Check how many optimization steps, which learning rates, are needed to converge, and what model size is needed to achieve the lowest possible error.
-
-Repeat the experiments with fixed dataset size.
+I will later repeat the experiments with a fixed dataset size, and with a different data generating model.
 
 #### Play with various graphs and models size
 This is to check that the hyperparameters work well in various settings.
