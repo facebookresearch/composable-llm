@@ -58,7 +58,7 @@ With a two GPUs
 ```
 OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment0/utilization_small.yaml
 ```
-I found the that the following saturate memory, and lead to 98% GPU utilization (which I check with the heavy profiler):
+I found the that the following saturate memory, and lead to 98% GPU utilization (which I check by visualizing the traces of the heavy profiler with tensorboard):
 ```yaml
 cluster:
     mem: 16G
