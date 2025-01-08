@@ -3,24 +3,9 @@
 Compute entropy in close form.
 Think about the entropy baseline for "in-context learning" experiments.
 
-#### Vivien's Current TODO
+- [ ] Make first experimental runs.
+- [ ] Find range of hyperparameters for our study.
 
-- [ ] Make a simple scheduler that keep a constant learning rate.
-    - log the learning rate
-
-- [ ] Make a first experiments.
-    - Ensure full utilization of GPU.
-    - Log relevant metrics
-    - Write visualization tools
-
-- [ ] Write visualization scripts/notebooks to visualize logs without wandb.
-    - Option to log metrics to wandb after the end of a run.
-
-- [ ] Implement a probe to log activations, and so on.
-
-#### Scaling law with respect to model size
-
-#### Scaling law with respect to the number of data
 
 #### Further improvements
 Improvement for `model.py`
