@@ -90,15 +90,22 @@ def init_scheduler(optimizer: Optimizer, config: OptimizerConfig) -> lr_schedule
     """
     Initialize the scheduler state
     """
-    scheduler = lr_scheduler.LambdaLR(
-        optimizer,
-        partial(
-            lr_cosine,
-            warmup=config.warmup,
-            steps=config.steps,
-            min_ratio=config.lr_min_ratio,
-        ),
-    )
+    if config.scheduler == "cosine":
+        scheduler = lr_scheduler.LambdaLR(
+            optimizer,
+            partial(
+                lr_cosine,
+                warmup=config.warmup,
+                steps=config.steps,
+                min_ratio=config.lr_min_ratio,
+            ),
+        )
+
+    if config.scheduler == "constant":
+        scheduler = lr_scheduler.LambdaLR(
+            optimizer,
+            lambda step: 1.0,
+        )
     return scheduler
 
 
