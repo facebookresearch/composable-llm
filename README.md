@@ -30,9 +30,16 @@ git clone <repo url>
 cd <repo path>
 pip install -e .
 ```
-If you want to install the development and visualization dependencies, you can swap the previous command for the following one:
+If you want to install the development, visualization and mamba dependencies, you can swap the previous command for the following one:
 ```bash
-pip install -e . [dev,visu]
+pip install -e .[dev,mamba,visu]
+```
+
+For mamba, `conv_1d` can be a bit hard to load. You may want to load environment variables with:
+```bash
+module load cuda/12.1
+export LD_LIBRARY_PATH=$(python -c "import site; print(site.getsitepackages()[0] + '/nvidia/nvjitlink/lib')"):$LD_LIBRARY_PATH
+pip install -e .[mamba]
 ```
 
 ## Using the codebase
@@ -40,7 +47,7 @@ pip install -e . [dev,visu]
 #### First run
 You can run a debug script with the following command:
 ```bash
-python -m src.apps.gssm.train_onfly src/apps/gssm/configs/onfly.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/debug/onfly.yaml
 ```
 In this online setting, data are generated on the fly. 
 The configuration file `debug.yaml` is a simple configuration file that will run a simple experiment.
@@ -79,7 +86,6 @@ root/
 ├── stdout/: logs of the stdout
 └── tasks/{id}.yaml: configuration files
 ```
-
 
 #### Command summary
 To summarize the commands, for training while generating data on the fly:
