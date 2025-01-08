@@ -13,7 +13,7 @@ launcher:
     nb_gpus: 8
     time: 1440        # job time in minutes
     signal_time: 120  # alert time in seconds
-    constraint: V100
+    # constraint: v100
 
   grid:
     model:
@@ -75,7 +75,7 @@ run_config:
       # - name: X
       #   state_dim: 32
       #   parents: [Z1, Z2, Z3, Z4]
-      #   alpha: 1e-3
+      #   alpha: 5e-2
 
   model:
     vocab_size: 32

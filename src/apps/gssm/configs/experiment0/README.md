@@ -36,8 +36,7 @@ setup2: {alpha_X: 2e-3, alpha_Z: 1e-3, difficulty: 0.73}
 ```
 
 #### Second experiments: GPU utilization
-Maximize the batch size to utilize fully memory.
-This would ensure high GPU utilization.
+Maximize the batch size to utilize fully memory, this would ensure high GPU utilization.
 You can check GPU utilization through the pytorch profiler (called `heavy profiler` in this codebase).
 
 I will take the biggest model I may consider with 12 layers, 12 heads per layer, 256 embedding dimension, and four times this for the hidden dimension.
@@ -52,11 +51,11 @@ vocab size: 50304
 
 First I debug it locally on P100 GPUs, with a single GPU
 ```
-python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment0/utilization_small.yaml
+python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment0/onfly_small.yaml
 ```
 With a two GPUs
 ```
-OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment0/utilization_small.yaml
+OMP_NUM_THREADS=1 torchrun --nproc-per-node 2 -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment0/onfly_small.yaml
 ```
 I found the that the following saturate memory, and lead to 98% GPU utilization (which I check by visualizing the traces of the heavy profiler with tensorboard):
 ```yaml
