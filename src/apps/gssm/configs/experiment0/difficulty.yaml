@@ -1,0 +1,150 @@
+# First experiments:
+# Debugging configuration
+
+small:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/exp0/difficulty/small.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+
+large:
+  seq_len: 4096
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/exp0/difficulty/large.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: Z5
+      state_dim: 4
+      parents: [X]
+    - name: Z6
+      state_dim: 4
+      parents: [X]
+    - name: Z7
+      state_dim: 4
+      parents: [X]
+    - name: Z8
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 64
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+
+small_refined:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/exp0/difficulty/small_refined.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+
+large_refined:
+  seq_len: 4096
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/exp0/difficulty/large_refined.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: Z5
+      state_dim: 4
+      parents: [X]
+    - name: Z6
+      state_dim: 4
+      parents: [X]
+    - name: Z7
+      state_dim: 4
+      parents: [X]
+    - name: Z8
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 64
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
