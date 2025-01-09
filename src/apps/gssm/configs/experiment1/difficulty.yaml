@@ -1,6 +1,6 @@
-# Run with the `difficulty` script
-# python -m src.apps.gssm.difficulty src/apps/gssm/experiments/exp1_alpha.yaml
 # Script to fit the pairs (alpha_X, alpha_Z) for the first experiment
+# Run with the `difficulty` script
+# python -m src.apps.gssm.difficulty <path to this file>
 
 small:
   seq_len: 2048

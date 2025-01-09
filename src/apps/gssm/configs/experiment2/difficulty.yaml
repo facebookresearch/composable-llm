@@ -1,6 +1,6 @@
-# Run with the `difficulty` script
-# python -m src.apps.gssm.difficulty src/apps/gssm/experiments/exp1_alpha.yaml
 # Script to fit the pairs (alpha_X, alpha_Z) for the first experiment
+# Run with the `difficulty` script
+# python -m src.apps.gssm.difficulty <path to this file>
 
 one_node:
   seq_len: 2048
@@ -10,9 +10,9 @@ one_node:
     num: 1
     min: 1e-3
   alpha_Z:
+    num: 20
     min: 1e-3
     max: 1e1
-    num: 20
   path: $HOME/logs/exp2/difficulty/one_node.jsonl
   gssm:
     nodes:
@@ -31,9 +31,9 @@ two_nodes:
     num: 1
     min: 1e-3
   alpha_Z:
+    num: 20
     min: 1e-3
     max: 1e1
-    num: 20
   path: $HOME/logs/exp2/difficulty/two_nodes.jsonl
   gssm:
     nodes:
@@ -55,9 +55,9 @@ four_nodes:
     num: 1
     min: 1e-3
   alpha_Z:
+    num: 20
     min: 1e-3
     max: 1e1
-    num: 20
   path: $HOME/logs/exp2/difficulty/four_nodes.jsonl
   gssm:
     nodes:
@@ -85,9 +85,9 @@ eight_nodes:
     num: 1
     min: 1e-3
   alpha_Z:
+    num: 20
     min: 1e-3
     max: 1e1
-    num: 20
   path: $HOME/logs/exp2/difficulty/eight_nodes.jsonl
   gssm:
     nodes:

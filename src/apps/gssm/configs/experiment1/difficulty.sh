@@ -13,12 +13,12 @@
 #SBATCH --gres=gpu:0
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=16G
-#SBATCH --array=1-500
+#SBATCH --array=1-50
 #SBATCH --time=1:00:00
 
 # activate conda environment
 eval "$(/private/home/vivc/miniconda/bin/conda shell.bash hook)"
-conda activate /private/home/vivc/miniconda/envs/llm
+conda activate /private/home/vivc/miniconda/envs/slm
 
 # go to code directory
 export PATH_TO_CODE_DIR=/private/home/vivc/code/composable-llm
@@ -32,4 +32,4 @@ fi
 
 echo "Running task $SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
 
-python -m apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment0/difficulty.yaml 
+python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment1/difficulty.yaml 

@@ -169,7 +169,7 @@ def estimate_difficulty(config: DifficultyEstimationConfig, task_id: int = 1, nb
             "alpha_X": alpha_X,
             "alpha_Z": alpha_Z,
         }
-        logger.info(f"Difficulty: {difficulty["difficulty"]:.2f}")
+        logger.info(f"Difficulty: {difficulty['difficulty']:.2f}")
 
         with open(config.path, "a") as f:
             print(json.dumps(difficulty), file=f, flush=True)

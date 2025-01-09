@@ -14,13 +14,27 @@ Choose a emission concentration parameter `alpha_X`.
 
 #### Set difficulty level
 Then determine some equivalent `alpha_Z` for various graphs.
-This could be done by running
+
+Gzip compression should give us a idea of how hard a problem is.
+If the compression ratio is above 98%, we may consider it as an almost impossible problem, as their is not much structure to leverage for learning algorithms to show their strenght.
+I would assume that a compression ratio aroudnd 75% would be a good starting point for a hard problem that is still `learnable`, in the sense that various learning algorithm will perform differently.
+This 75% could change later if we realize that it was not a good target.
+
+The experiment can be launched locally with
 ```bash
-python -m src.apps.gssm.difficulty src/apps/gssm/configs/experiment2/difficulty.yaml
+bash src/apps/gssm/configs/experiment2/difficulty.sh
 ```
-Or run on the cluster with
+Or on the cluster with
 ```bash
-sbtach src/apps/gssm/configs/experiment2/difficulty.sh
+sbatch src/apps/gssm/configs/experiment2/difficulty.sh
+```
+
+One can flag the following configurations:
+```yaml
+one_node:    {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.0087}
+two_nodes:   {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.058}
+four_nodes:  {"difficulty": 0.74, "alpha_X": 0.001, "alpha_Z": 0.14}
+eight_nodes: {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.267}
 ```
 
 #### Run with infinite data
