@@ -58,6 +58,7 @@ class TransformerConfig:
         assert self.emb_dim, "embedding dimension should be specified"
         assert self.nb_heads, "number of heads should be specified"
         assert self.nb_layers, "number of layers should be specified"
+        assert self.emb_dim // (2 * self.nb_heads), "embedding dimension should be divisible by 2 * number of heads"
 
 
 # -----------------------------------------------------------------------------
