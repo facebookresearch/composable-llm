@@ -1,19 +1,20 @@
-# Second experiment
+# Script to fit the pairs (alpha_X, alpha_Z) for the first experiment
+# Run with the `difficulty` script
+# python -m src.apps.gssm.difficulty <path to this file>
 
-**Question:**
-Does a transformer do better with a independent latent variables?
-
-**Layman Question**
-Does a transformer benefit of mechanisms/subskills to be independent?
-
-**How to interpret the results:**
-Edges between nodes mean dependent mechanisms.
-
-## Experiment order
-#### Choose a graph
-First choose a graph. By default, I would set it to be (with our configuration notation):
-```yaml
-gssm:
+easy:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 2.5e-1
+  path: $HOME/logs/exp3/difficulty/easy.jsonl
+  gssm:
+    nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
@@ -41,11 +42,20 @@ gssm:
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
-      alpha: 1e-3
-```
-Then add edges
-```yaml
-gssm:
+
+medium:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 2.5e-1
+  path: $HOME/logs/exp3/difficulty/medium.jsonl
+  gssm:
+    nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
@@ -73,11 +83,20 @@ gssm:
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
-      alpha: 1e-3
-```
-And more
-```yaml
-gssm:
+
+hard:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 2.5e-1
+  path: $HOME/logs/exp3/difficulty/hard.jsonl
+  gssm:
+    nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
@@ -105,11 +124,20 @@ gssm:
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
-      alpha: 1e-3
-```
-And more
-```yaml
-gssm:
+
+dense:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 2.5e-1
+  path: $HOME/logs/exp3/difficulty/dense.jsonl
+  gssm:
+    nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
@@ -137,19 +165,3 @@ gssm:
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
-      alpha: 1e-3
-```
-
-Find the equivalent `alpha_Z` and perform the same steps as before.
-
-Interestingly, it seems that the compression rate does not depend on the edges.
-
-#### Run with infinite data
-After choosing pairs, you can generate a training run where you generate new data on the fly.
-You may run it on a cluster with
-```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/onfly_easy.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/onfly_medium.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/onfly_hard.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/onfly_dense.yaml
-```
