@@ -1,6 +1,3 @@
-# First experiments:
-# Debugging configuration
-
 launcher:
   name: exp0_onfly_small
   overwrite: true
@@ -55,34 +52,12 @@ run_config:
         state_dim: 32
         parents: [Z1, Z2, Z3, Z4]
         alpha: 1e-3
-      # nodes:
-      # - name: Z1
-      #   state_dim: 4
-      #   parents: [X]
-      #   alpha: 1e-3
-      # - name: Z2
-      #   state_dim: 4
-      #   parents: [X]
-      #   alpha: 1e-3
-      # - name: Z3
-      #   state_dim: 4
-      #   parents: [X]
-      #   alpha: 1e-3
-      # - name: Z4
-      #   state_dim: 4
-      #   parents: [X]
-      #   alpha: 1e-3
-      # - name: X
-      #   state_dim: 32
-      #   parents: [Z1, Z2, Z3, Z4]
-      #   alpha: 5e-2
 
   model:
     vocab_size: 32
     emb_dim: 288
     nb_heads: 12
     nb_layers: 12
-    vocab_size: 32
 
   optim:
     steps: 1000

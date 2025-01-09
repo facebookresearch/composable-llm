@@ -1,6 +1,3 @@
-# First experiments:
-# Debugging configuration
-
 launcher:
   name: exp0_onfly_large
   overwrite: true

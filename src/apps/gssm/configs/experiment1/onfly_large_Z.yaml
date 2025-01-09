@@ -1,7 +1,7 @@
 launcher:
-  name: exp1_onfly_small_Z
+  name: onfly_large_Z
   overwrite: true
-  log_dir: $HOME/logs/exp1/onfly_small_Z
+  log_dir: $HOME/logs/exp1/onfly_large_Z
 
   script: src.apps.gssm.train_onfly
 
@@ -25,8 +25,8 @@ run_config:
     compile_model: true
 
   data:
-    seq_len: 2048
-    batch_size: 16
+    seq_len: 4096
+    batch_size: 8
     seed: 42
     gssm:
       nodes:
@@ -46,10 +46,26 @@ run_config:
         state_dim: 4
         parents: [X]
         alpha: 1e-3
+      - name: Z5
+        state_dim: 4
+        parents: [X]
+        alpha: 1e-3
+      - name: Z6
+        state_dim: 4
+        parents: [X]
+        alpha: 1e-3
+      - name: Z7
+        state_dim: 4
+        parents: [X]
+        alpha: 1e-3
+      - name: Z8
+        state_dim: 4
+        parents: [X]
+        alpha: 1e-3
       - name: X
-        state_dim: 32
-        parents: [Z1, Z2, Z3, Z4]
-        alpha: 5e-2
+        state_dim: 64
+        parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+        alpha: 2e-3
 
   model:
     emb_dim: 288
@@ -75,7 +91,7 @@ run_config:
       level: info
 
     profiler:
-      active: false
+      active: true
       wait: 1
       steps: -1
 

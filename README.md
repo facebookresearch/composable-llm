@@ -35,7 +35,7 @@ If you want to install the development, visualization and mamba dependencies, yo
 pip install -e .[dev,mamba,visu]
 ```
 
-For mamba, `conv_1d` can be a bit hard to load. You may want to load environment variables with:
+For mamba, `causal_conv1d` can be a bit hard to load. You may want to load environment variables with:
 ```bash
 module load cuda/12.1
 export LD_LIBRARY_PATH=$(python -c "import site; print(site.getsitepackages()[0] + '/nvidia/nvjitlink/lib')"):$LD_LIBRARY_PATH

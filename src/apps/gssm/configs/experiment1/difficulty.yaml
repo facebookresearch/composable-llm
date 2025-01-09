@@ -2,18 +2,19 @@
 # python -m src.apps.gssm.difficulty src/apps/gssm/experiments/exp1_alpha.yaml
 # Script to fit the pairs (alpha_X, alpha_Z) for the first experiment
 
-small_alpha_X:
+small:
   seq_len: 2048
   seed: 42
   batch_size: 1024
   alpha_X:
-    num: 1
     min: 1e-3
+    max: 1e1
+    num: 20
   alpha_Z:
     min: 1e-3
     max: 1e1
     num: 20
-  path: $HOME/logs/exp1/difficulty/small_alpha_X.jsonl
+  path: $HOME/logs/exp1/difficulty/small.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -32,18 +33,62 @@ small_alpha_X:
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4]
 
-small_alpha_Z:
-  seq_len: 2048
+large:
+  seq_len: 4096
   seed: 42
   batch_size: 1024
   alpha_X:
-    num: 20
     min: 1e-3
     max: 1e1
+    num: 20
   alpha_Z:
     min: 1e-3
-    num: 1
-  path: $HOME/logs/exp1/difficulty/small_alpha_Z.jsonl
+    max: 1e1
+    num: 20
+  path: $HOME/logs/exp1/difficulty/large.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: Z5
+      state_dim: 4
+      parents: [X]
+    - name: Z6
+      state_dim: 4
+      parents: [X]
+    - name: Z7
+      state_dim: 4
+      parents: [X]
+    - name: Z8
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 64
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+
+small_refined:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/exp1/difficulty/small_refined.jsonl
   gssm:
     nodes:
     - name: Z1
@@ -61,3 +106,46 @@ small_alpha_Z:
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4]
+
+large_refined:
+  seq_len: 4096
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/exp1/difficulty/large_refined.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: Z5
+      state_dim: 4
+      parents: [X]
+    - name: Z6
+      state_dim: 4
+      parents: [X]
+    - name: Z7
+      state_dim: 4
+      parents: [X]
+    - name: Z8
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 64
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]

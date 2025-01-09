@@ -73,7 +73,7 @@ class OrchestratorConfig:
             path = log_dir / "stdout"
             path.mkdir(parents=True, exist_ok=True)
             with open(path / "id_mapping", "a") as f:
-                f.write(f"task {self.task_id}: {job_id}\n")
+                f.write(f"task {task_id}: {job_id}\n")
 
         # check validity of submodule
         for module in self.__dict__.values():
