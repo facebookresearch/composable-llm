@@ -37,8 +37,8 @@ class UtilityManager(Monitor):
         # set seed
         torch.manual_seed(self.seed)
         torch.cuda.manual_seed_all(self.seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        # torch.backends.cudnn.deterministic = True
+        # torch.backends.cudnn.benchmark = False
 
         # disable garbage collection
         gc.disable()
