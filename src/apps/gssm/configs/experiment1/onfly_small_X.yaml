@@ -75,7 +75,7 @@ run_config:
       level: info
 
     profiler:
-      active: false
+      active: true
       wait: 1
       steps: -1
 

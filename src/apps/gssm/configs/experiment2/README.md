@@ -38,15 +38,14 @@ eight_nodes: {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.267}
 ```
 
 #### Run with infinite data
-After choosing two pairs, you can generate a training run where you generate new data on the fly.
+After choosing pairs, you can generate a training run where you generate new data on the fly.
+You may run it on a cluster with
 ```bash
-python -m src.apps.gssm_onfly.train src/apps/gssm/configs/experiment2/onfly_four_nodes.yaml
-```
-Or run it the cluster with
-```bash
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/onfly_one_node.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/onfly_two_nodes.yaml
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/onfly_four_nodes.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/onfly_eight_nodes.yaml
 ```
-This configuration runs with four nodes, you can adjust it to test one, two or eight nodes.
 
 #### Generate finite data
 You may equally fix the number of data in advance by running

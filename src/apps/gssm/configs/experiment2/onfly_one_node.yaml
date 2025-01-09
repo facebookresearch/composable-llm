@@ -1,58 +1,61 @@
-# First experiments:
-# Debugging configuration
-
 launcher:
-  name: exp2_onfly_one_node
+  name: one_node
   overwrite: true
-  log_dir: $HOME/logs/exp2/onfly_one_node
+  log_dir: $HOME/logs/exp2/one_node
 
   script: src.apps.gssm.train_onfly
 
   slurm:
     nodes: 1
-    nb_gpus: 2        # use torchrun, or slurm, for multi-gpu runs
-    time: 10          # job time in minutes
-    signal_time: 60   # alert time in seconds
+    nb_gpus: 8
+    time: 1440        # job time in minutes
+    signal_time: 120  # alert time in seconds
+
+  grid:
+    model:
+      emb_dim: [36, 72, 144, 288]
+      nb_heads: [2, 4, 8, 12]
+      nb_layers: [2, 4, 8, 12]
+
+    optim:
+      lr: [1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1]
 
 run_config:
   cluster:
-    compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
+    compile_model: true
 
   data:
     seq_len: 2048
-    batch_size: 16  # set this as big as possible to saturate your gpu memory
+    batch_size: 16
     seed: 42
     gssm:
       nodes:
       - name: Z1
         state_dim: 256
         parents: [X]
-        alpha: !TODO!
+        alpha: 0.0087
       - name: X
         state_dim: 32
         parents: [Z1]
         alpha: 1e-3
 
   model:
-    vocab_size: 32
-    emb_dim: 64
-    nb_heads: 2
-    ffn_dim: 256
-    nb_layers: 2
+    emb_dim: 288
+    nb_heads: 12
+    nb_layers: 12
 
   optim:
-    steps: 100
+    steps: 1000
     lr: 1e-2
     weight_decay: 0
-    warmup: 0
-    lr_min_ratio: 1
+    scheduler: constant
 
   orchestration:
     utils:
       seed: 100
 
     checkpoint:
-      period: 20
+      period: 100
       keep_only: 3
 
     logging:
@@ -60,9 +63,10 @@ run_config:
       level: info
 
     profiler:
-      active: false
+      active: true
       wait: 1
       steps: -1
 
     wandb:
       active: true
+      project: exp2

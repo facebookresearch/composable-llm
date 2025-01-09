@@ -54,8 +54,10 @@ sbatch src/apps/gssm/configs/experiment1/difficulty.sh
 
 For example, with 32 observable tokens and four hidden nodes with four states, one can flag
 ```yaml
-setup1: {alpha_X: 1e-3, alpha_Z: 0.125, difficulty: 0.74},
-setup2: {alpha_X: 5e-2, alpha_Z: 1e-3, difficulty: 0.72}
+setup1: {alpha_X: 1e-3, alpha_Z: 0.125, difficulty: 0.74}, # (work less well)
+setup2: {alpha_X: 5e-2, alpha_Z: 1e-3, difficulty: 0.72},
+setup1: {alpha_X: 1e-3, alpha_Z: 0.142, difficulty: 0.74},
+setup2: {alpha_X: 5.7e-2, alpha_Z: 1e-3, difficulty: 0.75}
 ```
 While with 64 observable tokens and eight hidden nodes with four states, one can flag
 ```yaml
@@ -105,7 +107,7 @@ After choosing two pairs, you can generate a training run where you generate new
 python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly_small_X.yaml
 python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
 ```
-Or run it the cluster with
+Or run it on a cluster with
 ```bash
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/onfly_small_X.yaml
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
