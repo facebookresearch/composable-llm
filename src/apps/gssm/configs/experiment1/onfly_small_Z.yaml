@@ -1,5 +1,5 @@
 launcher:
-  name: exp1_onfly_small_Z
+  name: onfly_small_Z
   overwrite: true
   log_dir: $HOME/logs/exp1/onfly_small_Z
 
