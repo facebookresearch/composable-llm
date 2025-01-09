@@ -35,10 +35,17 @@ If you want to install the development, visualization and mamba dependencies, yo
 pip install -e .[dev,mamba,visu]
 ```
 
-For mamba, `causal_conv1d` can be a bit hard to load. You may want to load environment variables with:
+For mamba, `causal_conv1d` can be a bit hard to load, as it is built upon environment variables that are not always set.
+If you are on a cluster utilizing `module`, you may want to set `CUDA_HOME` with
 ```bash
-module load cuda/12.1
+module load cuda/<latest version>
+```
+You may instantiate the path to `nvjitlink` with
+```bash
 export LD_LIBRARY_PATH=$(python -c "import site; print(site.getsitepackages()[0] + '/nvidia/nvjitlink/lib')"):$LD_LIBRARY_PATH
+```
+You can then try to install the package with `mamba` dependencies (namely `causal_conv1d` and `mamba_ssm`)
+```bash
 pip install -e .[mamba]
 ```
 
