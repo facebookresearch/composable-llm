@@ -84,8 +84,6 @@ class TransitionKernel:
 
         self.p_transition = self.rng.dirichlet(alphas, size=fan_in)
 
-        print(self.p_transition.size)
-
         # in the `slow` mode, argmax p(state[t+1] | state[t], parents) = x
         if self.mode == "slow":
             index = np.arange(fan_in)

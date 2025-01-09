@@ -3,7 +3,7 @@
 **Question:**
 Does a transformer do better with slow evolving features, or with a dead mode?
 
-#### Choose a graph
+## Experiment order
 First choose a graph. By default, I would set it to be (with our configuration notation):
 ```yaml
 gssm:
@@ -98,3 +98,19 @@ gssm:
 ```
 
 Find the equivalent `alpha_Z` and perform the same steps as before.
+
+One may flag
+```yaml
+base:    {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.267}
+slow:    {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.345}
+dead:    {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.395}
+context: {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.07}
+```
+
+Experiments can be launched with
+```bash
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/onfly_base.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/onfly_slow.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/onfly_dead.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/onfly_context.yaml
+```

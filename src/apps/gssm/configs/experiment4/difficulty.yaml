@@ -2,7 +2,7 @@
 # Run with the `difficulty` script
 # python -m src.apps.gssm.difficulty <path to this file>
 
-one_node:
+base:
   seq_len: 2048
   seed: 42
   batch_size: 1024
@@ -10,74 +10,40 @@ one_node:
     num: 1
     min: 1e-3
   alpha_Z:
-    num: 20
-    min: 1e-3
-    max: 1e1
-  path: $HOME/logs/exp2/difficulty/one_node.jsonl
-  gssm:
-    nodes:
-    - name: Z1
-      state_dim: 256
-      parents: [X]
-    - name: X
-      state_dim: 32
-      parents: [Z1]
-
-two_nodes:
-  seq_len: 2048
-  seed: 42
-  batch_size: 1024
-  alpha_X:
     num: 1
-    min: 1e-3
-  alpha_Z:
-    num: 20
-    min: 1e-3
-    max: 1e1
-  path: $HOME/logs/exp2/difficulty/two_nodes.jsonl
+    min: 2.67e-1
+  path: $HOME/logs/exp4/difficulty/base.jsonl
   gssm:
     nodes:
     - name: Z1
-      state_dim: 16
+      state_dim: 2
       parents: [X]
     - name: Z2
-      state_dim: 16
-      parents: [X]
-    - name: X
-      state_dim: 32
-      parents: [Z1, Z2]
-
-four_nodes:
-  seq_len: 2048
-  seed: 42
-  batch_size: 1024
-  alpha_X:
-    num: 1
-    min: 1e-3
-  alpha_Z:
-    num: 20
-    min: 1e-3
-    max: 1e1
-  path: $HOME/logs/exp2/difficulty/four_nodes.jsonl
-  gssm:
-    nodes:
-    - name: Z1
-      state_dim: 4
-      parents: [X]
-    - name: Z2
-      state_dim: 4
+      state_dim: 2
       parents: [X]
     - name: Z3
-      state_dim: 4
+      state_dim: 2
       parents: [X]
     - name: Z4
-      state_dim: 4
+      state_dim: 2
+      parents: [X]
+    - name: Z5
+      state_dim: 2
+      parents: [X]
+    - name: Z6
+      state_dim: 2
+      parents: [X]
+    - name: Z7
+      state_dim: 2
+      parents: [X]
+    - name: Z8
+      state_dim: 2
       parents: [X]
     - name: X
       state_dim: 32
-      parents: [Z1, Z2, Z3, Z4]
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
 
-eight_nodes:
+slow:
   seq_len: 2048
   seed: 42
   batch_size: 1024
@@ -85,18 +51,118 @@ eight_nodes:
     num: 1
     min: 1e-3
   alpha_Z:
-    num: 20
-    min: 1e-3
-    max: 1e1
-  path: $HOME/logs/exp2/difficulty/eight_nodes.jsonl
+    num: 10
+    min: 3.4e-1
+    max: 3.5e-1
+  path: $HOME/logs/exp4/difficulty/slow.jsonl
   gssm:
     nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
+      mode: slow
     - name: Z2
       state_dim: 2
       parents: [X]
+      mode: slow
+    - name: Z3
+      state_dim: 2
+      parents: [X]
+      mode: slow
+    - name: Z4
+      state_dim: 2
+      parents: [X]
+      mode: slow
+    - name: Z5
+      state_dim: 2
+      parents: [X]
+      mode: slow
+    - name: Z6
+      state_dim: 2
+      parents: [X]
+      mode: slow
+    - name: Z7
+      state_dim: 2
+      parents: [X]
+      mode: slow
+    - name: Z8
+      state_dim: 2
+      parents: [X]
+      mode: slow
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+
+dead:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 3.95e-1
+  path: $HOME/logs/exp4/difficulty/dead.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 2
+      parents: [X]
+      mode: dead
+    - name: Z2
+      state_dim: 2
+      parents: [X]
+      mode: dead
+    - name: Z3
+      state_dim: 2
+      parents: [X]
+      mode: dead
+    - name: Z4
+      state_dim: 2
+      parents: [X]
+      mode: dead
+    - name: Z5
+      state_dim: 2
+      parents: [X]
+      mode: dead
+    - name: Z6
+      state_dim: 2
+      parents: [X]
+      mode: dead
+    - name: Z7
+      state_dim: 2
+      parents: [X]
+      mode: dead
+    - name: Z8
+      state_dim: 2
+      parents: [X]
+      mode: dead
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+
+context:
+  seq_len: 2048
+  seed: 42
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 7e-2
+  path: $HOME/logs/exp4/difficulty/context.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 2
+      parents: [X]
+      mode: context
+    - name: Z2
+      state_dim: 2
+      parents: [X]
+      mode: context
     - name: Z3
       state_dim: 2
       parents: [X]

@@ -10,7 +10,6 @@ Does a transformer benefit of mechanisms/subskills to be independent?
 Edges between nodes mean dependent mechanisms.
 
 ## Experiment order
-#### Choose a graph
 First choose a graph. By default, I would set it to be (with our configuration notation):
 ```yaml
 gssm:
