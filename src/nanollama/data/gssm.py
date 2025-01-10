@@ -122,7 +122,7 @@ class TransitionKernel:
             Next state. If state is a list, it will return a numpy array.
         """
         if isinstance(state, int):
-            return self.rng.choice(self.fan_out, p=self.p_transition[state])
+            return self.rng.choice(self.p_transition.shape[1], p=self.p_transition[state])
 
         # Convert state to a numpy array if it's a list
         if isinstance(state, list):
@@ -559,6 +559,7 @@ class OnlineDataLoader(DataLoader):
                 nodes["X"].evolve()
                 batch[:, t] = nodes["X"].state
 
+            self.rng_state = rng.bit_generator.state
             yield batch
 
     def get_restart_info(self) -> dict[str, Any]:

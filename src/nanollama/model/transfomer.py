@@ -388,7 +388,7 @@ class Transformer(nn.Module):
 
         if config.weight_tying:
             # Tying token embedding and un-embedding
-            self.output.weight = self.embeddings.token_emb.weight
+            self.output.weight = self.embeddings.weight
 
         self.reset_parameters()
 
