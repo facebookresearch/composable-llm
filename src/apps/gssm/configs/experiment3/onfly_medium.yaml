@@ -8,7 +8,8 @@ launcher:
   slurm:
     nodes: 1
     nb_gpus: 8
-    time: 1440        # job time in minutes
+    mem: 16G
+    time: 60          # job time in minutes
     signal_time: 120  # alert time in seconds
 
   grid:
