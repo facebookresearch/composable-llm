@@ -41,17 +41,11 @@ model:
     nb_heads: 12
 ```
 
-#### Third experiments: Learning range
+#### Second experiments: Learning range
 
 First grid run to look for a good range of hyperparameters.
 How big the model should be to learn? How many optimization steps are needed?
 ```bash
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment0/onfly_small.yaml
 ```
-I have started in a setting with 262144 tokens (nb_gpus * batch_size * seq_len * grad_acc = 8 * 16 * 2048 * 1 = 262144) per optimization steps.
-I have started with new data being generated for each batch (on the fly).
-
-I will later repeat the experiments with a fixed dataset size, and with a different data generating model.
-
-#### Play with various graphs and models size
-This is to check that the hyperparameters work well in various settings.
+I found that 4 heads per layer, 4 layers, 64 embedding dimensions and a learning rate of 1e-2 work well.

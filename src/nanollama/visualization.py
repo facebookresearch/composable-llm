@@ -1,6 +1,7 @@
 import csv
 import json
 from pathlib import PosixPath
+from typing import Any
 
 import numpy as np
 
@@ -9,7 +10,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 
 
-def jsonl_to_numpy(path: str) -> dict[str, np.ndarray]:
+def jsonl_to_numpy(path: str, keys: list[str]) -> dict[str, np.ndarray]:
     """
     Convert a jsonl file to a dictionnary of numpy array
 
@@ -17,27 +18,46 @@ def jsonl_to_numpy(path: str) -> dict[str, np.ndarray]:
     ----------
     path:
         Path to the jsonl file
+    keys:
+        List of keys to extract from the jsonl file
+
+    Returns
+    -------
+    A dictionnary of numpy array
     """
-    data: dict[str, list] = {}
-    updated = {}
+    data: dict[str, list] = {key: [] for key in keys}
+    with open(path) as f:
+        # read jsonl as a csv with missing values
+        for line in f:
+            values: dict[str, Any] = json.loads(line)
+            for key in keys:
+                data[key].append(values.get(key, None))
+    return {k: np.array(v) for k, v in data.items()}
+
+
+def get_keys(path: str, readall: bool = True) -> list[str]:
+    """
+    Get keys from a jsonl file
+
+    Parameters
+    ----------
+    path:
+        Path to the jsonl file
+    readall:
+        Wether to read all lines of the file or the first one only
+
+    Returns
+    -------
+    keys:
+        List of keys in the jsonl file
+    """
+    keys = set()
     with open(path) as f:
         for line in f:
-            for key, value in json.loads(line).items():
-                if key not in updated:
-                    data[key] = []
-                data[key].append(value)
-                updated[key] = True
-            for key in updated:
-                if not updated[key]:
-                    data[key].append(None)
-                updated[key] = False
-    # return {k: np.array(v) for k, v in data.items()}
-    res = {}
-    for k, v in data.items():
-        if k == "batch_idx":
-            continue
-        res[k] = np.array(v)
-    return res
+            keys |= json.loads(line).keys()
+            if not readall:
+                break
+    return list(keys)
 
 
 # -----------------------------------------------------------------------------

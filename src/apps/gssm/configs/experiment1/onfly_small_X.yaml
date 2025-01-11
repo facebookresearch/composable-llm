@@ -8,17 +8,15 @@ launcher:
   slurm:
     nodes: 1
     nb_gpus: 8
+    mem: 16G
     time: 1440        # job time in minutes
     signal_time: 120  # alert time in seconds
 
   grid:
     model:
-      emb_dim: [36, 72, 144, 288]
-      nb_heads: [2, 4, 8, 12]
-      nb_layers: [2, 4, 8, 12]
-
-    optim:
-      lr: [1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1]
+      emb_dim: [8, 16, 24, 32, 48, 64, 80, 96]
+    data:
+      seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 run_config:
   cluster:
@@ -33,28 +31,28 @@ run_config:
       - name: Z1
         state_dim: 4
         parents: [X]
-        alpha: 0.125
+        alpha: 0.142
       - name: Z2
         state_dim: 4
         parents: [X]
-        alpha: 0.125
+        alpha: 0.142
       - name: Z3
         state_dim: 4
         parents: [X]
-        alpha: 0.125
+        alpha: 0.142
       - name: Z4
         state_dim: 4
         parents: [X]
-        alpha: 0.125
+        alpha: 0.142
       - name: X
         state_dim: 32
         parents: [Z1, Z2, Z3, Z4]
         alpha: 1e-3
 
   model:
-    emb_dim: 288
-    nb_heads: 12
-    nb_layers: 12
+    emb_dim: 64
+    nb_heads: 4
+    nb_layers: 4
 
   optim:
     steps: 1000
