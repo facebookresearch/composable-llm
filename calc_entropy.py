@@ -262,7 +262,19 @@ reference_prod_transition = manual()
 def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
     """
     Here is the logic I would use to compute the transition matrix.
-    Not sure all my broadcast and reshapes are correct though.
+    Not sure all my broadcasts and reshapes are correct though.
+
+    In essence, it used the fact that for (Ai)_{i in N} N discrete variables,
+    F(A1, A2, ..., AN) can be represented as a N-D tensor
+    And a formula, e.g., with N=5,
+        F(A1, A2, ..., A5) = F1(A1, A2, A3) * F2(A4, A5)
+    can be computed by writting F1(A1, A2, A3) as a 3D tensor, broadcasting it to a 5-D tensor based on
+        F1'(A1, A2, A3, A4, A5) = F1(A1, A2, A3)
+    and similarly writting F2 as a 2D tensor being broadcast to a 5D with
+        F2'(A1, A2, A3, A4, A5) = F2(A4, A5)
+    and multiplying F1' and F2' element-wise.
+
+    In our case, the discrete elements are the states of the nodes at time t and t-1.
     """
     size = []
     keys = {}
