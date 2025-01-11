@@ -295,6 +295,8 @@ def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
         for pnode in node.parents:
             input_shape[keys[id(pnode)]] = pnode.state_dim
 
+        # bug here, we should first reshape p_transition according to (node.state_dim, *(pnode.state_dim for pnode in node.parents))
+        # then we should transpose it to have the same order as in proba.
         transition = node.kernel.p_transition.reshape((*input_shape, *output_shape))
         proba *= transition
 
