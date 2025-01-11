@@ -1,5 +1,3 @@
-!TODO!
-
 launcher:
   name: exp1_onfly_small_X
   overwrite: true
@@ -9,17 +7,23 @@ launcher:
 
   slurm:
     nodes: 1
-    nb_gpus: 2        # use torchrun, or slurm, for multi-gpu runs
-    time: 10          # job time in minutes
+    mem: 16G
+    nb_gpus: 8
+    time: 60          # job time in minutes
     signal_time: 60   # alert time in seconds
+
+  grid:
+    data:
+      n_data: [30, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
+      seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 run_config:
   cluster:
-    compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
+    compile_model: true
 
   data:
     seq_len: 2048
-    n_data: !TODO!
+    n_data: 100_000
     path: $HOME/data/composition/exp1/small_X/trainset.h5
     batch_size: 16
     seed: 0
@@ -27,31 +31,25 @@ run_config:
   model:
     vocab_size: 32
     emb_dim: 64
-    nb_heads: 2
-    ffn_dim: 256
-    nb_layers: 2
+    nb_heads: 4
+    nb_layers: 4
 
   optim:
-    steps: 100
+    steps: 1000
     lr: 1e-2
     weight_decay: 0
-    warmup: 0
-    lr_min_ratio: 1
+    scheduler: constant
 
   orchestration:
     utils:
       seed: 100
-
-    checkpoint:
-      period: 20
-      keep_only: 3
 
     logging:
       period: 1
       level: info
 
     profiler:
-      active: false
+      active: true
       wait: 1
       steps: -1
 
@@ -59,8 +57,8 @@ run_config:
       active: true
 
   evaluation:
-    period: 15
+    period: 25
     asynchronous: false
     data:
       path: $HOME/data/composition/exp1/small_X/testset.h5
-      n_data: !TODO!
+      n_data: 256
