@@ -1,7 +1,7 @@
 # %%
 import numpy as np
-from omegaconf import OmegaConf
 
+# from omegaconf import OmegaConf
 from nanollama.utils import initialize_nested_object
 from src.nanollama.data import gssm
 
@@ -51,7 +51,8 @@ class HMM:
         """
         makes an HMM from a graph config via the product state
         """
-        self.config = OmegaConf.create(config)
+        self.config = initialize_nested_object(gssm.GSSMConfig, config, inplace=False)
+        # self.config = OmegaConf.create(config)
         self.rng = np.random.default_rng(random_seed)
         self.nodes = gssm.build_gssm(self.config, self.rng)
         self.names = self._names_to_nodes(self.nodes)
@@ -249,7 +250,7 @@ def manual(hmm: HMM):
     return Tabcx_ABCX
 
 
-reference_prod_transition = manual()
+# reference_prod_transition = manual()
 
 
 # %%
@@ -283,12 +284,12 @@ def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
         keys[id(node)] = i
 
     proba = np.ones((*size, *size))
-    for name, node in nodes.items():
+    for node in nodes.values():
         input_shape = np.ones(len(nodes), dtype=int)
         output_shape = np.ones(len(nodes), dtype=int)
 
         output_shape[keys[id(node)]] = node.state_dim
-        if name != "X":
+        if not isinstance(node, gssm.ObservedNode):
             input_shape[keys[id(node)]] = node.state_dim
 
         for pnode in node.parents:
@@ -300,5 +301,8 @@ def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
     return proba
 
 
-nodes = gssm.build_gssm(initialize_nested_object(gssm.GSSMConfig, gssm_config), None)
+nodes = gssm.build_gssm(initialize_nested_object(gssm.GSSMConfig, gssm_config, inplace=False), None)
 proba = get_transition_matrix(nodes)
+
+Niklas_order = (1, 2, 3, 0, 5, 6, 7, 4)
+print(np.allclose(proba.transpose(Niklas_order), prod_transition))
