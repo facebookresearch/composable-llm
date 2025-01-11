@@ -1,7 +1,9 @@
 # %%
-from src.nanollama.data import gssm
 import numpy as np
 from omegaconf import OmegaConf
+
+from nanollama.utils import initialize_nested_object
+from src.nanollama.data import gssm
 
 # %%
 gssm_config = {
@@ -56,23 +58,21 @@ class HMM:
         self.top_node = self.nodes["X"]  # WARNING assumption
         self.topo_order = self._dfs_names(self.top_node)
         self.indexs = {self.nodes[name]: i for i, name in enumerate(self.topo_order)}
-        self.transitions = {
-            node: self._format_transition(node) for node in self.nodes.values()
-        }
+        self.transitions = {node: self._format_transition(node) for node in self.nodes.values()}
 
     def evolve_classic(self, steps):
-      for _ in range(steps):
-          self.top_node.evolve()
-      return {name: node.state for name, node in self.nodes.items()}
+        for _ in range(steps):
+            self.top_node.evolve()
+        return {name: node.state for name, node in self.nodes.items()}
 
-    def _node_init(self, node:gssm.Node, bsz, i=0):
+    def _node_init(self, node: gssm.Node, bsz, i=0):
         node.time = 0
         for parent in node.parents:
             if parent.time != 0 and not isinstance(parent, gssm.ObservedNode):
                 self._node_init(parent, bsz, i + 1)
-        node.state = np.random.randint(0,5,size=bsz,dtype=int)#(np.arange(bsz, dtype=int) + i)[::-1]
-    
-    def _init_all_nodes(self,bsz):
+        node.state = np.random.randint(0, 5, size=bsz, dtype=int)  # (np.arange(bsz, dtype=int) + i)[::-1]
+
+    def _init_all_nodes(self, bsz):
         self._node_init(self.top_node, bsz)
 
     @staticmethod
@@ -86,9 +86,8 @@ class HMM:
         def __dfs_names(node, fc=True):
             if not fc and isinstance(node, gssm.ObservedNode):
                 return [self.names[node]]
-            return [d for p in node.parents for d in __dfs_names(p, False)] + [
-                self.names[node]
-            ]
+            return [d for p in node.parents for d in __dfs_names(p, False)] + [self.names[node]]
+
         return list(dict.fromkeys(__dfs_names(node)))
 
     @staticmethod
@@ -116,15 +115,8 @@ class HMM:
 
     def one_hot_product_state(self, node):
         node_order = self._dfs_names(node)
-        einsum_str = (
-            "B"
-            + ",B".join(HMM.SYM_IN[: len(node_order)])
-            + "->B"
-            + HMM.SYM_IN[: len(node_order)]
-        )
-        product_state = np.einsum(
-            einsum_str, *[self.one_hot_state(self.nodes[name]) for name in node_order]
-        )
+        einsum_str = "B" + ",B".join(HMM.SYM_IN[: len(node_order)]) + "->B" + HMM.SYM_IN[: len(node_order)]
+        product_state = np.einsum(einsum_str, *[self.one_hot_state(self.nodes[name]) for name in node_order])
         return product_state.reshape(product_state.shape[0], -1)
 
     def product_state(self, tgt_node):
@@ -173,12 +165,8 @@ class HMM:
         einsum_prod_strs[None] = prod_input_str
         # a collection of einsum_str -> array to use for the actual einsum
         # we build the logic only with the strings and fetch the matrices from here
-        einsum_str_to_arr = {
-            prod_input_str: np.ones(state_dims)
-        }  # this is the root (for convenience)
-        einsum_str_to_arr |= {
-            s: self.transitions[node] for node, s in einsum_input_strs.items()
-        }
+        einsum_str_to_arr = {prod_input_str: np.ones(state_dims)}  # this is the root (for convenience)
+        einsum_str_to_arr |= {s: self.transitions[node] for node, s in einsum_input_strs.items()}
         # step 1 : fill the abcxX matrices
         for node in node_order:
             parents = node.parents or [None]
@@ -207,7 +195,7 @@ class HMM:
         kernel._cumulative = np.cumsum(kernel.p_transition, axis=1)
         next_state = kernel(self.product_state(self.top_node))
         return self.individual_states(next_state, self.topo_order)
-    
+
 
 # %%
 hmm = HMM(gssm_config)
@@ -220,15 +208,17 @@ data_classic = hmm.evolve_classic(1)
 
 # %%
 import matplotlib.pyplot as plt
+
 for name in data_classic:
-  plt.title(name)
-  plt.hist(data_prod[name], label="prod", alpha=.5)
-  plt.hist(data_classic[name], label="classic", alpha=.5)
-  plt.legend()
-  plt.show()
+    plt.title(name)
+    plt.hist(data_prod[name], label="prod", alpha=0.5)
+    plt.hist(data_classic[name], label="classic", alpha=0.5)
+    plt.legend()
+    plt.show()
 
 
 # %%
+
 
 # %%
 def manual(hmm: HMM):
@@ -246,20 +236,13 @@ def manual(hmm: HMM):
     Tabcx_A = np.einsum("aA,abcx->abcxA", Ta_A, Tabcx_1)
     Tabcx_B = np.einsum("bAB,abcxA->abcxB", TbA_B, Tabcx_A)
     Tabcx_C = np.einsum("cBC,abcxB->abcxC", TcB_C, Tabcx_B)
-    Tabcx_X = np.einsum(
-        "ABCX,abcxA,abcxB,abcxC->abcxX", TABC_X, Tabcx_A, Tabcx_B, Tabcx_C
-    )
+    Tabcx_X = np.einsum("ABCX,abcxA,abcxB,abcxC->abcxX", TABC_X, Tabcx_A, Tabcx_B, Tabcx_C)
     # output product_state
-    Tabcx_ABCX = np.einsum(
-        "abcxX,abcxA,abcxB,abcxC->abcxABCX", Tabcx_X, Tabcx_A, Tabcx_B, Tabcx_C
-    )
+    Tabcx_ABCX = np.einsum("abcxX,abcxA,abcxB,abcxC->abcxABCX", Tabcx_X, Tabcx_A, Tabcx_B, Tabcx_C)
 
     print(
         hmm.individual_states(
-            (
-                hmm.one_hot_product_state(hmm.nodes["X"])
-                @ hmm.square_matrix(Tabcx_ABCX)
-            ).argmax(-1),
+            (hmm.one_hot_product_state(hmm.nodes["X"]) @ hmm.square_matrix(Tabcx_ABCX)).argmax(-1),
             hmm.topo_order,
         )
     )
@@ -267,3 +250,43 @@ def manual(hmm: HMM):
 
 
 reference_prod_transition = manual()
+
+
+# %%
+
+# ---------------------------------------------------------------------
+# Vivien's code to compute the equivalent big HMM transition matrix
+# ---------------------------------------------------------------------
+
+
+def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
+    """
+    Here is the logic I would use to compute the transition matrix.
+    Not sure all my broadcast and reshapes are correct though.
+    """
+    size = []
+    keys = {}
+    for i, node in enumerate(nodes.values()):
+        size.append(node.state_dim)
+        keys[id(node)] = i
+
+    proba = np.ones((*size, *size))
+    for name, node in nodes.items():
+        input_shape = np.ones(len(nodes), dtype=int)
+        output_shape = np.ones(len(nodes), dtype=int)
+
+        output_shape[keys[id(node)]] = node.state_dim
+        if name != "X":
+            input_shape[keys[id(node)]] = node.state_dim
+
+        for pnode in node.parents:
+            input_shape[keys[id(pnode)]] = pnode.state_dim
+
+        transition = node.kernel.p_transition.reshape((*input_shape, *output_shape))
+        proba *= transition
+
+    return proba
+
+
+nodes = gssm.build_gssm(initialize_nested_object(gssm.GSSMConfig, gssm_config), None)
+proba = get_transition_matrix(nodes)

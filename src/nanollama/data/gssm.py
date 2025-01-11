@@ -243,7 +243,7 @@ class Node:
         return input_state
 
     def __repr__(self):
-        return "Node(" + " ,".join(
+        return "Node(" + ", ".join(
             [
                 f"state_dim={self.state_dim}",
                 f"state={self.state}",
@@ -321,7 +321,7 @@ class ObservedNode(Node):
         return input_state
 
     def __repr__(self):
-        return "ObservedNode(" + " ,".join(
+        return "ObservedNode(" + ", ".join(
             [
                 f"state_dim={self.state_dim}",
                 f"state={self.state}",
