@@ -549,9 +549,8 @@ class OnlineDataLoader(DataLoader):
         assert "X" in nodes, "The graph must contain a node named 'X', acting as the observed node."
         self.gssm = None
 
-        batch = np.empty((self.batch_size, self.seq_len), dtype=int)
-
         while True:
+            batch = np.empty((self.batch_size, self.seq_len), dtype=int)
             nodes["X"].initialize(self.batch_size)
 
             for t in range(self.seq_len):

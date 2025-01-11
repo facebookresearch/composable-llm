@@ -156,5 +156,3 @@ root/
 The GPUs that do not intercept the keyboard interrupt do not exit the context stack, not checkpointing their state.
 
 - Some GPUs do not seem to like the instanciation of SIGUSR1.
-
-- The asynchronous dataloader is not exactly deterministic.
