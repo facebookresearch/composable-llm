@@ -1,5 +1,3 @@
-!TODO!
-
 small_X:
   seq_len: 2048
   seed: 42
@@ -9,27 +7,27 @@ small_X:
     - name: Z1
       state_dim: 4
       parents: [X]
-      alpha: !TODO!
+      alpha: 0.142
     - name: Z2
       state_dim: 4
       parents: [X]
-      alpha: !TODO!
+      alpha: 0.142
     - name: Z3
       state_dim: 4
       parents: [X]
-      alpha: !TODO!
+      alpha: 0.142
     - name: Z4
       state_dim: 4
       parents: [X]
-      alpha: !TODO!
+      alpha: 0.142
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4]
       alpha: 1e-3
   sets:
-  - n_data: !TODO|
+  - n_data: 100_000
     path: $HOME/data/composition/exp1/small_X/trainset.h5
-  - n_data: !TODO|
+  - n_data: 10_000
     path: $HOME/data/composition/exp1/small_X/testset.h5
 
 small_Z:
@@ -57,9 +55,9 @@ small_Z:
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4]
-      alpha: !TODO!
+      alpha: 5.7e-2
   sets:
-  - n_data: !TODO|
+  - n_data: 100_000
     path: $HOME/data/composition/exp1/small_Z/trainset.h5
-  - n_data: !TODO|
+  - n_data: 10_000
     path: $HOME/data/composition/exp1/small_Z/testset.h5
