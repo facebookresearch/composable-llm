@@ -8,17 +8,14 @@ launcher:
   slurm:
     nodes: 1
     nb_gpus: 8
-    time: 1440        # job time in minutes
+    time: 60          # job time in minutes
     signal_time: 120  # alert time in seconds
 
   grid:
     model:
-      emb_dim: [36, 72, 144, 288]
-      nb_heads: [2, 4, 8, 12]
-      nb_layers: [2, 4, 8, 12]
-
-    optim:
-      lr: [1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1]
+      emb_dim: [8, 16, 24, 32, 48, 64, 80, 96]
+    data:
+      seed: [42, 0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 run_config:
   cluster:
@@ -52,9 +49,9 @@ run_config:
         alpha: 1e-3
 
   model:
-    emb_dim: 288
-    nb_heads: 12
-    nb_layers: 12
+    emb_dim: 64
+    nb_heads: 4
+    nb_layers: 4
 
   optim:
     steps: 1000
@@ -65,10 +62,6 @@ run_config:
   orchestration:
     utils:
       seed: 100
-
-    checkpoint:
-      period: 100
-      keep_only: 3
 
     logging:
       period: 1
