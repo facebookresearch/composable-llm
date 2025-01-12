@@ -1,162 +1,191 @@
-# Second experiment
-
-**Question:**
-Does a transformer do better with a independent latent variables?
-
-**Layman Question**
-Does a transformer benefit of mechanisms/subskills to be independent?
-
-**How to interpret the results:**
-Edges between nodes mean dependent mechanisms.
-
-## Experiment order
-First choose a graph. By default, I would set it to be (with our configuration notation):
-```yaml
-gssm:
+easy:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z2
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z3
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z4
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z5
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z6
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z7
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z8
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
       alpha: 1e-3
-```
-Then add edges
-```yaml
-gssm:
+  sets:
+  - n_data: 100_000
+    path: $HOME/data/composition/exp3/easy/trainset.h5
+  - n_data: 10_000
+    path: $HOME/data/composition/exp3/easy/testset.h5
+
+medium:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z2
       state_dim: 2
       parents: [X, Z1]
+      alpha: 1.25e-1
     - name: Z3
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z4
       state_dim: 2
       parents: [X, Z3]
+      alpha: 1.25e-1
     - name: Z5
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z6
       state_dim: 2
       parents: [X, Z5]
+      alpha: 1.25e-1
     - name: Z7
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z8
       state_dim: 2
       parents: [X, Z7]
+      alpha: 1.25e-1
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
       alpha: 1e-3
-```
-And more
-```yaml
-gssm:
+  sets:
+  - n_data: 100_000
+    path: $HOME/data/composition/exp3/medium/trainset.h5
+  - n_data: 10_000
+    path: $HOME/data/composition/exp3/medium/testset.h5
+
+hard:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z2
       state_dim: 2
       parents: [X, Z1]
+      alpha: 1.25e-1
     - name: Z3
       state_dim: 2
       parents: [X, Z2]
+      alpha: 1.25e-1
     - name: Z4
       state_dim: 2
       parents: [X, Z3]
+      alpha: 1.25e-1
     - name: Z5
       state_dim: 2
       parents: [X, Z4]
+      alpha: 1.25e-1
     - name: Z6
       state_dim: 2
       parents: [X, Z5]
+      alpha: 1.25e-1
     - name: Z7
       state_dim: 2
       parents: [X, Z6]
+      alpha: 1.25e-1
     - name: Z8
       state_dim: 2
       parents: [X, Z7]
+      alpha: 1.25e-1
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
       alpha: 1e-3
-```
-And more
-```yaml
-gssm:
+  sets:
+  - n_data: 100_000
+    path: $HOME/data/composition/exp3/hard/trainset.h5
+  - n_data: 10_000
+    path: $HOME/data/composition/exp3/hard/testset.h5
+
+dense:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
     - name: Z1
       state_dim: 2
       parents: [X]
+      alpha: 1.25e-1
     - name: Z2
       state_dim: 2
       parents: [X, Z1]
+      alpha: 1.25e-1
     - name: Z3
       state_dim: 2
       parents: [X, Z1, Z2]
+      alpha: 1.25e-1
     - name: Z4
       state_dim: 2
       parents: [X, Z1, Z2, Z3]
+      alpha: 1.25e-1
     - name: Z5
       state_dim: 2
       parents: [X, Z1, Z2, Z3, Z4]
+      alpha: 1.25e-1
     - name: Z6
       state_dim: 2
       parents: [X, Z1, Z2, Z3, Z4, Z5]
+      alpha: 1.25e-1
     - name: Z7
       state_dim: 2
       parents: [X, Z1, Z2, Z3, Z4, Z5, Z6]
+      alpha: 1.25e-1
     - name: Z8
       state_dim: 2
       parents: [X, Z1, Z2, Z3, Z4, Z5, Z6, Z7]
+      alpha: 1.25e-1
     - name: X
       state_dim: 32
       parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
       alpha: 1e-3
-```
-
-Find the equivalent `alpha_Z` and perform the same steps as before.
-
-Interestingly, it seems that the compression rate does not depend on the edges.
-
-#### Run
-After choosing pairs, you can generate a training run where you generate new data on the fly.
-You may run it on a cluster with
-```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/onfly_easy.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/onfly_medium.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/onfly_hard.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/onfly_dense.yaml
-```
-
-Or with finite data
-```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/easy.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/medium.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/hard.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment3/dense.yaml
-```
+  sets:
+  - n_data: 100_000
+    path: $HOME/data/composition/exp3/dense/trainset.h5
+  - n_data: 10_000
+    path: $HOME/data/composition/exp3/dense/testset.h5

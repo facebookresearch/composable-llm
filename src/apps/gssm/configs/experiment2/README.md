@@ -58,5 +58,8 @@ python -m src.apps.gssm.train src/apps/gssm/configs/experiment2/four_nodes.yaml
 ```
 You can also run it on the cluster with
 ```bash
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/one_node.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/two_nodes.yaml
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/four_nodes.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/eight_nodes.yaml
 ```

@@ -1,0 +1,67 @@
+launcher:
+  name: hard
+  overwrite: true
+  log_dir: $HOME/logs/exp2/hard
+
+  script: src.apps.gssm.train
+
+  slurm:
+    nodes: 1
+    mem: 16G
+    nb_gpus: 8
+    time: 60          # job time in minutes
+    signal_time: 60   # alert time in seconds
+
+  grid:
+    data:
+      n_data: [30, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
+      seed: [0, 1, 2]
+    orchestration:
+      utils:
+        seed: [3, 4, 5]
+
+run_config:
+  cluster:
+    compile_model: true
+
+  data:
+    n_data: 100_000
+    path: $HOME/data/composition/exp3/hard/trainset.h5
+    batch_size: 16
+    seed: 0
+
+  model:
+    vocab_size: 32
+    seq_len: 2048
+    emb_dim: 64
+    nb_heads: 4
+    nb_layers: 4
+
+  optim:
+    steps: 1000
+    lr: 1e-2
+    weight_decay: 0
+    scheduler: constant
+
+  orchestration:
+    utils:
+      seed: 100
+
+    logging:
+      period: 1
+      level: info
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1
+
+    wandb:
+      active: true
+
+  evaluation:
+    period: 25
+    asynchronous: false
+    data:
+      path: $HOME/data/composition/exp3/hard/testset.h5
+      n_data: 256
