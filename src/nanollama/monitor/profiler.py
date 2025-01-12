@@ -11,6 +11,7 @@ located in the root directory of this repository.
 
 import json
 import time
+from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from logging import getLogger
 from pathlib import Path, PosixPath
@@ -31,30 +32,34 @@ logger = getLogger("nanollama")
 # -----------------------------------------------------------------------------
 
 
-class BaseProfiler:
+class BaseProfiler(ABC):
+    @abstractmethod
     def __init__(self):
         pass
 
+    @abstractmethod
     def __enter__(self):
         """Function called when entering context."""
         pass
 
+    @abstractmethod
     def __call__(self):
         """Main function ran by the Profiler"""
         pass
 
     def report_statistics(self) -> None:
         """Report gobal statistics about the device."""
-        pass
+        return
 
     def start_timer(self) -> None:
         """Start a timer"""
-        pass
+        return
 
     def end_timer(self, name: str, **kwargs) -> None:
         """End timer and report time"""
-        pass
+        return
 
+    @abstractmethod
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         """Function called when exiting context"""
         pass
@@ -225,7 +230,7 @@ class ProfilerConfig:
         return output
 
 
-class Profiler:
+class Profiler(BaseProfiler):
     """
     Profiler Context
 

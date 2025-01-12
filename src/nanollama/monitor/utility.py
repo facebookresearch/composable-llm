@@ -14,6 +14,7 @@ located in the root directory of this repository.
 import gc
 from dataclasses import dataclass
 from logging import getLogger
+from types import TracebackType
 
 import torch
 
@@ -50,3 +51,8 @@ class UtilityManager(Monitor):
         """
         logger.info("garbage collection")
         gc.collect()
+
+    def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
+        # enable garbage collection
+        gc.enable()
+        return
