@@ -278,26 +278,61 @@ def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
     In our case, the discrete elements are the states of the nodes at time t and t-1.
     """
     size = []
-    keys = {}
+    id_order = {}
     for i, node in enumerate(nodes.values()):
         size.append(node.state_dim)
-        keys[id(node)] = i
+        id_order[id(node)] = i
 
     proba = np.ones((*size, *size))
     for node in nodes.values():
-        input_shape = np.ones(len(nodes), dtype=int)
-        output_shape = np.ones(len(nodes), dtype=int)
+        # the stored transition matrix is of shape (input_dim, state_dim)
+        transition = node.kernel.p_transition
 
-        output_shape[keys[id(node)]] = node.state_dim
+        # preparation for broadcasting
+        before_shape = np.ones(len(nodes), dtype=int)  # time t-1
+        after_shape = np.ones(len(nodes), dtype=int)  # time t
+        order = []
+        p_transition_shape = []
+
+        # the first dimension is the state_dim of the node at time t-1
         if not isinstance(node, gssm.ObservedNode):
-            input_shape[keys[id(node)]] = node.state_dim
+            order.append(-2)
+            before_shape[id_order[id(node)]] = node.state_dim
+            p_transition_shape.append(node.state_dim)
 
+        # the next dimensions are the state_dim of the parents at time t
         for pnode in node.parents:
-            input_shape[keys[id(pnode)]] = pnode.state_dim
+            if not isinstance(pnode, gssm.ObservedNode):
+                order.append(id_order[id(pnode)])
+                after_shape[id_order[id(pnode)]] = pnode.state_dim
+            # with the exception of the observed node which is at time t-1
+            else:
+                if id_order[id(pnode)] < id_order[id(node)]:
+                    order.append(-3)
+                else:
+                    order.append(-1)
+                before_shape[id_order[id(pnode)]] = pnode.state_dim
+            p_transition_shape.append(pnode.state_dim)
 
-        # bug here, we should first reshape p_transition according to (node.state_dim, *(pnode.state_dim for pnode in node.parents))
-        # then we should transpose it to have the same order as in proba.
-        transition = node.kernel.p_transition.reshape((*input_shape, *output_shape))
+        # the last dimension is the state_dim of the node at time t
+        order.append(id_order[id(node)])
+        after_shape[id_order[id(node)]] = node.state_dim
+        p_transition_shape.append(node.state_dim)
+
+        # unravel the transition matrix
+        transition = transition.reshape(p_transition_shape)
+
+        # transposition to match the order of the nodes
+        transposition = np.argsort(order).tolist()
+        transition = transition.transpose(transposition)
+
+        # broadcast it to the full shape
+        shape = (*before_shape, *after_shape)
+        # check that the ordering is correct
+        # assert (np.unique(np.cumprod((1, *shape))) == np.unique(np.cumprod((1, *transition.shape)))).all()
+        transition = transition.reshape(shape)
+
+        # report this in the big transition matrix
         proba *= transition
 
     return proba
