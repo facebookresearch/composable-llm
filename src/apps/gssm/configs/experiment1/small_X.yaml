@@ -15,7 +15,10 @@ launcher:
   grid:
     data:
       n_data: [30, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
-      seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      seed: [0, 1, 2]
+    orchestration:
+      utils:
+        seed: [3, 4, 5]
 
 run_config:
   cluster:
