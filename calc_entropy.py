@@ -4,27 +4,30 @@ import numpy as np
 # from omegaconf import OmegaConf
 from nanollama.utils import initialize_nested_object
 from src.nanollama.data import gssm
+import numpy as np
+import torch
+from omegaconf import OmegaConf
 
 # %%
 gssm_config = {
     "nodes": [
         {
             "name": "Z1",
-            "state_dim": 8,
+            "state_dim": 5,
             "parents": [],
             "alpha": 1e-8,
             "mode": "default",
         },
         {
             "name": "Z2",
-            "state_dim": 8,
+            "state_dim": 6,
             "parents": ["Z1"],
             "alpha": 1e-8,
             "mode": "default",
         },
         {
             "name": "Z3",
-            "state_dim": 8,
+            "state_dim": 7,
             "parents": ["Z2"],
             "alpha": 1e-8,
             "mode": "default",
@@ -32,7 +35,7 @@ gssm_config = {
         {
             "name": "X",
             "state_dim": 8,
-            "parents": ["Z3"],
+            "parents": ["Z1", "Z3"],
             "alpha": 1e-8,
             "mode": "default",
         },
@@ -71,7 +74,8 @@ class HMM:
         for parent in node.parents:
             if parent.time != 0 and not isinstance(parent, gssm.ObservedNode):
                 self._node_init(parent, bsz, i + 1)
-        node.state = np.random.randint(0, 5, size=bsz, dtype=int)  # (np.arange(bsz, dtype=int) + i)[::-1]
+        node.state = np.zeros(bsz, dtype=int)
+        # node.state = self.rng.integers(0, node.state_dim, size=bsz, dtype=int)
 
     def _init_all_nodes(self, bsz):
         self._node_init(self.top_node, bsz)
@@ -87,7 +91,9 @@ class HMM:
         def __dfs_names(node, fc=True):
             if not fc and isinstance(node, gssm.ObservedNode):
                 return [self.names[node]]
-            return [d for p in node.parents for d in __dfs_names(p, False)] + [self.names[node]]
+            return [d for p in node.parents for d in __dfs_names(p, False)] + [
+                self.names[node]
+            ]
 
         return list(dict.fromkeys(__dfs_names(node)))
 
@@ -108,7 +114,7 @@ class HMM:
         return HMM.SYM_OUT[self.indexs[node]]
 
     @staticmethod
-    def one_hot_state(node):
+    def _one_hot_state(node):
         targets = node.state
         nb_classes = node.state_dim
         res = np.eye(nb_classes)[np.array(targets).reshape(-1)]
@@ -116,8 +122,15 @@ class HMM:
 
     def one_hot_product_state(self, node):
         node_order = self._dfs_names(node)
-        einsum_str = "B" + ",B".join(HMM.SYM_IN[: len(node_order)]) + "->B" + HMM.SYM_IN[: len(node_order)]
-        product_state = np.einsum(einsum_str, *[self.one_hot_state(self.nodes[name]) for name in node_order])
+        einsum_str = (
+            "B"
+            + ",B".join(HMM.SYM_IN[: len(node_order)])
+            + "->B"
+            + HMM.SYM_IN[: len(node_order)]
+        )
+        product_state = np.einsum(
+            einsum_str, *[self._one_hot_state(self.nodes[name]) for name in node_order]
+        )
         return product_state.reshape(product_state.shape[0], -1)
 
     def product_state(self, tgt_node):
@@ -152,7 +165,6 @@ class HMM:
         return in_str + out_str
 
     def make_prod_transition(self, tgt_node):
-        # x,aA,b,c->xabcA
         node_order = self._dfs_names(tgt_node)
         node_order = [self.nodes[name] for name in node_order]
         state_dims = [node.state_dim for node in node_order]
@@ -197,66 +209,137 @@ class HMM:
         next_state = kernel(self.product_state(self.top_node))
         return self.individual_states(next_state, self.topo_order)
 
+    def fwd_via_matmul(self, prod_transition):
+        p_transition = self.square_matrix(prod_transition)
+        state = self.one_hot_product_state(self.top_node)
+        next_state = state @ p_transition
+        # sampling
+        samples = torch.multinomial(torch.tensor(next_state), 1).numpy()
+        return self.individual_states(samples, self.topo_order)
+
+    def get_p_emission(self, tgt_node):
+        # p_emission is a projection matrix from the product state
+        # state @ p_emission = state_X
+        assert isinstance(tgt_node, gssm.ObservedNode)
+        idx = self.indexs[tgt_node]
+        shape = [1] * (len(self.topo_order) + 1)
+        dim = tgt_node.state_dim
+        shape[idx] = dim
+        shape[-1] = dim
+        p_emission = np.eye(dim).reshape(shape)
+        for i, name in enumerate(self.topo_order):
+            shape[i] = self.nodes[name].state_dim
+        p_emission = np.broadcast_to(p_emission, shape)
+        p_emission = p_emission.reshape(-1, dim)
+        return p_emission
+
+    def current_one_hot_product_state(self):
+        return self.one_hot_product_state(self.top_node)
 
 # %%
 hmm = HMM(gssm_config)
-hmm._init_all_nodes(10000)
+hmm._init_all_nodes(4)
 prod_transition = hmm.make_prod_transition(hmm.top_node)
+p_emission = hmm.get_p_emission(hmm.top_node)
+# %%
 data_prod = hmm.fwd_product_state(prod_transition)
 data_prod = {name: data_prod[i] for i, name in enumerate(hmm.topo_order)}
+data_prod_mm = hmm.fwd_via_matmul(prod_transition)
+data_prod_mm = {name: data_prod_mm[i] for i, name in enumerate(hmm.topo_order)}
 data_classic = hmm.evolve_classic(1)
 # %%
-
-# %%
 import matplotlib.pyplot as plt
+
 
 for name in data_classic:
     plt.title(name)
     plt.hist(data_prod[name], label="prod", alpha=0.5)
+    plt.hist(data_prod_mm[name], label="prod_mm", alpha=0.5)
     plt.hist(data_classic[name], label="classic", alpha=0.5)
     plt.legend()
     plt.show()
 
-
 # %%
 
 
+
 # %%
-def manual(hmm: HMM):
-    Ta_A = hmm.transitions[hmm.nodes["Z1"]]
-    TbA_B = hmm.transitions[hmm.nodes["Z2"]]
-    TcB_C = hmm.transitions[hmm.nodes["Z3"]]
-    TABC_X = hmm.transitions[hmm.nodes["X"]]
+def forward_algorithm(
+    observations: torch.tensor,
+    log_A: torch.tensor,
+    log_B: torch.tensor,
+    log_pi: torch.tensor,
+):
+    """
+    Perform the forward-backward algorithm to compute the forward and backward probabilities.
+    S = hidden state vocab
+    O = observation state vocab
 
-    one_A = np.ones(hmm.nodes["Z1"].state_dim)
-    one_B = np.ones(hmm.nodes["Z2"].state_dim)
-    one_C = np.ones(hmm.nodes["Z3"].state_dim)
-    one_X = np.ones(hmm.nodes["X"].state_dim)
+    Args:
+        observations (torch.tensor): List of observed sequences [seq_len,B] (batch last)
+        A (torch.tensor): Transition matrix. [S, S]
+        B (torch.tensor): Emission matrix. [S, O]
+        pi (torch.tensor): Initial state probabilities. [S]
+    Returns:
+        forward_probs (torch.tensor): Forward probabilities [S, T, B]
+    """
+    DEVICE = "cpu"
+    num_states = log_A.shape[0]
+    T, B = observations.shape
 
-    Tabcx_1 = np.einsum("a,b,c,x->abcx", one_A, one_B, one_C, one_X)
-    Tabcx_A = np.einsum("aA,abcx->abcxA", Ta_A, Tabcx_1)
-    Tabcx_B = np.einsum("bAB,abcxA->abcxB", TbA_B, Tabcx_A)
-    Tabcx_C = np.einsum("cBC,abcxB->abcxC", TcB_C, Tabcx_B)
-    Tabcx_X = np.einsum("ABCX,abcxA,abcxB,abcxC->abcxX", TABC_X, Tabcx_A, Tabcx_B, Tabcx_C)
-    # output product_state
-    Tabcx_ABCX = np.einsum("abcxX,abcxA,abcxB,abcxC->abcxABCX", Tabcx_X, Tabcx_A, Tabcx_B, Tabcx_C)
+    def lognorm(log_x):
+        return log_x - torch.logsumexp(log_x, dim=0, keepdim=True)
 
-    print(
-        hmm.individual_states(
-            (hmm.one_hot_product_state(hmm.nodes["X"]) @ hmm.square_matrix(Tabcx_ABCX)).argmax(-1),
-            hmm.topo_order,
+    forward_probs = torch.zeros((num_states, T, B), device=DEVICE)
+
+    forward_probs[:, 0, :] = lognorm(log_pi[:, None] + log_B[:, observations[0]])
+
+    log_A = log_A[:, :, None]
+
+    for t in range(1, T):
+        forward_probs[:, t, :] = log_B[:, observations[t]] + torch.logsumexp(
+            forward_probs[:, None, t - 1, :] + log_A, dim=0
         )
+        forward_probs[:, t, :] = lognorm(forward_probs[:, t, :])
+
+    return torch.exp(forward_probs)
+
+
+def test_manual():
+    A = torch.log(torch.tensor([[0, 1], [1, 0]]))
+    B = torch.log(torch.tensor([[0.8, 0.1, 0.1], [0.1, 0.1, 0.8]]))
+    pi = torch.log(torch.tensor([0.5, 0.5]))
+    observations = torch.tensor([[1], [0], [1], [0]])
+    print(B.shape)
+    p_zt_given_x_smaller_t = forward_algorithm(observations, A, B, pi)
+    print(p_zt_given_x_smaller_t)
+
+
+def hmm_forward_probs(config):
+    hmm = HMM(config)
+    batch_size = 2
+    hmm._init_all_nodes(batch_size)
+    prior = torch.tensor(hmm.current_one_hot_product_state()[0])
+    prod_transition = hmm.make_prod_transition(hmm.top_node)
+    prod_transition = torch.tensor(HMM.square_matrix(prod_transition))
+    p_emission = torch.tensor(hmm.get_p_emission(hmm.top_node))
+    seq_len = 5
+    observations = torch.zeros((seq_len, batch_size), dtype=int)
+    for i in range(seq_len):
+        data_classic = hmm.evolve_classic(1)
+        observations[i] = torch.tensor(data_classic["X"])
+    forward_probs = forward_algorithm(
+        observations, torch.log(prod_transition), torch.log(p_emission), torch.log(prior)
     )
-    return Tabcx_ABCX
+    return forward_probs
 
 
-# reference_prod_transition = manual()
-
-
+forward_probs = hmm_forward_probs(gssm_config)
+print(forward_probs.shape)
 # %%
-
 # ---------------------------------------------------------------------
 # Vivien's code to compute the equivalent big HMM transition matrix
+# Nik: use this later to simplify above.
 # ---------------------------------------------------------------------
 
 
@@ -277,69 +360,44 @@ def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
 
     In our case, the discrete elements are the states of the nodes at time t and t-1.
     """
+
     size = []
-    id_order = {}
+    keys = {}
     for i, node in enumerate(nodes.values()):
         size.append(node.state_dim)
-        id_order[id(node)] = i
+        keys[node] = i
+
+    def _format_transition(node):
+        observed = isinstance(node, gssm.ObservedNode)
+        order = ([] if observed else [node]) + node.parents
+        shape = [n.state_dim for n in order] + [node.state_dim]
+        key_order = np.argsort([keys[n] for n in order] + [np.inf])
+        trans = node.kernel.p_transition.reshape(shape)
+        return trans.transpose(key_order)
 
     proba = np.ones((*size, *size))
-    for node in nodes.values():
-        # the stored transition matrix is of shape (input_dim, state_dim)
-        transition = node.kernel.p_transition
+    for name, node in nodes.items():
+        input_shape = np.ones(len(nodes), dtype=int)
+        output_shape = np.ones(len(nodes), dtype=int)
 
-        # preparation for broadcasting
-        before_shape = np.ones(len(nodes), dtype=int)  # time t-1
-        after_shape = np.ones(len(nodes), dtype=int)  # time t
-        order = []
-        p_transition_shape = []
-
-        # the first dimension is the state_dim of the node at time t-1
+        output_shape[keys[node]] = node.state_dim
         if not isinstance(node, gssm.ObservedNode):
-            order.append(-2)
-            before_shape[id_order[id(node)]] = node.state_dim
-            p_transition_shape.append(node.state_dim)
+            input_shape[keys[node]] = node.state_dim
 
-        # the next dimensions are the state_dim of the parents at time t
         for pnode in node.parents:
-            if not isinstance(pnode, gssm.ObservedNode):
-                order.append(id_order[id(pnode)])
-                after_shape[id_order[id(pnode)]] = pnode.state_dim
-            # with the exception of the observed node which is at time t-1
-            else:
-                if id_order[id(pnode)] < id_order[id(node)]:
-                    order.append(-3)
-                else:
-                    order.append(-1)
-                before_shape[id_order[id(pnode)]] = pnode.state_dim
-            p_transition_shape.append(pnode.state_dim)
+            input_shape[keys[pnode]] = pnode.state_dim
+        print(name, input_shape, output_shape)
 
-        # the last dimension is the state_dim of the node at time t
-        order.append(id_order[id(node)])
-        after_shape[id_order[id(node)]] = node.state_dim
-        p_transition_shape.append(node.state_dim)
-
-        # unravel the transition matrix
-        transition = transition.reshape(p_transition_shape)
-
-        # transposition to match the order of the nodes
-        transposition = np.argsort(order).tolist()
-        transition = transition.transpose(transposition)
-
-        # broadcast it to the full shape
-        shape = (*before_shape, *after_shape)
-        # check that the ordering is correct
-        # assert (np.unique(np.cumprod((1, *shape))) == np.unique(np.cumprod((1, *transition.shape)))).all()
-        transition = transition.reshape(shape)
-
-        # report this in the big transition matrix
-        proba *= transition
+        # bug here, we should first reshape p_transition according to (node.state_dim, *(pnode.state_dim for pnode in node.parents))
+        # then we should transpose it to have the same order as in proba.
+        # EDIT: i think _format_transition accomplishes that, please check
+        proba *= _format_transition(node).reshape((*input_shape, *output_shape))
 
     return proba
 
 
-nodes = gssm.build_gssm(initialize_nested_object(gssm.GSSMConfig, gssm_config, inplace=False), None)
-proba = get_transition_matrix(nodes)
-
-Niklas_order = (1, 2, 3, 0, 5, 6, 7, 4)
-print(np.allclose(proba.transpose(Niklas_order), prod_transition))
+prod_transition_viv = get_transition_matrix(
+    {name: hmm.nodes[name] for name in hmm.topo_order}
+)
+(prod_transition_viv == prod_transition).all()  # not quite right for now, needs correct time dependence
+# %%
