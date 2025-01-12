@@ -17,16 +17,14 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = [
-  "h5py",   # file system
+  "h5py",           # file system
   "numpy",
-  "pyaml",  # configuration
+  "pyaml",          # configuration
+  "sentencepiece",  # tokenizer
+  "tiktoken",       # tokenizer
   "torch",
-  "wandb",  # logging
-
-  # transformer libraries
-  # "sentencepiece",
-  # "tiktoken",
-  # "transformers",
+  "wandb",          # logging
+  "blobfile",       # tiktoken dependency
 ]
 
 [project.optional-dependencies]
