@@ -20,11 +20,8 @@ dependencies = [
   "h5py",           # file system
   "numpy",
   "pyaml",          # configuration
-  "sentencepiece",  # tokenizer
-  "tiktoken",       # tokenizer
   "torch",
   "wandb",          # logging
-  "blobfile",       # tiktoken dependency
 ]
 
 [project.optional-dependencies]
@@ -32,6 +29,12 @@ dev = [
   "ruff",               # formatting
   "torch_tb_profiler",  # visualizing profiling trace with tensorboard
   "viztracer",          # visualizing profiling trace with perfetto
+]
+
+llm = [
+  "sentencepiece",  # tokenizer
+  "tiktoken",       # tokenizer
+  "blobfile",       # tiktoken dependency
 ]
 
 visu = [
@@ -53,7 +56,7 @@ mamba = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
-exclude = ["src.apps"]
+exclude = ["src.apps", "src.evals"]
 
 [tool.ruff]
 line-length = 120

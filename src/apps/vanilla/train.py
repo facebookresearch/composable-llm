@@ -48,6 +48,11 @@ from ...nanollama.optim import (
     init_scheduler,
 )
 from ...nanollama.utils import TrainState, initialize_nested_object
+from .internal.eval import (
+    EVAL_FOLDER_NAME,
+    EvalArgs,
+    launch_eval,
+)
 
 # from .evaluation import EvaluationConfig, EvaluationRunConfig, run_evaluation
 
@@ -66,8 +71,10 @@ class TrainingConfig:
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
-    # evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+    eval: EvalArgs = field(default_factory=EvalArgs)
     orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
+
+    tokenizer: Any = field(init=False)
 
     def __post_init__(self):
         """
@@ -79,8 +86,8 @@ class TrainingConfig:
             assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
 
         # vocabulary size
-        tokenizer = build_tokenizer(self.data.tokenizer.name, self.data.tokenizer.path)
-        self.model.vocab_size = tokenizer.n_words
+        self.tokenizer = build_tokenizer(self.data.tokenizer.name, self.data.tokenizer.path)
+        self.model.vocab_size = self.tokenizer.n_words
         # evaluation paths
         # self.evaluation.path = self.orchestration.logging.metric_path
 
@@ -182,7 +189,7 @@ def train(config: TrainingConfig) -> None:
 
         # aliases
         log_period = config.orchestration.logging.period
-        # eval_period = config.evaluation.period
+        eval_period = config.eval.period
 
         while state.optim.step < config.optim.steps:
             # handle preemption
@@ -279,9 +286,26 @@ def train(config: TrainingConfig) -> None:
             # Evaluation
             # -----------------------------------------------------------------
 
-            # profiler.start_timer()
+            profiler.start_timer()
 
-            # if eval_period > 0 and step % eval_period == 0:
+            if eval_period > 0 and step % eval_period == 0:
+                eval_args = config.eval
+                eval_args.global_step = step
+                # checkpoint.update()
+                # eval_args.ckpt_dir = str(checkpoint.existing_saves[-1])
+                eval_args.dump_dir = str(
+                    os.path.join(
+                        config.orchestration.log_dir,
+                        "evals",
+                        EVAL_FOLDER_NAME.format(step),
+                    )
+                )
+                eval_args.metric_log_dir = config.orchestration.log_dir
+
+                launch_eval(eval_args, model, config.tokenizer)
+                eval_args.task_configs = {}
+                model.train()
+
             #     # run evaluation now
             #     if not config.evaluation.asynchronous:
             #         run_evaluation(config.evaluation, model=model, step=step)
