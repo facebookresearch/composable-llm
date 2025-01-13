@@ -113,7 +113,7 @@ python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/onfly_small_X
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/onfly_small_Z.yaml
 ```
 
-#### Run with finite data (TODO)
+#### Run with finite data
 You may equally fix the number of data in advance by running
 ```bash
 python -m src.apps.gssm.data src/apps/gssm/configs/experiment1/data.yaml
