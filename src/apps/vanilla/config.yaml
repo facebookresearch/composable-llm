@@ -67,7 +67,7 @@ run_config:
       steps: -1
 
   eval:
-    period: 10
+    period: 0
     dataset_dir: /checkpoint/vivc/datasets/eval
     tasks: piqa
     generator:
