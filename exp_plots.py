@@ -51,7 +51,7 @@ def get_statistics(exp: int, names: list[str], nb_tasks: int, best: bool) -> dic
         log_dir = Path.home() / "logs" / f"exp{exp}" / name
 
         for task_id in range(nb_tasks):
-            task_id = task_id + 1
+            task_id += 1
             config_path = log_dir / "tasks" / f"{task_id}.yaml"
 
             # configuration
@@ -149,23 +149,24 @@ def extract_useful_info(exp: int, name: str) -> Any:
 exp_dict = {
     1: [
         {"names": ["small_X", "small_Z"], "nb_tasks": 72},
-        {"names": ["onfly_small_X", "onfly_small_Z"], "nb_tasks": 80},
+        {"names": ["onfly_small_X", "onfly_small_Z"], "nb_tasks": 64},
     ],
     2: [
         {"names": ["one_node", "two_nodes", "four_nodes", "eight_nodes"], "nb_tasks": 72},
-        {"names": ["onfly_one_node", "onfly_two_nodes", "onfly_four_nodes", "onfly_eight_nodes"], "nb_tasks": 80},
+        {"names": ["onfly_one_node", "onfly_two_nodes", "onfly_four_nodes", "onfly_eight_nodes"], "nb_tasks": 64},
     ],
     3: [
         {"names": ["easy", "medium", "hard", "dense"], "nb_tasks": 72},
-        {"names": ["onfly_easy", "onfly_medium", "onfly_hard", "onfly_dense"], "nb_tasks": 80},
+        {"names": ["onfly_easy", "onfly_medium", "onfly_hard", "onfly_dense"], "nb_tasks": 64},
     ],
     4: [
         {"names": ["base", "slow", "dead", "context"], "nb_tasks": 72},
-        {"names": ["onfly_base", "onfly_slow", "onfly_dead", "onfly_context"], "nb_tasks": 80},
+        {"names": ["onfly_base", "onfly_slow", "onfly_dead", "onfly_context"], "nb_tasks": 64},
     ],
 }
 
-for exp in range(2, 5):
+for exp in range(4):
+    exp += 1
     for exp_config in exp_dict[exp]:
         names = exp_config["names"]
         nb_tasks = exp_config["nb_tasks"]
@@ -210,6 +211,7 @@ for exp in range(2, 5):
                     prefix = "onfly_"
                 else:
                     prefix = ""
-                fig.savefig(save_dir / f"nonnorm_{prefix}data{data_seed}_model{model_seed}.png")
+                fig.savefig(save_dir / f"{prefix}data{data_seed}_model{model_seed}.png")
+                # fig.savefig(save_dir / f"norm_{prefix}data{data_seed}_model{model_seed}.png")
 
 # %%

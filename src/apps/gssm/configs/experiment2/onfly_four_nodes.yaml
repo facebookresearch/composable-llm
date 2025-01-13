@@ -8,6 +8,8 @@ launcher:
   slurm:
     nodes: 1
     nb_gpus: 8
+    mem: 16G
+    partition: scavenge
     time: 120         # job time in minutes
     signal_time: 120  # alert time in seconds
 
@@ -19,7 +21,7 @@ launcher:
       # seed: [42, 0, 1, 2, 3, 4, 5, 6, 7]
     orchestration:
       utils:
-        seed: [0, 1, 2, 3, 4, 5, 6, 7]
+        seed: [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 run_config:
   cluster:

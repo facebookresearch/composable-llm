@@ -9,6 +9,7 @@ launcher:
     nodes: 1
     nb_gpus: 8
     mem: 16G
+    partition: scavenge
     time: 120         # job time in minutes
     signal_time: 120  # alert time in seconds
 

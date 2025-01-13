@@ -7,8 +7,9 @@ launcher:
 
   slurm:
     nodes: 1
-    mem: 16G
     nb_gpus: 8
+    mem: 16G
+    partition: scavenge
     time: 120         # job time in minutes
     signal_time: 120  # alert time in seconds
 
