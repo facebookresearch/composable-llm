@@ -1,7 +1,7 @@
 launcher:
-  name: four_nodes_from_file
+  name: four_nodes
   overwrite: true
-  log_dir: $HOME/logs/exp2/four_nodes_from_file
+  log_dir: $HOME/logs/exp2/four_nodes
 
   script: src.apps.gssm.train
 

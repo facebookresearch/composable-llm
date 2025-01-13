@@ -1,7 +1,7 @@
 launcher:
-  name: eight_nodes
+  name: onfly_eight_nodes
   overwrite: true
-  log_dir: $HOME/logs/exp2/eight_nodes
+  log_dir: $HOME/logs/exp2/onfly_eight_nodes
 
   script: src.apps.gssm.train_onfly
 
