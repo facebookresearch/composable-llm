@@ -22,6 +22,7 @@ import torch
 import torch.profiler as profiler
 
 from ..distributed import get_local_rank, get_rank
+from ..model import Model
 from ..utils import TrainState
 
 logger = getLogger("nanollama")
@@ -47,7 +48,7 @@ class BaseProfiler(ABC):
         """Main function ran by the Profiler"""
         pass
 
-    def report_statistics(self) -> None:
+    def report_statistics(self, *args, **kwargs) -> None:
         """Report gobal statistics about the device."""
         return
 
@@ -137,12 +138,18 @@ class LightProfiler(BaseProfiler):
         self.step = 0
         self.active = False
 
-        # device
-        self.device = torch.device(get_local_rank())
-
-        # various placeholder
+        # placeholder and alias
         self.times = {}
         self.state = state
+        self.token_per_step = 0
+        self.flop_per_step = 0
+        self.train_step = state.optim.step
+        self.train_time = time.time()
+
+        # device
+        rank = get_local_rank()
+        self.device = torch.device(rank)
+        self.capacity = torch.cuda.get_device_properties(rank).total_memory / 100  # divide for percentage
 
     def __enter__(self):
         logger.info(f"Light profiler active. Traces will be saved at {self.path}")
@@ -157,12 +164,25 @@ class LightProfiler(BaseProfiler):
             # log profiler traces
             cuda_info = torch.cuda.memory_stats(self.device)
 
+            # memory information
+            mem = cuda_info["active_bytes.all.peak"]
+            mem_reserved = cuda_info["reserved_bytes.all.peak"]
+
+            # flops information
+            new_steps = self.state.optim.step - self.train_step
+            elapsed_time = time.time() - self.train_time
+            flops = new_steps * self.flop_per_step / elapsed_time
+            token_freq = new_steps * self.token_per_step / elapsed_time
+            self.train_step = self.state.optim.step
+            self.train_time = time.time()
+
             metrics = self.times | {
-                "ts": round(time.time(), 6),
                 "step": self.state.optim.step,
-                "acc_step": self.state.optim.acc_step,
-                "mem": cuda_info["active_bytes.all.peak"],
-                "mem_reserved": cuda_info["reserved_bytes.all.peak"],
+                "flops": flops,
+                "token_freq": token_freq,
+                "mem_GiB": mem / (1024**3),
+                "mem_reserved_GiB": mem_reserved / (1024**3),
+                "mem_percentage": mem / self.capacity,
                 "num_alloc_retries": cuda_info["num_alloc_retries"],
                 "num_ooms": cuda_info["num_ooms"],
             }
@@ -176,10 +196,21 @@ class LightProfiler(BaseProfiler):
 
         self.step += 1
 
-    def report_statistics(self) -> None:
-        capacity = torch.cuda.get_device_properties(get_local_rank()).total_memory
-        with open(self.path.parent / f"info_device_{get_rank()}.jsonl", "a") as f:
-            print(json.dumps({"mem_capacity": capacity}), file=f, flush=True)
+    def report_statistics(self, model: Model, seq_len: int, token_per_step: int) -> None:
+        """
+        Report flop per step
+
+        Parameters
+        ----------
+        model:
+            The model to profile.
+        seq_len:
+            The sequence length.
+        flop_multiplier:
+            Number of token updates per training step.
+        """
+        self.token_per_step = token_per_step
+        self.flop_per_step = model.get_nb_flop(seq_len=seq_len) * token_per_step
 
     def start_timer(self) -> None:
         if self.device:  # act as an active flag
@@ -268,12 +299,12 @@ class Profiler(BaseProfiler):
         for prof in self.profilers:
             prof()
 
-    def report_statistics(self) -> None:
+    def report_statistics(self, *args, **kwargs) -> None:
         """
         Report global statistics
         """
         for prof in self.profilers:
-            prof.report_statistics()
+            prof.report_statistics(*args, **kwargs)
 
     def start_timer(self) -> None:
         """

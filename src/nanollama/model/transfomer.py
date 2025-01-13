@@ -399,6 +399,21 @@ class Transformer(nn.Module):
         logits = self.output(self.output_norm(out))
         return logits
 
+    def get_nb_flop(self, seq_len: int = None, mode: str = "both") -> int:
+        """
+        TODO
+        Number of flop to process a new token
+
+        Parameters
+        ----------
+        seq_len:
+            Sequence length.
+        mode:
+            Whether to consider the forward, backward pass or both
+        """
+        mode_multiplier = dict(fwd=1, bwd=2.5, both=3.5)[mode]
+        return 0 * mode_multiplier
+
     def reset_parameters(self) -> None:
         """
         Weight initialization
