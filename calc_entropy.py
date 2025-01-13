@@ -6,7 +6,6 @@ from nanollama.utils import initialize_nested_object
 from src.nanollama.data import gssm
 import numpy as np
 import torch
-from omegaconf import OmegaConf
 
 # %%
 gssm_config = {
@@ -55,7 +54,6 @@ class HMM:
         makes an HMM from a graph config via the product state
         """
         self.config = initialize_nested_object(gssm.GSSMConfig, config, inplace=False)
-        # self.config = OmegaConf.create(config)
         self.rng = np.random.default_rng(random_seed)
         self.nodes = gssm.build_gssm(self.config, self.rng)
         self.names = self._names_to_nodes(self.nodes)
@@ -75,7 +73,7 @@ class HMM:
             if parent.time != 0 and not isinstance(parent, gssm.ObservedNode):
                 self._node_init(parent, bsz, i + 1)
         node.state = np.zeros(bsz, dtype=int)
-        # node.state = self.rng.integers(0, node.state_dim, size=bsz, dtype=int)
+        assert (node.state == 0).all() # this is assumed in self.forward_probs
 
     def _init_all_nodes(self, bsz):
         self._node_init(self.top_node, bsz)
@@ -199,7 +197,7 @@ class HMM:
         output_str = self.einsum_full_prod_str(tgt_node)
         einsum_str = ",".join(input_strs) + "->" + output_str
 
-        return np.einsum(einsum_str, *input_tensors)
+        return self.square_matrix(np.einsum(einsum_str, *input_tensors))
 
     def fwd_product_state(self, prod_transition):
         p_transition = self.square_matrix(prod_transition)
@@ -236,106 +234,94 @@ class HMM:
     def current_one_hot_product_state(self):
         return self.one_hot_product_state(self.top_node)
 
+    @staticmethod
+    def forward_algorithm(
+        obs: torch.tensor,
+        log_T: torch.tensor,
+        log_E: torch.tensor,
+        log_pi: torch.tensor,
+    ):
+        """
+        Perform the forward-backward algorithm to compute the forward and backward probabilities.
+        S = hidden state vocab
+        O = observation state vocab
+
+        Args:
+            obs (torch.tensor): List of observed sequences [seq_len,B] (batch last)
+            T (torch.tensor): Transition matrix. [S, S]
+            E (torch.tensor): Emission matrix. [S, O]
+            pi (torch.tensor): Initial state probabilities. [S]
+        Returns:
+            forward_probs (torch.tensor): Forward probabilities [S, T, B]
+        """
+        DEVICE = "cpu"
+        num_states = log_T.shape[0]
+        T, B = obs.shape
+
+        def lognorm(log_x):
+            return log_x - torch.logsumexp(log_x, dim=0, keepdim=True)
+
+        forward_probs = torch.zeros((num_states, T, B), device=DEVICE)
+
+        forward_probs[:, 0, :] = lognorm(log_pi[:, None] + log_E[:, obs[0]])
+
+        log_T = log_T[:, :, None]
+
+        for t in range(1, T):
+            forward_probs[:, t, :] = log_E[:, obs[t]] + torch.logsumexp(
+                forward_probs[:, None, t - 1, :] + log_T, dim=0
+            )
+            forward_probs[:, t, :] = lognorm(forward_probs[:, t, :])
+
+        return torch.exp(forward_probs)
+
+    def forward_probs(self, observations: np.ndarray):
+        T, B = observations.shape
+        observations = torch.tensor(observations)
+        self._init_all_nodes(B)
+        prior = torch.tensor(self.current_one_hot_product_state()[0])
+        transition = torch.tensor(self.make_prod_transition(self.top_node))
+        emission = torch.tensor(self.get_p_emission(self.top_node))
+        return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log())
+
 # %%
-hmm = HMM(gssm_config)
-hmm._init_all_nodes(4)
-prod_transition = hmm.make_prod_transition(hmm.top_node)
-p_emission = hmm.get_p_emission(hmm.top_node)
-# %%
-data_prod = hmm.fwd_product_state(prod_transition)
-data_prod = {name: data_prod[i] for i, name in enumerate(hmm.topo_order)}
-data_prod_mm = hmm.fwd_via_matmul(prod_transition)
-data_prod_mm = {name: data_prod_mm[i] for i, name in enumerate(hmm.topo_order)}
-data_classic = hmm.evolve_classic(1)
-# %%
-import matplotlib.pyplot as plt
 
-
-for name in data_classic:
-    plt.title(name)
-    plt.hist(data_prod[name], label="prod", alpha=0.5)
-    plt.hist(data_prod_mm[name], label="prod_mm", alpha=0.5)
-    plt.hist(data_classic[name], label="classic", alpha=0.5)
-    plt.legend()
-    plt.show()
-
-# %%
-
-
-
-# %%
-def forward_algorithm(
-    observations: torch.tensor,
-    log_A: torch.tensor,
-    log_B: torch.tensor,
-    log_pi: torch.tensor,
-):
-    """
-    Perform the forward-backward algorithm to compute the forward and backward probabilities.
-    S = hidden state vocab
-    O = observation state vocab
-
-    Args:
-        observations (torch.tensor): List of observed sequences [seq_len,B] (batch last)
-        A (torch.tensor): Transition matrix. [S, S]
-        B (torch.tensor): Emission matrix. [S, O]
-        pi (torch.tensor): Initial state probabilities. [S]
-    Returns:
-        forward_probs (torch.tensor): Forward probabilities [S, T, B]
-    """
-    DEVICE = "cpu"
-    num_states = log_A.shape[0]
-    T, B = observations.shape
-
-    def lognorm(log_x):
-        return log_x - torch.logsumexp(log_x, dim=0, keepdim=True)
-
-    forward_probs = torch.zeros((num_states, T, B), device=DEVICE)
-
-    forward_probs[:, 0, :] = lognorm(log_pi[:, None] + log_B[:, observations[0]])
-
-    log_A = log_A[:, :, None]
-
-    for t in range(1, T):
-        forward_probs[:, t, :] = log_B[:, observations[t]] + torch.logsumexp(
-            forward_probs[:, None, t - 1, :] + log_A, dim=0
-        )
-        forward_probs[:, t, :] = lognorm(forward_probs[:, t, :])
-
-    return torch.exp(forward_probs)
-
-
-def test_manual():
-    A = torch.log(torch.tensor([[0, 1], [1, 0]]))
-    B = torch.log(torch.tensor([[0.8, 0.1, 0.1], [0.1, 0.1, 0.8]]))
-    pi = torch.log(torch.tensor([0.5, 0.5]))
-    observations = torch.tensor([[1], [0], [1], [0]])
-    print(B.shape)
-    p_zt_given_x_smaller_t = forward_algorithm(observations, A, B, pi)
-    print(p_zt_given_x_smaller_t)
-
-
-def hmm_forward_probs(config):
+def test_forward_probs(config):
     hmm = HMM(config)
     batch_size = 2
+    seq_len = 2
     hmm._init_all_nodes(batch_size)
-    prior = torch.tensor(hmm.current_one_hot_product_state()[0])
-    prod_transition = hmm.make_prod_transition(hmm.top_node)
-    prod_transition = torch.tensor(HMM.square_matrix(prod_transition))
-    p_emission = torch.tensor(hmm.get_p_emission(hmm.top_node))
-    seq_len = 5
-    observations = torch.zeros((seq_len, batch_size), dtype=int)
+    observations = np.zeros((seq_len, batch_size), dtype=int)
     for i in range(seq_len):
-        data_classic = hmm.evolve_classic(1)
-        observations[i] = torch.tensor(data_classic["X"])
-    forward_probs = forward_algorithm(
-        observations, torch.log(prod_transition), torch.log(p_emission), torch.log(prior)
-    )
-    return forward_probs
+        observations[i] = np.array(hmm.top_node.state)
+        hmm.evolve_classic(1)
+    print(hmm.forward_probs(observations))
+
+test_forward_probs(gssm_config)
+
+# %%
+def test_prod_transition(config):
+  hmm = HMM(config)
+  hmm._init_all_nodes(4)
+  prod_transition = hmm.make_prod_transition(hmm.top_node)
+  data_prod = hmm.fwd_product_state(prod_transition)
+  data_prod = {name: data_prod[i] for i, name in enumerate(hmm.topo_order)}
+  data_prod_mm = hmm.fwd_via_matmul(prod_transition)
+  data_prod_mm = {name: data_prod_mm[i] for i, name in enumerate(hmm.topo_order)}
+  data_classic = hmm.evolve_classic(1)
+  import matplotlib.pyplot as plt
 
 
-forward_probs = hmm_forward_probs(gssm_config)
-print(forward_probs.shape)
+  for name in data_classic:
+      plt.title(name)
+      plt.hist(data_prod[name], label="prod", alpha=0.5)
+      plt.hist(data_prod_mm[name], label="prod_mm", alpha=0.5)
+      plt.hist(data_classic[name], label="classic", alpha=0.5)
+      plt.legend()
+      plt.show()
+
+test_prod_transition(gssm_config)
+
 # %%
 # ---------------------------------------------------------------------
 # Vivien's code to compute the equivalent big HMM transition matrix
