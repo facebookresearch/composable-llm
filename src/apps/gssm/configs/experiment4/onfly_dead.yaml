@@ -9,14 +9,18 @@ launcher:
     nodes: 1
     nb_gpus: 8
     mem: 16G
-    time: 60          # job time in minutes
+    time: 120         # job time in minutes
     signal_time: 120  # alert time in seconds
 
   grid:
     model:
       emb_dim: [8, 16, 24, 32, 48, 64, 80, 96]
     data:
-      seed: [42, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+      seed: [42]
+      # seed: [42, 0, 1, 2, 3, 4, 5, 6, 7]
+    orchestration:
+      utils:
+        seed: [0, 1, 2, 3, 4, 5, 6, 7]
 
 run_config:
   cluster:
@@ -79,7 +83,7 @@ run_config:
     nb_layers: 4
 
   optim:
-    steps: 1000
+    steps: 10000
     lr: 1e-2
     weight_decay: 0
     scheduler: constant

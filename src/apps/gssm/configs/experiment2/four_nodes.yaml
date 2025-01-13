@@ -9,8 +9,8 @@ launcher:
     nodes: 1
     mem: 16G
     nb_gpus: 8
-    time: 60          # job time in minutes
-    signal_time: 60   # alert time in seconds
+    time: 120         # job time in minutes
+    signal_time: 120  # alert time in seconds
 
   grid:
     data:
@@ -38,7 +38,7 @@ run_config:
     nb_layers: 4
 
   optim:
-    steps: 1000
+    steps: 10000
     lr: 1e-2
     weight_decay: 0
     scheduler: constant
