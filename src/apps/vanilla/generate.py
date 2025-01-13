@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from ...nanollama.data.tokenizer import Tokenizer
 from ...nanollama.model.transfomer import SelfAttention
-from .tmp import (
+from .utils import (
     causal_mask,
     generate_doc_mask_mod,
     lengths_to_local_ids,
