@@ -59,6 +59,7 @@ run_config:
 
     wandb:
       active: true
+      project: exp4
 
   evaluation:
     period: 25
