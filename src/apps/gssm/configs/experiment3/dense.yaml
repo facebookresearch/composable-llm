@@ -1,7 +1,7 @@
 launcher:
   name: dense
   overwrite: true
-  log_dir: $HOME/logs/exp2/dense
+  log_dir: $HOME/logs/exp3/dense
 
   script: src.apps.gssm.train
 

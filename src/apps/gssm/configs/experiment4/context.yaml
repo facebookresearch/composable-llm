@@ -1,7 +1,7 @@
 launcher:
-  name: hard
+  name: context
   overwrite: true
-  log_dir: $HOME/logs/exp3/hard
+  log_dir: $HOME/logs/exp4/context
 
   script: src.apps.gssm.train
 
@@ -26,7 +26,7 @@ run_config:
 
   data:
     n_data: 100_000
-    path: $HOME/data/composition/exp3/hard/trainset.h5
+    path: $HOME/data/composition/exp4/context/trainset.h5
     batch_size: 16
     seed: 0
 
@@ -63,5 +63,5 @@ run_config:
     period: 25
     asynchronous: false
     data:
-      path: $HOME/data/composition/exp3/hard/testset.h5
+      path: $HOME/data/composition/exp4/context/testset.h5
       n_data: 256

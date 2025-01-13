@@ -114,3 +114,10 @@ python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/onfly_slow.ya
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/onfly_dead.yaml
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/onfly_context.yaml
 ```
+As well as
+```bash
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/base.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/slow.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/dead.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/context.yaml
+```
