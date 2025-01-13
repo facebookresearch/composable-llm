@@ -1,16 +1,9 @@
 """
-Do the automatic parsing of the grid
+Scaling plots for all experiments.
 
-Do automatic parsing of wether or not we are in the infinite data regime.
-
-
-- Scaling plots for all experiments.
-     Look at best training/testing loss for a given seed.
-     Report it against the number of parameters or the number of data.
-     Do the scaling.
-     Average across seeds
-
-Read the config to get the seed
+Look at best training/testing loss for a given seed.
+Report it against the number of parameters or the number of data.
+Plot scaling laws.
 """
 
 # %%
