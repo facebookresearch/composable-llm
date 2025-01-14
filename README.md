@@ -32,7 +32,7 @@ pip install -e .
 ```
 If you want to install the development, visualization and mamba dependencies, you can swap the previous command for the following one:
 ```bash
-pip install -e .[dev,mamba,visu]
+pip install -e .[dev,ssm,visu]
 ```
 
 For mamba, `causal_conv1d` can be a bit hard to load, as it is built upon environment variables that are not always set.
@@ -44,9 +44,9 @@ You may instantiate the path to `nvjitlink` with
 ```bash
 export LD_LIBRARY_PATH=$(python -c "import site; print(site.getsitepackages()[0] + '/nvidia/nvjitlink/lib')"):$LD_LIBRARY_PATH
 ```
-You can then try to install the package with `mamba` dependencies (namely `causal_conv1d` and `mamba_ssm`)
+You can then try to install the package with `ssm` dependencies (namely `causal_conv1d` and `mamba_ssm`)
 ```bash
-pip install -e .[mamba]
+pip install -e .[ssm]
 ```
 
 ## Using the codebase

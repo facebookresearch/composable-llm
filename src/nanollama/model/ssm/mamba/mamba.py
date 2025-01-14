@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from ..utils import RMSNorm
+from ...norm import RMSNorm
 from .core_mamba import BaseMamba, BaseMambaArgs
 
 

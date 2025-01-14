@@ -9,12 +9,12 @@ from mamba_ssm.ops.triton.selective_state_update import selective_state_update
 from torch import nn
 from torch.nn import functional as F
 
-from ..utils import RMSNorm
-from .causal_conv1d_compilable import (
+from ...norm import RMSNorm
+from ..causal_conv1d_compilable import (
     causal_conv1d_fn,
     causal_conv1d_update,
 )
-from .ssm_compilable import mamba_chunk_scan_combined
+from ..ssm_compilable import mamba_chunk_scan_combined
 
 
 @dataclass

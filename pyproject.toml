@@ -45,7 +45,8 @@ visu = [
   "plotly",
 ]
 
-mamba = [
+ssm = [
+  "accelerated_scan",
   "causal_conv1d",
   "mamba_ssm",
 ]
