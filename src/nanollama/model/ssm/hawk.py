@@ -1,6 +1,8 @@
 """
 Hawk model
 
+https://arxiv.org/abs/2402.19427
+
 License
 -------
 This source code is licensed under the terms specified in the `LICENSE` file,
@@ -239,10 +241,10 @@ class HawkBlock(nn.Module):
         )
 
         self.feed_forward = FeedForward(
-            dim=args.dim,
-            hidden_dim=4 * args.dim,
-            multiple_of=args.multiple_of,
-            ffn_dim_multiplier=args.ffn_dim_multiplier,
+            emb_dim=args.dim,
+            ffn_dim=4 * args.dim,
+            # multiple_of=args.multiple_of,
+            # ffn_dim_multiplier=args.ffn_dim_multiplier,
         )
 
         self.rlgru_norm = RMSNorm(args.dim, eps=args.norm_eps)
@@ -296,7 +298,7 @@ class BaseHawk(nn.Module):
 class LMHawkArgs(BaseHawkArgs):
     seed: int = 42
 
-    vocab_size: int = -1
+    vocab_size: int = 0
     weight_tying: bool = False
 
     loss_reduction: str = "mean"
@@ -363,7 +365,7 @@ class LMHawk(BaseHawk):
     def _get_no_recompute_ops(self):
         return get_no_recompute_ops()
 
-    def get_nb_flops(self, **kwargs) -> int:
+    def get_nb_flop(self, **kwargs) -> int:
         # TODO
         return 0
 

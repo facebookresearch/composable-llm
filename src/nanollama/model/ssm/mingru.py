@@ -1,3 +1,16 @@
+"""
+MinGRU model
+
+https://arxiv.org/abs/2410.01201
+
+License
+-------
+This source code is licensed under the terms specified in the `LICENSE` file,
+located in the root directory of this repository.
+
+@ 2025, Meta
+"""
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -301,7 +314,7 @@ class LMMinGRU(BaseMinGRU):
     def _get_no_recompute_ops(self):
         return get_no_recompute_ops()
 
-    def get_nb_flops(self, **kwargs) -> int:
+    def get_nb_flop(self, **kwargs) -> int:
         # TODO
         return 0
 

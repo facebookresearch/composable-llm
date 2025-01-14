@@ -19,14 +19,15 @@ import torch
 import torch.nn.functional as F
 import yaml
 
+os.environ["CUDA_HOME"] = "/public/apps/cuda/12.2.0"  # monkey patching for accelerated_scan to work
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
-from ...nanollama.model.ssm.mamba import (
-    LMMamba,
-    LMMambaArgs,
+from ...nanollama.model.ssm.mingru import (
+    LMMinGRU,
+    LMMinGRUArgs,
 )
 from ...nanollama.monitor import (
-    Checkpointer,
+    # Checkpointer,
     Logger,
     OrchestratorConfig,
     PreemptionHandler,
@@ -53,7 +54,7 @@ _logger = logging.getLogger("nanollama")
 @dataclass
 class TrainingConfig:
     data: DataConfig = field(default_factory=DataConfig)
-    model: LMMambaArgs = field(default_factory=LMMambaArgs)
+    model: LMMinGRUArgs = field(default_factory=LMMinGRUArgs)
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
@@ -114,7 +115,7 @@ def train(config: TrainingConfig) -> None:
         # ---------------------------------------------------------------------
 
         _logger.info("Building model")
-        model = LMMamba(config.model)
+        model = LMMinGRU(config.model)
         model = cluster.initialize_model(model)
 
         _logger.info("Building optimizer")
@@ -131,11 +132,11 @@ def train(config: TrainingConfig) -> None:
             optim=init_optimizer_state(),
         )
 
-        checkpoint: Checkpointer = context_stack.enter_context(
-            Checkpointer(
-                config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
-            )
-        )
+        # checkpoint: Checkpointer = context_stack.enter_context(
+        #     Checkpointer(
+        #         config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
+        #     )
+        # )
 
         # ---------------------------------------------------------------------
         # DataLoader
@@ -227,7 +228,7 @@ def train(config: TrainingConfig) -> None:
             step = state.optim.step
 
             profiler.start_timer()
-            checkpoint()
+            # checkpoint()
             profiler()
             utils()
             profiler.end_timer("monitor_time")
