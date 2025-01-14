@@ -8,41 +8,6 @@ import numpy as np
 import torch
 
 # %%
-gssm_config = {
-    "nodes": [
-        {
-            "name": "Z1",
-            "state_dim": 5,
-            "parents": [],
-            "alpha": 1e-8,
-            "mode": "default",
-        },
-        {
-            "name": "Z2",
-            "state_dim": 6,
-            "parents": ["Z1"],
-            "alpha": 1e-8,
-            "mode": "default",
-        },
-        {
-            "name": "Z3",
-            "state_dim": 7,
-            "parents": ["Z2"],
-            "alpha": 1e-8,
-            "mode": "default",
-        },
-        {
-            "name": "X",
-            "state_dim": 8,
-            "parents": ["Z1", "Z3"],
-            "alpha": 1e-8,
-            "mode": "default",
-        },
-    ]
-}
-
-
-# %%
 
 
 class HMM:
@@ -284,52 +249,12 @@ class HMM:
         emission = torch.tensor(self.get_p_emission(self.top_node))
         return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log())
 
-# %%
 
-def test_forward_probs(config):
-    hmm = HMM(config)
-    batch_size = 2
-    seq_len = 2
-    hmm._init_all_nodes(batch_size)
-    observations = np.zeros((seq_len, batch_size), dtype=int)
-    for i in range(seq_len):
-        observations[i] = np.array(hmm.top_node.state)
-        hmm.evolve_classic(1)
-    print(hmm.forward_probs(observations))
-
-test_forward_probs(gssm_config)
-
-# %%
-def test_prod_transition(config):
-  hmm = HMM(config)
-  hmm._init_all_nodes(4)
-  prod_transition = hmm.make_prod_transition(hmm.top_node)
-  data_prod = hmm.fwd_product_state(prod_transition)
-  data_prod = {name: data_prod[i] for i, name in enumerate(hmm.topo_order)}
-  data_prod_mm = hmm.fwd_via_matmul(prod_transition)
-  data_prod_mm = {name: data_prod_mm[i] for i, name in enumerate(hmm.topo_order)}
-  data_classic = hmm.evolve_classic(1)
-  import matplotlib.pyplot as plt
-
-
-  for name in data_classic:
-      plt.title(name)
-      plt.hist(data_prod[name], label="prod", alpha=0.5)
-      plt.hist(data_prod_mm[name], label="prod_mm", alpha=0.5)
-      plt.hist(data_classic[name], label="classic", alpha=0.5)
-      plt.legend()
-      plt.show()
-
-test_prod_transition(gssm_config)
-
-# %%
 # ---------------------------------------------------------------------
 # Vivien's code to compute the equivalent big HMM transition matrix
-# Nik: use this later to simplify above.
+# Nik: use this later to simplify above, atm buggy
 # ---------------------------------------------------------------------
-
-
-def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
+def __get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
     """
     Here is the logic I would use to compute the transition matrix.
     Not sure all my broadcasts and reshapes are correct though.
@@ -382,8 +307,76 @@ def get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
     return proba
 
 
-prod_transition_viv = get_transition_matrix(
-    {name: hmm.nodes[name] for name in hmm.topo_order}
-)
-(prod_transition_viv == prod_transition).all()  # not quite right for now, needs correct time dependence
+
+if __name__ == "__main__":
+  gssm_config = {
+      "nodes": [
+          {
+              "name": "Z1",
+              "state_dim": 5,
+              "parents": [],
+              "alpha": .1,
+              "mode": "default",
+          },
+          {
+              "name": "Z2",
+              "state_dim": 6,
+              "parents": ["Z1"],
+              "alpha": .1,
+              "mode": "default",
+          },
+          {
+              "name": "Z3",
+              "state_dim": 7,
+              "parents": ["Z2"],
+              "alpha": .1,
+              "mode": "default",
+          },
+          {
+              "name": "X",
+              "state_dim": 8,
+              "parents": ["Z1", "Z3"],
+              "alpha": .1,
+              "mode": "default",
+          },
+      ]
+  }
+
+
+  def test_prod_transition(config):
+    hmm = HMM(config)
+    hmm._init_all_nodes(1000)
+    prod_transition = hmm.make_prod_transition(hmm.top_node)
+    data_prod = hmm.fwd_product_state(prod_transition)
+    data_prod = {name: data_prod[i] for i, name in enumerate(hmm.topo_order)}
+    data_prod_mm = hmm.fwd_via_matmul(prod_transition)
+    data_prod_mm = {name: data_prod_mm[i] for i, name in enumerate(hmm.topo_order)}
+    data_classic = hmm.evolve_classic(1)
+    import matplotlib.pyplot as plt
+
+
+    for name in data_classic:
+        plt.title(name)
+        plt.hist(data_prod[name], label="prod", alpha=0.5)
+        plt.hist(data_prod_mm[name], label="prod_mm", alpha=0.5)
+        plt.hist(data_classic[name], label="classic", alpha=0.5)
+        plt.legend()
+        plt.show()
+
+  test_prod_transition(gssm_config)
+
+  def test_forward_probs(config):
+      hmm = HMM(config)
+      batch_size = 2
+      seq_len = 2
+      hmm._init_all_nodes(batch_size)
+      observations = np.zeros((seq_len, batch_size), dtype=int)
+      for i in range(seq_len):
+          observations[i] = np.array(hmm.top_node.state)
+          hmm.evolve_classic(1)
+      #sanity check
+      print(hmm.forward_probs(observations).sum(0))
+
+  test_forward_probs(gssm_config)
+
 # %%
