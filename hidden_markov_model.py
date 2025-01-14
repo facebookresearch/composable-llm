@@ -7,9 +7,6 @@ from src.nanollama.data import gssm
 import numpy as np
 import torch
 
-# %%
-
-
 class HMM:
     SYM_IN = "abcxdefghijklmnopqrstuvwxyz"
     SYM_OUT = "ABCXDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -217,18 +214,22 @@ class HMM:
             E (torch.tensor): Emission matrix. [S, O]
             pi (torch.tensor): Initial state probabilities. [S]
         Returns:
-            forward_probs (torch.tensor): Forward probabilities [S, T, B]
+            forward_probs (torch.tensor): Forward probabilities [S, seq_len, B]
         """
         DEVICE = "cpu"
         num_states = log_T.shape[0]
         T, B = obs.shape
 
         def lognorm(log_x):
-            return log_x - torch.logsumexp(log_x, dim=0, keepdim=True)
+            return torch.logsumexp(log_x, dim=0, keepdim=True)
 
         forward_probs = torch.zeros((num_states, T, B), device=DEVICE)
+        log_p_seq = torch.zeros((1, T, B), device=DEVICE)
 
-        forward_probs[:, 0, :] = lognorm(log_pi[:, None] + log_E[:, obs[0]])
+        forward_probs[:, 0, :] = log_pi[:, None] + log_E[:, obs[0]]
+        log_p_seq[:,0,:] = lognorm(forward_probs[:, 0, :])
+        # forward_probs[:,0,:] -= log_p_seq[:,0,:]
+        
 
         log_T = log_T[:, :, None]
 
@@ -236,9 +237,10 @@ class HMM:
             forward_probs[:, t, :] = log_E[:, obs[t]] + torch.logsumexp(
                 forward_probs[:, None, t - 1, :] + log_T, dim=0
             )
-            forward_probs[:, t, :] = lognorm(forward_probs[:, t, :])
+            log_p_seq[:,t,:] = lognorm(forward_probs[:, t, :])
+            # forward_probs[:, t, :] = forward_probs[:,t,:] - log_p_seq[:,t,:]
 
-        return torch.exp(forward_probs)
+        return forward_probs, log_p_seq.reshape(T, B)
 
     def forward_probs(self, observations: np.ndarray):
         T, B = observations.shape
@@ -248,101 +250,75 @@ class HMM:
         transition = torch.tensor(self.make_prod_transition(self.top_node))
         emission = torch.tensor(self.get_p_emission(self.top_node))
         return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log())
-
-
-# ---------------------------------------------------------------------
-# Vivien's code to compute the equivalent big HMM transition matrix
-# Nik: use this later to simplify above, atm buggy
-# ---------------------------------------------------------------------
-def __get_transition_matrix(nodes: dict[str, gssm.Node]) -> np.ndarray:
-    """
-    Here is the logic I would use to compute the transition matrix.
-    Not sure all my broadcasts and reshapes are correct though.
-
-    In essence, it used the fact that for (Ai)_{i in N} N discrete variables,
-    F(A1, A2, ..., AN) can be represented as a N-D tensor
-    And a formula, e.g., with N=5,
-        F(A1, A2, ..., A5) = F1(A1, A2, A3) * F2(A4, A5)
-    can be computed by writting F1(A1, A2, A3) as a 3D tensor, broadcasting it to a 5-D tensor based on
-        F1'(A1, A2, A3, A4, A5) = F1(A1, A2, A3)
-    and similarly writting F2 as a 2D tensor being broadcast to a 5D with
-        F2'(A1, A2, A3, A4, A5) = F2(A4, A5)
-    and multiplying F1' and F2' element-wise.
-
-    In our case, the discrete elements are the states of the nodes at time t and t-1.
-    """
-
-    size = []
-    keys = {}
-    for i, node in enumerate(nodes.values()):
-        size.append(node.state_dim)
-        keys[node] = i
-
-    def _format_transition(node):
-        observed = isinstance(node, gssm.ObservedNode)
-        order = ([] if observed else [node]) + node.parents
-        shape = [n.state_dim for n in order] + [node.state_dim]
-        key_order = np.argsort([keys[n] for n in order] + [np.inf])
-        trans = node.kernel.p_transition.reshape(shape)
-        return trans.transpose(key_order)
-
-    proba = np.ones((*size, *size))
-    for name, node in nodes.items():
-        input_shape = np.ones(len(nodes), dtype=int)
-        output_shape = np.ones(len(nodes), dtype=int)
-
-        output_shape[keys[node]] = node.state_dim
-        if not isinstance(node, gssm.ObservedNode):
-            input_shape[keys[node]] = node.state_dim
-
-        for pnode in node.parents:
-            input_shape[keys[pnode]] = pnode.state_dim
-        print(name, input_shape, output_shape)
-
-        # bug here, we should first reshape p_transition according to (node.state_dim, *(pnode.state_dim for pnode in node.parents))
-        # then we should transpose it to have the same order as in proba.
-        # EDIT: i think _format_transition accomplishes that, please check
-        proba *= _format_transition(node).reshape((*input_shape, *output_shape))
-
-    return proba
-
+    
+    def entropy_of_observations(self, observations: np.ndarray):
+        log_p_Zt_xst, _ = self.forward_probs(observations)
+        # FIXME something is wrong here still
+        print(log_p_Zt_xst)
+        P, T, B = log_p_Zt_xst.shape #helpers for readability P = product state shape
+        log_p_x_given_z = torch.tensor(self.get_p_emission(self.top_node)).log()
+        log_p_x_given_z = log_p_x_given_z[...,None,None]
+        log_p_Xt_xst = torch.logsumexp(log_p_x_given_z + log_p_Zt_xst[:,None], dim=0)
+        S, T, B = log_p_Xt_xst.shape #S = top_node.state_dim
+        def lognorm(log_x):
+            return torch.logsumexp(log_x, dim=0, keepdim=True)
+        log_p_Xt_given_xst = log_p_Xt_xst - lognorm(log_p_Xt_xst)
+        H_t = (torch.exp(log_p_Xt_xst) * log_p_Xt_given_xst).sum(0) # sum over states
+        T, B = H_t.shape
+        return H_t.sum(0) # sum over sequence
+        
 
 
 if __name__ == "__main__":
+
   gssm_config = {
       "nodes": [
           {
               "name": "Z1",
               "state_dim": 5,
               "parents": [],
-              "alpha": .1,
+              "alpha": 1,
               "mode": "default",
           },
           {
               "name": "Z2",
               "state_dim": 6,
               "parents": ["Z1"],
-              "alpha": .1,
+              "alpha": 1,
               "mode": "default",
           },
           {
               "name": "Z3",
               "state_dim": 7,
               "parents": ["Z2"],
-              "alpha": .1,
+              "alpha": 1,
               "mode": "default",
           },
           {
               "name": "X",
               "state_dim": 8,
               "parents": ["Z1", "Z3"],
-              "alpha": .1,
+              "alpha": 1,
               "mode": "default",
           },
       ]
   }
 
+  def test_entropy(config):
+      hmm = HMM(config)
+      batch_size = 2
+      seq_len = 5
+      hmm._init_all_nodes(batch_size)
+      observations = np.zeros((seq_len, batch_size), dtype=int)
+      for i in range(seq_len):
+          observations[i] = np.array(hmm.top_node.state)
+          hmm.evolve_classic(1)
+      print(hmm.entropy_of_observations(observations))
+  
+  test_entropy(gssm_config)
+# %%
 
+# %%
   def test_prod_transition(config):
     hmm = HMM(config)
     hmm._init_all_nodes(1000)
@@ -363,7 +339,7 @@ if __name__ == "__main__":
         plt.legend()
         plt.show()
 
-  test_prod_transition(gssm_config)
+  # test_prod_transition(gssm_config)
 
   def test_forward_probs(config):
       hmm = HMM(config)
@@ -375,8 +351,9 @@ if __name__ == "__main__":
           observations[i] = np.array(hmm.top_node.state)
           hmm.evolve_classic(1)
       #sanity check
-      print(hmm.forward_probs(observations).sum(0))
+      print(hmm.forward_probs(observations)[0].exp().sum(0))
 
-  test_forward_probs(gssm_config)
+  # test_forward_probs(gssm_config)
+
 
 # %%
