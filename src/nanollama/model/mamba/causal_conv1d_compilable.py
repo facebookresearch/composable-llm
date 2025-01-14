@@ -2,6 +2,7 @@ from typing import Optional
 
 import causal_conv1d_cuda
 import torch
+from torch.autograd.function import FunctionCtx
 
 
 # Causal Conv1D Forward Function
@@ -97,16 +98,14 @@ def _causal_conv1d_bwd_fake(
 
 
 # Setup context for autograd
-def causal_conv1d_setup_context(
-    ctx: torch.autograd.function._ContextMethodMixin, inputs: tuple[torch.Tensor], output: torch.Tensor
-) -> None:
+def causal_conv1d_setup_context(ctx: FunctionCtx, inputs: tuple[torch.Tensor], output: torch.Tensor) -> None:
     x, weight, bias, seq_idx, activation = inputs
     ctx.activation = activation in ["silu", "swish"]
     ctx.save_for_backward(x, weight, bias, seq_idx)
 
 
 # Bridge for backward pass in autograd
-def causal_conv1d_bwd_bridge(ctx: torch.autograd.function._ContextMethodMixin, dout: torch.Tensor) -> tuple:
+def causal_conv1d_bwd_bridge(ctx: FunctionCtx, dout: torch.Tensor) -> tuple:
     x, weight, bias, seq_idx = ctx.saved_tensors
     dx, dweight, dbias = causal_conv1d_bwd(x, weight, bias, dout, seq_idx, ctx.activation)
 

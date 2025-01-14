@@ -1,7 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional  # noqa: UP035 (torch compile does not handle the `list` keyword currently)
 
 import torch
 from mamba_ssm.ops.triton.ssd_combined import _mamba_chunk_scan_combined_bwd, _mamba_chunk_scan_combined_fwd
+from torch.autograd.function import FunctionCtx
 
 
 @torch.compile(fullgraph=True)
@@ -19,7 +20,7 @@ def _compiled_mamba_chunk_scan_combined_fwd(
     seq_idx: Optional[torch.Tensor] = None,
     cu_seqlens: Optional[torch.Tensor] = None,
     dt_softplus: bool = False,
-    dt_limit: Optional[List[float]] = None,
+    dt_limit: Optional[List[float]] = None,  # noqa: UP006
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     return _mamba_chunk_scan_combined_fwd(
         x,
@@ -56,7 +57,7 @@ def _compiled_mamba_chunk_scan_combined_bwd(
     dfinal_states: Optional[torch.Tensor] = None,
     seq_idx: Optional[torch.Tensor] = None,
     dt_softplus: bool = False,
-    dt_limit: Optional[List[float]] = None,
+    dt_limit: Optional[List[float]] = None,  # noqa: UP006
 ) -> tuple[
     torch.Tensor,
     torch.Tensor,
@@ -107,7 +108,7 @@ def ssm_chunk_scan_combined_fwd(
     seq_idx: Optional[torch.Tensor] = None,
     cu_seqlens: Optional[torch.Tensor] = None,
     dt_softplus: bool = False,
-    dt_limit: Optional[List[float]] = None,
+    dt_limit: Optional[List[float]] = None,  # noqa: UP006
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     out, out_x, dt_out, dA_cumsum, states, final_states, *rest = _mamba_chunk_scan_combined_fwd(
         x,
@@ -148,7 +149,7 @@ def _ssm_chunk_scan_combined_fwd_fake(
     seq_idx: Optional[torch.Tensor] = None,
     cu_seqlens: Optional[torch.Tensor] = None,
     dt_softplus: bool = False,
-    dt_limit: Optional[List[float]] = None,
+    dt_limit: Optional[List[float]] = None,  # noqa: UP006
 ):
     _, _, n_heads, head_dim = x.shape
     return (
@@ -178,7 +179,7 @@ def ssm_chunk_scan_combined_bwd(
     initial_states: Optional[torch.Tensor] = None,
     seq_idx: Optional[torch.Tensor] = None,
     dt_softplus: bool = False,
-    dt_limit: Optional[List[float]] = None,
+    dt_limit: Optional[List[float]] = None,  # noqa: UP006
 ) -> tuple[
     torch.Tensor,
     torch.Tensor,
@@ -237,7 +238,7 @@ def _ssm_chunk_scan_combined_bwd_fake(
     initial_states: Optional[torch.Tensor] = None,
     seq_idx: Optional[torch.Tensor] = None,
     dt_softplus: bool = False,
-    dt_limit: Optional[List[float]] = None,
+    dt_limit: Optional[List[float]] = None,  # noqa: UP006
 ):
     return (
         torch.empty_like(x),
@@ -253,7 +254,7 @@ def _ssm_chunk_scan_combined_bwd_fake(
 
 
 def ssm_chunk_scan_combined_setup_context(
-    ctx: torch.autograd.function._ContextMethodMixin,
+    ctx: FunctionCtx,
     inputs: tuple,
     output: tuple[torch.Tensor, torch.Tensor, torch.Tensor],
 ) -> None:
@@ -267,7 +268,7 @@ def ssm_chunk_scan_combined_setup_context(
 
 
 def ssm_chunk_scan_combined_bridge(
-    ctx: torch.autograd.function._ContextMethodMixin,
+    ctx: FunctionCtx,
     dout: torch.Tensor,
     dout_x: torch.Tensor,
     dout_state_varlen: torch.Tensor,
