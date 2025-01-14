@@ -11,9 +11,6 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-from dataclasses import dataclass
-from typing import Optional
-
 import torch
 from torch import nn
 from torch.autograd.function import FunctionCtx
@@ -21,29 +18,11 @@ from torch.nn import functional as F
 
 from ..feedforward import FeedForward
 from ..norm import RMSNorm
-from .rnn_utils import conv1d, scan
+from .rnn_utils import BaseFastRNNArgs, LMFastRNNArgs, conv1d, scan
 
 # ------------------------------------------------------------------------------
 # Base Model
 # ------------------------------------------------------------------------------
-
-
-@dataclass
-class BaseHawkArgs:
-    dim: int = 512
-    n_layers: int = 8
-    n_heads: int = 1
-
-    multiple_of: int = 256
-    ffn_dim_multiplier: Optional[float] = None
-    lru_dim_multiplier: Optional[float] = None
-
-    conv_size: Optional[int] = None
-
-    norm_eps: float = 1e-5
-
-    init_base_std: Optional[float] = None
-    init_std_factor: str = "disabled"
 
 
 _MAX_SQRT_GRADIENT: float = 1000.0
@@ -228,7 +207,7 @@ class RGLRUBlock(nn.Module):
 
 
 class HawkBlock(nn.Module):
-    def __init__(self, args: BaseHawkArgs):
+    def __init__(self, args: BaseFastRNNArgs):
         super().__init__()
 
         self.rlgru_block = RGLRUBlock(
@@ -263,7 +242,7 @@ class HawkBlock(nn.Module):
 
 
 class BaseHawk(nn.Module):
-    def __init__(self, args: BaseHawkArgs):
+    def __init__(self, args: BaseFastRNNArgs):
         super().__init__()
 
         self.dim = args.dim
@@ -294,21 +273,10 @@ class BaseHawk(nn.Module):
 # ------------------------------------------------------------------------------
 
 
-@dataclass
-class LMHawkArgs(BaseHawkArgs):
-    seed: int = 42
-
-    vocab_size: int = 0
-    weight_tying: bool = False
-
-    loss_reduction: str = "mean"
-
-
 class LMHawk(BaseHawk):
-    def __init__(self, args: LMHawkArgs) -> None:
+    def __init__(self, args: LMFastRNNArgs) -> None:
         super().__init__(args)
         self.weight_tying = args.weight_tying
-        self.loss_reduction = args.loss_reduction
         self.seed = args.seed
 
         assert args.vocab_size > 0

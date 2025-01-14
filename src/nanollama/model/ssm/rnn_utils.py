@@ -9,7 +9,8 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Optional
 
 import torch
 
@@ -19,6 +20,49 @@ from causal_conv1d.causal_conv1d_varlen import causal_conv1d_varlen_states
 
 from .wrapper_causal_conv1d import causal_conv1d_fn, causal_conv1d_update
 from .wrapper_scan import scan as accelerated_scan
+
+# ------------------------------------------------------------------------------
+# Configuration class
+# ------------------------------------------------------------------------------
+
+
+@dataclass
+class BaseFastRNNArgs:
+    dim: int = 512
+    n_layers: int = 8
+    n_heads: int = 1
+
+    multiple_of: int = 256
+    ffn_dim_multiplier: Optional[float] = None
+
+    conv_size: Optional[int] = None
+
+    norm_eps: float = 1e-5
+
+    init_base_std: Optional[float] = None
+    init_std_factor: str = "disabled"
+
+
+@dataclass
+class LMFastRNNArgs(BaseFastRNNArgs):
+    seed: int = 42
+
+    implementation: str = "minLSTM"
+
+    vocab_size: int = 0
+    weight_tying: bool = False
+
+    def __post_init__(self):
+        assert self.implementation.lower() in ["minlstm", "mingru", "hawk"], f"{self.implementation} not found"
+
+    def __check_init__(self):
+        """Check validity of arguments."""
+        assert self.vocab_size > 0, "Vocab size must be greater than 0"
+
+
+# ------------------------------------------------------------------------------
+# 1D Convolution
+# ------------------------------------------------------------------------------
 
 
 def conv1d(
@@ -52,6 +96,11 @@ def conv1d(
         )
 
     return x
+
+
+# ------------------------------------------------------------------------------
+# Linear Scan
+# ------------------------------------------------------------------------------
 
 
 def _prepare_for_cache(

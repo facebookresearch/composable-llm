@@ -11,7 +11,6 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-from dataclasses import dataclass
 from typing import Optional
 
 import torch
@@ -19,28 +18,11 @@ from torch import nn
 from torch.nn import functional as F
 
 from ..norm import RMSNorm
-from .rnn_utils import conv1d, scan
+from .rnn_utils import BaseFastRNNArgs, LMFastRNNArgs, conv1d, scan
 
 # ------------------------------------------------------------------------------
 # Base Model
 # ------------------------------------------------------------------------------
-
-
-@dataclass
-class BaseMinLSTMArgs:
-    dim: int = 512
-    n_layers: int = 8
-    n_heads: int = 1
-
-    multiple_of: int = 256
-    ffn_dim_multiplier: Optional[float] = None
-
-    conv_size: Optional[int] = None
-
-    norm_eps: float = 1e-5
-
-    init_base_std: Optional[float] = None
-    init_std_factor: str = "disabled"
 
 
 class LSTM(nn.Module):
@@ -160,7 +142,7 @@ class LSTM(nn.Module):
 
 
 class LSTMBlock(nn.Module):
-    def __init__(self, args: BaseMinLSTMArgs):
+    def __init__(self, args: BaseFastRNNArgs):
         super().__init__()
 
         self.lstm_norm = RMSNorm(args.dim, eps=args.norm_eps)
@@ -183,7 +165,7 @@ class LSTMBlock(nn.Module):
 
 
 class BaseMinLSTM(nn.Module):
-    def __init__(self, args: BaseMinLSTMArgs):
+    def __init__(self, args: BaseFastRNNArgs):
         super().__init__()
 
         self.dim = args.dim
@@ -214,18 +196,8 @@ class BaseMinLSTM(nn.Module):
 # ------------------------------------------------------------------------------
 
 
-@dataclass
-class LMMinLSTMArgs(BaseMinLSTMArgs):
-    seed: int = 42
-    vocab_size: int = 0
-    weight_tying: bool = False
-
-    def __check_init__(self):
-        assert self.vocab_size > 0, "Vocab size must be greater than 0"
-
-
 class LMMinLSTM(BaseMinLSTM):
-    def __init__(self, args: LMMinLSTMArgs) -> None:
+    def __init__(self, args: LMFastRNNArgs) -> None:
         super().__init__(args)
         self.weight_tying = args.weight_tying
         self.seed = args.seed
