@@ -1,3 +1,14 @@
+"""
+RNN utilities
+
+License
+-------
+This source code is licensed under the terms specified in the `LICENSE` file,
+located in the root directory of this repository.
+
+@ 2025, Meta
+"""
+
 from typing import Any
 
 import torch
@@ -6,8 +17,8 @@ import torch
 from accelerated_scan.ref import scan as ref_scan
 from causal_conv1d.causal_conv1d_varlen import causal_conv1d_varlen_states
 
-from .causal_conv1d_compilable import causal_conv1d_fn, causal_conv1d_update
-from .compilable_scan import scan as accelerated_scan
+from .wrapper_causal_conv1d import causal_conv1d_fn, causal_conv1d_update
+from .wrapper_scan import scan as accelerated_scan
 
 
 def conv1d(

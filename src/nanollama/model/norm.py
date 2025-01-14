@@ -1,13 +1,5 @@
 """
-Useful modules
-
-Notes
------
-Comments abbreviations:
-    B: batch size
-    S: sequence length
-    D: embedding dimension
-    H: number of heads
+Normalization layers
 
 License
 -------

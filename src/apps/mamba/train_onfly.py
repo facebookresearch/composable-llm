@@ -21,7 +21,7 @@ import yaml
 
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
-from ...nanollama.model.mamba.mamba import (
+from ...nanollama.model.ssm.mamba import (
     LMMamba,
     LMMambaArgs,
 )

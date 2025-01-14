@@ -1,3 +1,14 @@
+"""
+Hawk model
+
+License
+-------
+This source code is licensed under the terms specified in the `LICENSE` file,
+located in the root directory of this repository.
+
+@ 2025, Meta
+"""
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -6,9 +17,13 @@ from torch import nn
 from torch.autograd.function import FunctionCtx
 from torch.nn import functional as F
 
-from ...feedforward import FeedForward
-from ...norm import RMSNorm
-from ..rnn_common import conv1d, scan
+from ..feedforward import FeedForward
+from ..norm import RMSNorm
+from .rnn_utils import conv1d, scan
+
+# ------------------------------------------------------------------------------
+# Base Model
+# ------------------------------------------------------------------------------
 
 
 @dataclass
@@ -59,7 +74,7 @@ class RGLRU(nn.Module):
         dim: int,
         n_heads: int,
         head_dim: int,
-        conv_size: Optional[int] = None,
+        conv_size: int = None,
     ):
         super().__init__()
 
@@ -151,8 +166,8 @@ class RGLRUBlock(nn.Module):
         hidden_dim: int,
         n_heads: int,
         multiple_of: int,
-        lru_dim_multiplier: Optional[float],
-        conv_size: Optional[int] = None,
+        lru_dim_multiplier: float,
+        conv_size: int = None,
     ):
         super().__init__()
 
@@ -196,7 +211,7 @@ class RGLRUBlock(nn.Module):
 
         return y
 
-    def init_weights(self, init_std: Optional[float], factor: float) -> None:
+    def init_weights(self, init_std: float, factor: float) -> None:
         self.rglru.reset_parameters(init_std, factor)
 
         in_init_std = init_std or (self.dim ** (-0.5))
@@ -238,7 +253,7 @@ class HawkBlock(nn.Module):
         x = x + self.feed_forward(self.ffn_norm(x))
         return x
 
-    def init_weights(self, init_std: Optional[float], factor: float) -> None:
+    def init_weights(self, init_std: float, factor: float) -> None:
         self.rlgru_block.init_weights(init_std, factor)
         self.rlgru_norm.reset_parameters()
         self.feed_forward.reset_parameters()
@@ -270,3 +285,93 @@ class BaseHawk(nn.Module):
         for _depth, layer in enumerate(self.layers):
             factor = 1
             layer.init_weights(self.init_base_std, factor)
+
+
+# ------------------------------------------------------------------------------
+# Language Model
+# ------------------------------------------------------------------------------
+
+
+@dataclass
+class LMHawkArgs(BaseHawkArgs):
+    seed: int = 42
+
+    vocab_size: int = -1
+    weight_tying: bool = False
+
+    loss_reduction: str = "mean"
+
+
+class LMHawk(BaseHawk):
+    def __init__(self, args: LMHawkArgs) -> None:
+        super().__init__(args)
+        self.weight_tying = args.weight_tying
+        self.loss_reduction = args.loss_reduction
+        self.seed = args.seed
+
+        assert args.vocab_size > 0
+
+        self.tok_embeddings = torch.nn.Embedding(args.vocab_size, args.dim)
+
+        self.norm = RMSNorm(args.dim, eps=args.norm_eps)
+
+        self.output = nn.Linear(
+            args.dim,
+            args.vocab_size,
+            bias=False,
+        )
+
+        if args.weight_tying:
+            self.output.weight = self.embeddings.tok_embeddings.weight
+
+        self.init_weights()
+
+    def forward(
+        self,
+        token_values: torch.Tensor,
+        cu_seqlens: int = None,
+        impl: str = "parallel",
+    ) -> torch.Tensor:
+        h = self.tok_embeddings(token_values)
+
+        h = super().forward(h, cu_seqlens=cu_seqlens, impl=impl)
+
+        logits = self.output(self.norm(h))
+        return logits
+
+    def reset_parameters(self, init_std: float = None) -> None:
+        # Either use fixed base std or sqrt model dim
+        super().reset_parameters()
+        init_std = init_std or (self.dim ** (-0.5))
+        self.norm.reset_parameters()
+        nn.init.trunc_normal_(
+            self.tok_embeddings.weight,
+            mean=0.0,
+            std=init_std,
+            a=-3 * init_std,
+            b=3 * init_std,
+        )
+        if not self.weight_tying:
+            nn.init.trunc_normal_(
+                self.output.weight,
+                mean=0.0,
+                std=init_std,
+                a=-3 * init_std,
+                b=3 * init_std,
+            )
+
+    def _get_no_recompute_ops(self):
+        return get_no_recompute_ops()
+
+    def get_nb_flops(self, **kwargs) -> int:
+        # TODO
+        return 0
+
+
+def get_no_recompute_ops() -> None:
+    return {
+        torch.ops.aten.mm.default,
+        torch.ops.aten._scaled_mm.default,
+        torch.ops.c10d_functional.reduce_scatter_tensor.default,
+        torch.ops.scan.scan_fwd.default,
+    }

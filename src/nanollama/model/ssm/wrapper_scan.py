@@ -1,4 +1,17 @@
+"""
+Wrapper around `scan` layer from the `accelerated_scan` library.
+
+License
+-------
+This source code is licensed under the terms specified in the `LICENSE` file,
+located in the root directory of this repository.
+
+@ 2025, Meta
+"""
+
 import torch
+
+# from accelerated_scan.triton import scan as triton_scan
 from accelerated_scan.warp import warpscan_backward, warpscan_forward
 from torch.autograd.function import FunctionCtx
 
@@ -29,7 +42,7 @@ def _scan_fwd_fake(gates: torch.Tensor, tokens: torch.Tensor, reverse: bool = Fa
 
 
 @torch.library.custom_op(
-    "scan::scan_bwd",
+    "accelerated_scan::scan_bwd",
     mutates_args=(),
     device_types="cuda",
 )
@@ -49,7 +62,6 @@ def scan_bwd(
     return d_gates, d_tokens
 
 
-@scan_bwd.register_fake
 @scan_bwd.register_fake
 def _scan_bwd_fake(dout: torch.Tensor, states: torch.Tensor, gates: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return torch.empty_like(gates), torch.empty_like(gates)
