@@ -136,9 +136,9 @@ class GRUBlock(nn.Module):
 class MinGRU(nn.Module):
     def __init__(self, config: FastRNNConfig) -> None:
         super().__init__()
+
         self.emb_dim = config.emb_dim
         self.weight_tying = config.weight_tying
-        self.init_std = config.init_std
 
         self.embeddings = torch.nn.Embedding(config.vocab_size, config.emb_dim)
 
@@ -151,7 +151,7 @@ class MinGRU(nn.Module):
             # Tying token embedding and un-embedding
             self.output.weight = self.embeddings.weight
 
-        self.reset_parameters(self.init_std, factor=1.0)
+        self.reset_parameters(config.init_std, factor=1.0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.embeddings(x)
@@ -167,8 +167,6 @@ class MinGRU(nn.Module):
 
         Parameters
         ----------
-        seq_len:
-            Sequence length.
         mode:
             Whether to consider the forward, backward pass or both
         """

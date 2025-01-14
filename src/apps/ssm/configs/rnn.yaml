@@ -48,7 +48,7 @@ run_config:
         alpha: 1e-2
 
   model:
-    implementation: "mingru"
+    implementation: minlstm
     dim: 256
     n_layers: 2
     n_heads: 8

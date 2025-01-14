@@ -2,8 +2,7 @@ try:
     # from .hawk import LMHawk
     # from .mamba import LMMamba
     from .mingru import MinGRU
-
-    # from .minlstm import LMMinLSTM
+    from .minlstm import MinLSTM
     from .rnn_utils import FastRNNConfig
 except ImportError as e:
     print(e)

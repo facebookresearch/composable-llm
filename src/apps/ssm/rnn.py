@@ -23,7 +23,7 @@ os.environ["CUDA_HOME"] = "/public/apps/cuda/12.2.0"  # monkey patching for acce
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
 from ...nanollama.model import Model
-from ...nanollama.model.ssm import FastRNNConfig, MinGRU
+from ...nanollama.model.ssm import FastRNNConfig, MinGRU, MinLSTM
 from ...nanollama.monitor import (
     # Checkpointer,
     Logger,
@@ -114,7 +114,7 @@ def train(config: TrainingConfig) -> None:
 
         _logger.info("Building model")
         # ModelGen = dict(hawk=LMHawk, mingru=LMMinGRU, minlstm=LMMinLSTM)[config.model.implementation]
-        ModelGen = MinGRU
+        ModelGen = dict(mingru=MinGRU, minlstm=MinLSTM)[config.model.implementation]
         model: Model = ModelGen(config.model)
         model = cluster.initialize_model(model)
 

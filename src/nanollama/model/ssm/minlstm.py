@@ -18,7 +18,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from ..norm import RMSNorm
-from .rnn_utils import BaseFastRNNArgs, LMFastRNNArgs, conv1d, scan
+from .rnn_utils import FastRNNConfig, conv1d, scan
 
 # ------------------------------------------------------------------------------
 # Base Model
@@ -28,26 +28,23 @@ from .rnn_utils import BaseFastRNNArgs, LMFastRNNArgs, conv1d, scan
 class LSTM(nn.Module):
     def __init__(
         self,
-        dim: int,
+        emb_dim: int,
         hidden_dim: int,  # h_t dim (state expansion)
-        n_heads: int,
-        multiple_of: int,
-        ffn_dim_multiplier: Optional[float],
+        nb_heads: int,
         conv_size: Optional[int] = None,
     ):
         super().__init__()
 
-        hidden_dim = int(2 * hidden_dim / 3)
-        if ffn_dim_multiplier is not None:
-            hidden_dim = int(ffn_dim_multiplier * hidden_dim)
-        hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
-        assert hidden_dim % n_heads == 0, f"Hidden dim must be divisible by n_heads: {hidden_dim} % {n_heads} != 0"
-
-        self.dim = dim
+        # dimension
+        self.emb_dim = emb_dim
         self.hidden_dim = hidden_dim
+        self.nb_heads = nb_heads
+        self.head_dim = hidden_dim // nb_heads
+        assert hidden_dim % nb_heads == 0, f"Hidden dim must be divisible by nb_heads: {hidden_dim} % {nb_heads} != 0"
 
-        self.n_heads = n_heads
-        self.head_dim = hidden_dim // n_heads
+        # matrices
+        self.fc1 = nn.Linear(emb_dim, 4 * hidden_dim, bias=False)
+        self.fc2 = nn.Linear(hidden_dim, emb_dim, bias=False)
 
         self.conv_size = conv_size
         if conv_size is not None:
@@ -55,54 +52,23 @@ class LSTM(nn.Module):
                 "Causal conv1d only supports conv_size in [2, 3, 4] and hidden_dim % 8 == 0, "
                 f"got {self.hidden_dim} and {conv_size}"
             )
-            self.conv_dim = 2 * self.hidden_dim
-            self.conv_weight = nn.Parameter(torch.empty((self.conv_dim, conv_size)))
+            self.conv_weight = nn.Parameter(torch.empty((2 * self.hidden_dim, conv_size)))
 
-        self.w = nn.Linear(
-            dim,
-            hidden_dim,
-            bias=False,
-        )
-
-        self.wfi = nn.Linear(
-            dim,
-            2 * hidden_dim,
-            bias=False,
-        )
-
-        self.wh_tilde = nn.Linear(
-            dim,
-            hidden_dim,
-            bias=False,
-        )
-
-        self.wo = nn.Linear(
-            hidden_dim,
-            dim,
-            bias=False,
-        )
-
-    def forward(self, x: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel") -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         bsz, seq_len, _ = x.shape
 
-        w0 = self.w(x.view_as(x))
+        tmp, fi = self.fc1(x).chunk(2, dim=-1)
+        out1, h = tmp.chunk(2, dim=-1)
 
-        fi = self.wfi(x.view_as(x)).transpose(1, 2)
-        h_tilde = self.wh_tilde(x.view_as(x)).transpose(1, 2)
+        fi = fi.transpose(1, 2)
+        h = h.transpose(1, 2)
 
         if self.conv_size is not None:
             # conv1d_w = log_stats(self.conv_weight, "conv1d.w")
-            conv1d_w = self.conv_weight
-            fi = conv1d(
-                x=fi,
-                conv_weight=conv1d_w,
-                cu_seqlens=cu_seqlens,
-                impl=impl,
-                cache=self.cache.conv_cache if hasattr(self, "cache") else None,
-            )
+            fi = conv1d(x=fi, conv_weight=self.conv_weight, impl="parallel")
 
-        fi = fi.reshape(bsz * self.n_heads, 2 * self.head_dim, seq_len)
-        h_tilde = h_tilde.reshape(bsz * self.n_heads, self.head_dim, seq_len)
+        fi = fi.reshape(bsz * self.nb_heads, 2 * self.head_dim, seq_len)
+        h = h.reshape(bsz * self.nb_heads, self.head_dim, seq_len)
 
         f, i = fi.chunk(2, dim=1)
         f, i = F.sigmoid(f), F.sigmoid(i)
@@ -110,138 +76,123 @@ class LSTM(nn.Module):
 
         h = scan(
             a=(f * denom),
-            b=(h_tilde * i * denom),
-            cu_seqlens=cu_seqlens,
-            impl=impl,
-            cache=self.cache.state_cache if hasattr(self, "cache") else None,
+            b=(h * i * denom),
+            impl="parallel",
         )
 
-        h = h.view(bsz, self.hidden_dim, seq_len).transpose(1, 2)
-        # h = log_stats(h, "hidden_state")
+        out2 = h.view(bsz, self.hidden_dim, seq_len).transpose(1, 2)
+        # out2 = log_stats(out2, "hidden_state")
 
-        h = h * F.silu(w0)
-
-        out = self.wo(h)
-
+        out = F.silu(out1) * out2
+        out = self.fc2(out)
         return out
 
     def reset_parameters(self, init_std: float, factor: float) -> None:
+        """
+        Weight initialization
+        """
+        # input
         in_init_std = init_std or (self.dim ** (-0.5))
-        out_init_std = init_std or (self.hidden_dim ** (-0.5))
         in_init_std = in_init_std / factor
+        nn.init.trunc_normal_(self.fc1.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+
+        # output
+        out_init_std = init_std or (self.hidden_dim ** (-0.5))
         out_init_std = out_init_std / factor
+        nn.init.trunc_normal_(self.fc2.weight, std=out_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
-        for w in [self.wfi, self.wh_tilde]:
-            nn.init.trunc_normal_(w.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
-
-        nn.init.trunc_normal_(self.wo.weight, std=out_init_std, a=-3 * in_init_std, b=3 * in_init_std)
-
+        # convolution
         if self.conv_size is not None:
             conv_std = init_std or (self.conv_size ** (-0.5))
             nn.init.trunc_normal_(self.conv_weight, mean=0.0, std=conv_std, a=-3 * conv_std, b=3 * conv_std)
 
 
 class LSTMBlock(nn.Module):
-    def __init__(self, args: BaseFastRNNArgs):
+    def __init__(self, config: FastRNNConfig):
         super().__init__()
 
-        self.lstm_norm = RMSNorm(args.dim, eps=args.norm_eps)
+        self.lstm_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
         self.lstm = LSTM(
-            dim=args.dim,
-            hidden_dim=3 * args.dim,
-            n_heads=args.n_heads,
-            multiple_of=args.multiple_of,
-            ffn_dim_multiplier=args.ffn_dim_multiplier,
-            conv_size=args.conv_size,
+            emb_dim=config.emb_dim,
+            hidden_dim=config.hidden_dim,
+            nb_heads=config.nb_heads,
+            conv_size=config.conv_size,
         )
 
-    def forward(self, x: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel") -> torch.Tensor:
-        x = x + self.lstm(self.lstm_norm(x), cu_seqlens=cu_seqlens, impl=impl)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x + self.lstm(self.lstm_norm(x))
         return x
 
-    def init_weights(self, init_std: float, factor: float) -> None:
+    def reset_parameters(self, init_std: float, factor: float) -> None:
         self.lstm.reset_parameters(init_std, factor)
         self.lstm_norm.reset_parameters()
 
 
-class BaseMinLSTM(nn.Module):
-    def __init__(self, args: BaseFastRNNArgs):
+# ------------------------------------------------------------------------------
+# MinLSTM Architecture
+# ------------------------------------------------------------------------------
+
+
+class MinLSTM(nn.Module):
+    def __init__(self, config: FastRNNConfig) -> None:
         super().__init__()
 
-        self.dim = args.dim
-        self.init_base_std = args.init_base_std
-        # self.init_std_factor = InitStdFactor(args.init_std_factor)
+        self.emb_dim = config.emb_dim
+        self.weight_tying = config.weight_tying
 
-        self.layers = nn.ModuleList()
-        for _ in range(args.n_layers):
-            self.layers.append(LSTMBlock(args))
+        self.embeddings = torch.nn.Embedding(config.vocab_size, config.emb_dim)
 
-    def forward(self, x: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel") -> torch.Tensor:
+        self.layers = nn.ModuleList([LSTMBlock(config) for _ in range(config.nb_layers)])
+
+        self.output = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
+        self.output_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
+
+        if config.weight_tying:
+            # Tying token embedding and un-embedding
+            self.output.weight = self.embeddings.weight
+
+        self.reset_parameters(config.init_std, factor=1.0)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.embeddings(x)
         for layer in self.layers:
-            x = layer(x, cu_seqlens=cu_seqlens, impl=impl)
-        return x
-
-    def reset_parameters(self) -> None:
-        pass
-
-    def init_weights(self) -> None:
-        self.reset_parameters()
-        for _depth, layer in enumerate(self.layers):
-            factor = 1
-            layer.init_weights(self.init_base_std, factor)
-
-
-# ------------------------------------------------------------------------------
-# Language Model
-# ------------------------------------------------------------------------------
-
-
-class LMMinLSTM(BaseMinLSTM):
-    def __init__(self, args: LMFastRNNArgs) -> None:
-        super().__init__(args)
-        self.weight_tying = args.weight_tying
-        self.seed = args.seed
-
-        self.tok_embeddings = torch.nn.Embedding(args.vocab_size, args.dim)
-
-        self.norm = RMSNorm(args.dim, eps=args.norm_eps)
-
-        self.output = nn.Linear(
-            args.dim,
-            args.vocab_size,
-            bias=False,
-        )
-
-        if args.weight_tying:
-            self.output.weight = self.tok_embeddings.weight
-
-        self.init_weights()
-
-    def forward(
-        self,
-        token_values: torch.Tensor,
-        cu_seqlens: Optional[int] = None,
-        impl: str = "parallel",
-    ) -> torch.Tensor:
-        h = self.tok_embeddings(token_values)
-
-        h = super().forward(h, cu_seqlens=cu_seqlens, impl=impl)
-
-        logits = self.output(self.norm(h))
+            out = layer(out)
+        logits = self.output(self.output_norm(out))
         return logits
 
-    def reset_parameters(self, init_std: int = None) -> None:
-        # Either use fixed base std or sqrt model dim
-        super().reset_parameters()
-        init_std = init_std or (self.dim ** (-0.5))
-        self.norm.reset_parameters()
+    def get_nb_flop(self, **kwargs) -> int:
+        """
+        TODO
+        Number of flop to process a new token
+
+        Parameters
+        ----------
+        mode:
+            Whether to consider the forward, backward pass or both
+        """
+        return 0
+
+    def reset_parameters(self, init_std: int, factor: float) -> None:
+        """
+        Weight initialization
+        """
+        init_std = init_std or (self.emb_dim ** (-0.5))
+
+        # layers
         nn.init.trunc_normal_(
-            self.tok_embeddings.weight,
+            self.embeddings.weight,
             mean=0.0,
             std=init_std,
             a=-3 * init_std,
             b=3 * init_std,
         )
+
+        # layers
+        for layer in self.layers:
+            layer.reset_parameters(init_std, factor=factor)
+
+        # output
+        self.output_norm.reset_parameters()
         if not self.weight_tying:
             nn.init.trunc_normal_(
                 self.output.weight,
@@ -250,19 +201,3 @@ class LMMinLSTM(BaseMinLSTM):
                 a=-3 * init_std,
                 b=3 * init_std,
             )
-
-    def _get_no_recompute_ops(self):
-        return get_no_recompute_ops()
-
-    def get_nb_flop(self, **kwargs) -> int:
-        # TODO
-        return 0
-
-
-def get_no_recompute_ops() -> None:
-    return {
-        torch.ops.aten.mm.default,
-        torch.ops.aten._scaled_mm.default,
-        torch.ops.c10d_functional.reduce_scatter_tensor.default,
-        torch.ops.scan.scan_fwd.default,
-    }
