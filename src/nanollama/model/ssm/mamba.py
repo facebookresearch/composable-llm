@@ -1,6 +1,8 @@
 """
 Mamba model
 
+https://arxiv.org/abs/2405.21060
+
 License
 -------
 This source code is licensed under the terms specified in the `LICENSE` file,
