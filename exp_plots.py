@@ -60,24 +60,30 @@ def get_statistics(exp: int, names: list[str], nb_tasks: int, best: bool) -> dic
             metric_path = log_dir / "metrics" / str(task_id)
 
             # number of parameters
-            for filepath in metric_path.glob("info_model.jsonl"):
+            try:
+                filepath = metric_path / "info_model.jsonl"
                 nb_params = jsonl_to_numpy(filepath, keys=["model_params"])["model_params"][0]
+            except FileNotFoundError:
+                nb_params = None
+                print("No model info", name, task_id)
 
             # training results
             try:
                 loss = None
                 for rank in range(8):
                     filepath = metric_path / f"raw_{rank}.jsonl"
-                    keys = ["loss"]
-                    rank_loss = jsonl_to_numpy(filepath, keys=keys)["loss"]
+                    keys = ["loss", "step"]
+                    data = jsonl_to_numpy(filepath, keys=keys)
+                    rank_loss = data["loss"]
+                    assert data["step"][-1] == 10_000
                     if loss is None:
                         loss = rank_loss
                     else:
                         loss += rank_loss
                 loss /= 8
                 best_train_loss = loss.min()
-            except (FileNotFoundError, ValueError) as e:
-                print(e)
+            except Exception as e:
+                print(e, name, task_id)
                 best_train_loss = None
 
             # testing results
@@ -94,7 +100,7 @@ def get_statistics(exp: int, names: list[str], nb_tasks: int, best: bool) -> dic
                 loss /= 8
                 if best:
                     best_test_loss = loss.min()
-            except (FileNotFoundError, ValueError):
+            except Exception:
                 best_test_loss = None
 
             res[task_id] = {
@@ -186,8 +192,8 @@ for exp in range(4):
 
                     ind = np.invert(np.isnan(yaxis))
 
-                    # if ind.any():
-                    #     yaxis -= yaxis[ind].min()
+                    if ind.any():
+                        yaxis -= yaxis[ind].min() - 1e-4
 
                     ax.plot(xaxis[ind], yaxis[ind], color=f"C{i}", label=name)
 
@@ -204,7 +210,7 @@ for exp in range(4):
                     prefix = "onfly_"
                 else:
                     prefix = ""
-                fig.savefig(save_dir / f"{prefix}data{data_seed}_model{model_seed}.png")
-                # fig.savefig(save_dir / f"norm_{prefix}data{data_seed}_model{model_seed}.png")
+                # fig.savefig(save_dir / f"{prefix}data{data_seed}_model{model_seed}.png")
+                fig.savefig(save_dir / f"norm_{prefix}data{data_seed}_model{model_seed}.png")
 
 # %%

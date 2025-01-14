@@ -26,6 +26,7 @@ from ...nanollama.model.mamba.mamba import (
     LMMambaArgs,
 )
 from ...nanollama.monitor import (
+    Checkpointer,
     Logger,
     OrchestratorConfig,
     PreemptionHandler,
@@ -99,36 +100,22 @@ def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 def train(config: TrainingConfig) -> None:
     with ExitStack() as context_stack:
         # ---------------------------------------------------------------------
-        # Handle preemption
+        # Preemption, cluster, logging, and utility contexts
         # ---------------------------------------------------------------------
 
         preemption: PreemptionHandler = context_stack.enter_context(PreemptionHandler())
-
-        # ---------------------------------------------------------------------
-        # Computing Environment
-        # ---------------------------------------------------------------------
-
         cluster: ClusterManager = context_stack.enter_context(ClusterManager(config.cluster))
-
-        # ---------------------------------------------------------------------
-        # Monitor: logging, and utils
-        # ---------------------------------------------------------------------
-
         logger: Logger = context_stack.enter_context(Logger(config.orchestration.logging))
         utils: UtilityManager = context_stack.enter_context(UtilityManager(config.orchestration.utils))
         wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, run_config=config))
 
         # ---------------------------------------------------------------------
-        # Build and Parallelize model
+        # Build and Parallelize model, as well as Optimizer
         # ---------------------------------------------------------------------
 
         _logger.info("Building model")
         model = LMMamba(config.model)
         model = cluster.initialize_model(model)
-
-        # ---------------------------------------------------------------------
-        # Build Optimizer
-        # ---------------------------------------------------------------------
 
         _logger.info("Building optimizer")
         optimizer = init_optimizer(model, config.optim)
@@ -144,11 +131,11 @@ def train(config: TrainingConfig) -> None:
             optim=init_optimizer_state(),
         )
 
-        # checkpoint: Checkpointer = context_stack.enter_context(
-        #     Checkpointer(
-        #         config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
-        #     )
-        # )
+        checkpoint: Checkpointer = context_stack.enter_context(
+            Checkpointer(
+                config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
+            )
+        )
 
         # ---------------------------------------------------------------------
         # DataLoader
@@ -162,7 +149,7 @@ def train(config: TrainingConfig) -> None:
         )
 
         # ---------------------------------------------------------------------
-        # Global information
+        # Training loop with profiling
         # ---------------------------------------------------------------------
 
         profiler: Profiler = context_stack.enter_context(Profiler(config.orchestration.profiler, state=state))
@@ -171,10 +158,6 @@ def train(config: TrainingConfig) -> None:
         seq_len = config.data.seq_len
         token_per_step = seq_len * config.data.batch_size * config.optim.grad_acc_steps
         profiler.report_statistics(model, token_per_step=token_per_step)
-
-        # ---------------------------------------------------------------------
-        # Training loop
-        # ---------------------------------------------------------------------
 
         model.train()
 
@@ -244,7 +227,7 @@ def train(config: TrainingConfig) -> None:
             step = state.optim.step
 
             profiler.start_timer()
-            # checkpoint()
+            checkpoint()
             profiler()
             utils()
             profiler.end_timer("monitor_time")
