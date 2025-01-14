@@ -26,20 +26,20 @@ class FeedForward(nn.Module):
     ----------
     emb_dim:
         embedding dimension of the inputs
-    ffn_dim:
+    hidden_dim:
         hidden dimension of the MLP
     """
 
     def __init__(
         self,
         emb_dim: int,
-        ffn_dim: int,
+        hidden_dim: int,
     ):
         super().__init__()
         self.emb_dim = emb_dim
-        self.ffn_dim = ffn_dim
-        self.fc1 = nn.Linear(emb_dim, 2 * ffn_dim, bias=False)
-        self.fc2 = nn.Linear(ffn_dim, emb_dim, bias=False)
+        self.hidden_dim = hidden_dim
+        self.fc1 = nn.Linear(emb_dim, 2 * hidden_dim, bias=False)
+        self.fc2 = nn.Linear(hidden_dim, emb_dim, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out1, out2 = self.fc1(x).chunk(2, dim=-1)
@@ -51,10 +51,8 @@ class FeedForward(nn.Module):
         """
         Weight initialization
         """
+        # input
         in_init_std = init_std or (self.emb_dim ** (-0.5))
-        out_init_std = init_std or (self.ffn_dim ** (-0.5))
-        in_init_std = in_init_std
-        out_init_std = out_init_std / factor
         nn.init.trunc_normal_(
             self.fc1.weight,
             mean=0.0,
@@ -62,6 +60,10 @@ class FeedForward(nn.Module):
             a=-3 * in_init_std,
             b=3 * in_init_std,
         )
+
+        # output
+        out_init_std = init_std or (self.hidden_dim ** (-0.5))
+        out_init_std = out_init_std / factor
         nn.init.trunc_normal_(
             self.fc2.weight,
             mean=0.0,

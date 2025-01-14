@@ -39,10 +39,10 @@ class TransformerConfig:
     seq_len: int = 0
     emb_dim: int = 0
 
-    # Transformer block parameter
+    # Transformer block parameters
     nb_heads: int = 0
     rope_theta: float = 10_000
-    ffn_dim: int = None
+    hidden_dim: int = None
     norm_eps: float = 1e-5
 
     # Transformer parameters
@@ -52,8 +52,8 @@ class TransformerConfig:
 
     def __post_init__(self):
         # hidden feed-forward dimension
-        if self.ffn_dim is None:
-            self.ffn_dim = 4 * self.emb_dim
+        if self.hidden_dim is None:
+            self.hidden_dim = 4 * self.emb_dim
 
     def __check_init__(self):
         """Check validity of arguments."""
@@ -150,7 +150,7 @@ class SelfAttention(nn.Module):
         z = self.output(z)
         return z
 
-    def reset_parameters(self, init_std: float = None, factor: float = 1.0) -> None:
+    def reset_parameters(self, init_std: float, factor: float) -> None:
         """
         Weight initialization
         """
@@ -237,7 +237,7 @@ class TransformerBlock(nn.Module):
         self.attn = SelfAttention(
             seq_len=config.seq_len, emb_dim=config.emb_dim, nb_heads=config.nb_heads, rope_theta=config.rope_theta
         )
-        self.ffn = FeedForward(emb_dim=config.emb_dim, ffn_dim=config.ffn_dim)
+        self.ffn = FeedForward(emb_dim=config.emb_dim, hidden_dim=config.hidden_dim)
         self.attn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
         self.ffn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
 
@@ -246,7 +246,7 @@ class TransformerBlock(nn.Module):
         out = out + self.ffn(self.ffn_norm(out))
         return out
 
-    def reset_parameters(self, init_std: float = None, factor: float = 1.0) -> None:
+    def reset_parameters(self, init_std: float, factor: float) -> None:
         """
         Weight initialization
         """
@@ -291,8 +291,6 @@ class Transformer(nn.Module):
 
         self.emb_dim = config.emb_dim
         self.weight_tying = config.weight_tying
-        # self.init_std = config.init_std if config.init_std >= 0 else None
-        self.init_std = config.init_std
 
         self.embeddings = nn.Embedding(config.vocab_size, config.emb_dim)
 
@@ -305,7 +303,7 @@ class Transformer(nn.Module):
             # Tying token embedding and un-embedding
             self.output.weight = self.embeddings.weight
 
-        self.reset_parameters()
+        self.reset_parameters(config.init_std, factor=1.0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.embeddings(x)
@@ -329,11 +327,13 @@ class Transformer(nn.Module):
         mode_multiplier = dict(fwd=1, bwd=2.5, both=3.5)[mode]
         return 0 * mode_multiplier
 
-    def reset_parameters(self) -> None:
+    def reset_parameters(self, init_std: float, factor: float) -> None:
         """
         Weight initialization
         """
-        init_std = self.init_std or (self.emb_dim ** (-0.5))
+        init_std = init_std or (self.emb_dim ** (-0.5))
+
+        # embeddings
         nn.init.trunc_normal_(
             self.embeddings.weight,
             mean=0.0,
@@ -341,8 +341,12 @@ class Transformer(nn.Module):
             a=-3 * init_std,
             b=3 * init_std,
         )
+
+        # layers
         for layer in self.layers:
-            layer.reset_parameters(self.init_std, factor=1.0)
+            layer.reset_parameters(init_std, factor=factor)
+
+        # output
         self.output_norm.reset_parameters()
         if not self.weight_tying:
             nn.init.trunc_normal_(

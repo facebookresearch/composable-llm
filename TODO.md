@@ -31,6 +31,7 @@ Profiling:
 
 Parallelization
 1. Implement parallelization logic beyond DDP.
+    - Add `multiple_of`, `hidden_dim_multiplier` to MLP.
 1. Save consolitated checkpoints.
 
 Visualization:

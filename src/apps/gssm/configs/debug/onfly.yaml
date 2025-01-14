@@ -47,7 +47,7 @@ run_config:
     vocab_size: 32
     emb_dim: 64
     nb_heads: 2
-    ffn_dim: 256
+    hidden_dim: 256
     nb_layers: 2
 
   optim:

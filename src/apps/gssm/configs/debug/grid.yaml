@@ -31,7 +31,7 @@ run_config:
     seq_len: 2048
     emb_dim: 64
     nb_heads: 2
-    ffn_dim: 256
+    hidden_dim: 256
     nb_layers: 2
 
   data:
