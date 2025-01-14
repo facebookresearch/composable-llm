@@ -1,9 +1,10 @@
 try:
-    from .hawk import LMHawk
-    from .mamba import LMMamba
-    from .mingru import LMMinGRU
-    from .minlstm import LMMinLSTM
-    from .rnn_utils import LMFastRNNArgs
+    # from .hawk import LMHawk
+    # from .mamba import LMMamba
+    from .mingru import MinGRU
+
+    # from .minlstm import LMMinLSTM
+    from .rnn_utils import FastRNNConfig
 except ImportError as e:
     print(e)
     print(

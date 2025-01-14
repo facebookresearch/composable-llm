@@ -10,7 +10,7 @@ located in the root directory of this repository.
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
@@ -27,33 +27,32 @@ from .wrapper_scan import scan as accelerated_scan
 
 
 @dataclass
-class BaseFastRNNArgs:
-    dim: int = 512
-    n_layers: int = 8
-    n_heads: int = 1
-
-    multiple_of: int = 256
-    ffn_dim_multiplier: Optional[float] = None
-
-    conv_size: Optional[int] = None
-
-    norm_eps: float = 1e-5
-
-    init_base_std: Optional[float] = None
-    init_std_factor: str = "disabled"
-
-
-@dataclass
-class LMFastRNNArgs(BaseFastRNNArgs):
-    seed: int = 42
-
+class FastRNNConfig:
     implementation: str = "minLSTM"
 
+    # Embedding parameters
     vocab_size: int = 0
+    emb_dim: int = 512
+
+    # Block parameters
+    nb_heads: int = 1
+    conv_size: int = None
+    hidden_dim: int = None
+    norm_eps: float = 1e-5
+
+    # Model parameters
+    nb_layers: int = 8
     weight_tying: bool = False
+    init_std: float = None
 
     def __post_init__(self):
-        assert self.implementation.lower() in ["minlstm", "mingru", "hawk"], f"{self.implementation} not found"
+        self.implementation = self.implementation.lower()
+        assert self.implementation in ["minlstm", "mingru", "hawk"], f"{self.implementation} not found"
+        if self.hidden_dim is None:
+            if self.implementation == "hawk":
+                self.hidden_dim = int(4 * self.emb_dim / 3)
+            else:
+                self.hidden_dim = 3 * self.emb_dim
 
     def __check_init__(self):
         """Check validity of arguments."""
@@ -66,7 +65,11 @@ class LMFastRNNArgs(BaseFastRNNArgs):
 
 
 def conv1d(
-    x: torch.Tensor, conv_weight: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel", cache: Any = None
+    x: torch.Tensor,
+    conv_weight: torch.Tensor,
+    cu_seqlens: torch.Tensor = None,
+    impl: str = "parallel",
+    cache: Any = None,
 ) -> torch.Tensor:
     if impl == "parallel":
         if cache is not None:
@@ -132,7 +135,7 @@ def sequential_step(states: torch.Tensor, a: torch.Tensor, b: torch.Tensor) -> t
 
 
 def scan(
-    a: torch.Tensor, b: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel", cache: Any = None
+    a: torch.Tensor, b: torch.Tensor, cu_seqlens: torch.Tensor = None, impl: str = "parallel", cache: Any = None
 ) -> torch.Tensor:
     if impl == "parallel":
         if cache is not None:
