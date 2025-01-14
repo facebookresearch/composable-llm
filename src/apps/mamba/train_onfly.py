@@ -12,28 +12,25 @@ located in the root directory of this repository.
 import logging
 import os
 from contextlib import ExitStack
-from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from dataclasses import dataclass, field
 from typing import Any
 
 import torch
 import torch.nn.functional as F
 import yaml
 
-from ...nanollama.data.hdf5 import DataConfig, FileDataLoader, init_dataloader_state
-from ...nanollama.distributed import ClusterConfig, ClusterManager, clean_environment, is_master_process
-from ...nanollama.launcher import LauncherConfig, SlurmConfig, launch_job
-from ...nanollama.model import Transformer, TransformerConfig
+from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
+from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
+from ...nanollama.model.mamba.mamba import (
+    LMMamba,
+    LMMambaArgs,
+)
 from ...nanollama.monitor import (
-    Checkpointer,
     Logger,
-    LoggerConfig,
     OrchestratorConfig,
     PreemptionHandler,
     Profiler,
-    UtilityConfig,
     UtilityManager,
-    WandbConfig,
     WandbLogger,
 )
 from ...nanollama.optim import (
@@ -42,90 +39,51 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.utils import TrainState, flatten_config, initialize_nested_object, unflatten_config
-from .evaluation import EvaluationConfig, EvaluationRunConfig, run_evaluation
+from ...nanollama.utils import TrainState, initialize_nested_object
 
 _logger = logging.getLogger("nanollama")
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Configuration Class
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 @dataclass
 class TrainingConfig:
     data: DataConfig = field(default_factory=DataConfig)
-    model: TransformerConfig = field(default_factory=TransformerConfig)
+    model: LMMambaArgs = field(default_factory=LMMambaArgs)
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
-    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
 
     def __post_init__(self):
         """
         Check validity of arguments and fill in missing values.
         """
+        # sequence length
+        # if not self.model.seq_len:
+        #     self.model.seq_len = self.data.seq_len
+
+        # vocabulary size
+        if not self.model.vocab_size:
+            nodes = self.data.gssm.nodes
+            for node in nodes:
+                if node.name == "X":
+                    break
+            _logger.info(f"Setting vocab size to {node.state_dim}")
+            self.model.vocab_size = node.state_dim
+
         # restriction for cpu run
         if self.cluster.device.type == "cpu":
             assert self.optim.fused is False, "Fused Adam is not supported on CPU"
             assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
 
-        # evaluation paths
-        self.evaluation.path = self.orchestration.logging.metric_path
-
-        # manual post initialization of all modules
+        # check validity of submodule
         for module in self.__dict__.values():
             if hasattr(module, "__check_init__"):
                 module.__check_init__()
-
-
-def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]) -> None:
-    """
-    Cast training configuration arguments into evaluation configuration.
-    """
-    if eval_config.get("period", 0) <= 0:
-        train_config["evaluation"] = eval_config
-        return
-
-    # flatten configurations for easier access
-    flat_config = flatten_config(train_config)
-    eval_config = flatten_config(eval_config)
-
-    # special inheritance
-    # orchestration
-    eval_config["orchestration.name"] = flat_config["orchestration.name"] + "_eval"
-    eval_config["orchestration.parent_dir"] = flat_config["orchestration.log_dir"]
-    task_id = os.environ.get("SLURM_ARRAY_TASK_ID", "0")
-    eval_config["orchestration.log_dir"] = str(Path(flat_config["orchestration.log_dir"]) / "evals" / task_id)
-    eval_config["orchestration.task_id"] = int(task_id)
-
-    # generic inheritance
-    configs_keys = [
-        (DataConfig, "data"),
-    ]
-
-    if eval_config.get("asynchronous"):
-        configs_keys += [
-            (SlurmConfig, "slurm"),
-            (ClusterConfig, "cluster"),
-            (LoggerConfig, "orchestration.logging"),
-            (LoggerConfig, "orchestration.profiler"),
-            (UtilityConfig, "orchestration.utils"),
-            (WandbConfig, "orchestration.wandb"),
-        ]
-
-    for config_cls, cls_key in configs_keys:
-        for key, finfo in config_cls.__dataclass_fields__.items():
-            if not finfo.init:
-                continue
-            flat_key = f"{cls_key}.{key}"
-            if flat_key not in eval_config and flat_key in flat_config:
-                eval_config[flat_key] = flat_config[flat_key]
-
-    # merge configuration
-    train_config["evaluation"] = unflatten_config(eval_config)
 
 
 # -----------------------------------------------------------------------------
@@ -165,7 +123,7 @@ def train(config: TrainingConfig) -> None:
         # ---------------------------------------------------------------------
 
         _logger.info("Building model")
-        model = Transformer(config.model)
+        model = LMMamba(config.model)
         model = cluster.initialize_model(model)
 
         # ---------------------------------------------------------------------
@@ -186,18 +144,18 @@ def train(config: TrainingConfig) -> None:
             optim=init_optimizer_state(),
         )
 
-        checkpoint: Checkpointer = context_stack.enter_context(
-            Checkpointer(
-                config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
-            )
-        )
+        # checkpoint: Checkpointer = context_stack.enter_context(
+        #     Checkpointer(
+        #         config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
+        #     )
+        # )
 
         # ---------------------------------------------------------------------
         # DataLoader
         # ---------------------------------------------------------------------
 
-        dataloader: FileDataLoader = context_stack.enter_context(
-            FileDataLoader(
+        dataloader: OnlineDataLoader = context_stack.enter_context(
+            OnlineDataLoader(
                 config=config.data,
                 state=state.data,
             )
@@ -210,9 +168,9 @@ def train(config: TrainingConfig) -> None:
         profiler: Profiler = context_stack.enter_context(Profiler(config.orchestration.profiler, state=state))
 
         logger.report_statistics(model)
-        seq_len = config.model.seq_len
+        seq_len = config.data.seq_len
         token_per_step = seq_len * config.data.batch_size * config.optim.grad_acc_steps
-        profiler.report_statistics(model, token_per_step=token_per_step, seq_len=seq_len)
+        profiler.report_statistics(model, token_per_step=token_per_step)
 
         # ---------------------------------------------------------------------
         # Training loop
@@ -222,7 +180,6 @@ def train(config: TrainingConfig) -> None:
 
         # aliases
         log_period = config.orchestration.logging.period
-        eval_period = config.evaluation.period
 
         while state.optim.step < config.optim.steps:
             # handle preemption
@@ -235,7 +192,7 @@ def train(config: TrainingConfig) -> None:
             state.optim.acc_step = state.optim.acc_step % config.optim.grad_acc_steps
 
             # -----------------------------------------------------------------
-            # Batch of data (with reproducibility information)
+            # Batch of data (with random state for reproducibility)
             # -----------------------------------------------------------------
 
             profiler.start_timer()
@@ -274,7 +231,7 @@ def train(config: TrainingConfig) -> None:
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
-            state.data.report_restart_info(*restart_info)
+            state.data.report_restart_info(restart_info)
             state.optim.step += 1
 
             profiler.end_timer("model_time", sync=True)
@@ -287,7 +244,7 @@ def train(config: TrainingConfig) -> None:
             step = state.optim.step
 
             profiler.start_timer()
-            checkpoint()
+            # checkpoint()
             profiler()
             utils()
             profiler.end_timer("monitor_time")
@@ -299,7 +256,7 @@ def train(config: TrainingConfig) -> None:
             profiler.start_timer()
 
             if log_period > 0 and step % log_period == 0:
-                # For logging we undo gradient accumulation scaling
+                # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
                 metrics = {
                     "loss": loss.item(),
@@ -315,56 +272,6 @@ def train(config: TrainingConfig) -> None:
                     _logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
 
             profiler.end_timer("log_time")
-
-            # -----------------------------------------------------------------
-            # Evaluation
-            # -----------------------------------------------------------------
-
-            profiler.start_timer()
-
-            if eval_period > 0 and step % eval_period == 0:
-                # run evaluation now
-                if not config.evaluation.asynchronous:
-                    run_evaluation(config.evaluation, model=model, step=step)
-
-                # launch evaluation job on slurm
-                elif is_master_process():
-                    # checkpoint
-                    checkpoint.update(eval=True)
-
-                    # alias
-                    orchestration_config = config.evaluation.orchestration
-                    orchestration_config.log_dir = str(Path(orchestration_config.log_dir) / f"{step:010d}")
-
-                    # launcher config
-                    launch_config = initialize_nested_object(
-                        LauncherConfig,
-                        {
-                            "name": orchestration_config.name,
-                            "log_dir": orchestration_config.log_dir,
-                            "overwrite": False,
-                            "copy_code": False,
-                            "script": "src.apps.gssm.evaluation",
-                            "slurm": config.evaluation.slurm.to_dict(),
-                        },
-                    )
-
-                    # run config
-                    orchestration_config.train_step = step
-                    eval_config: EvaluationRunConfig = {
-                        "model": asdict(config.model),
-                        "data": asdict(config.evaluation.data),
-                        "cluster": config.evaluation.cluster.to_dict(),
-                        "orchestration": orchestration_config.to_dict(),
-                    }
-
-                    # luanch job without device binding
-                    with clean_environment():
-                        launch_job(launch_config, eval_config)
-
-                    orchestration_config.log_dir = str(Path(orchestration_config.log_dir).parent)
-
-            profiler.end_timer("evaluation")
 
     _logger.info("Training done.")
 
@@ -393,9 +300,9 @@ def main() -> None:
 
     # obtain configuration from file
     with open(os.path.expandvars(path)) as f:
-        file_config: dict[str, Any] = yaml.safe_load(f)
+        file_config = yaml.safe_load(f)
     if "run_config" in file_config:
-        run_config: dict[str, Any] = file_config.pop("run_config")
+        run_config = file_config.pop("run_config")
     else:
         run_config = file_config
     launcher: dict[str, Any] = file_config.pop("launcher", {})
@@ -407,16 +314,10 @@ def main() -> None:
         if key in launcher and key not in run_config["orchestration"]:
             run_config["orchestration"][key] = launcher[key]
 
-    # configuration inheritance between training and evaluation
-    eval_config = run_config.pop("evaluation", {})
-    run_config["slurm"] = launcher.pop("slurm", {})
-    config_inheritance(run_config, eval_config)
-    run_config.pop("slurm")
-
     # initialize configuration
     config = initialize_nested_object(TrainingConfig, run_config)
 
-    # launch job
+    # Launch training with the config
     train(config)
 
 

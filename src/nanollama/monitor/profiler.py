@@ -196,7 +196,7 @@ class LightProfiler(BaseProfiler):
 
         self.step += 1
 
-    def report_statistics(self, model: Model, seq_len: int, token_per_step: int) -> None:
+    def report_statistics(self, model: Model, token_per_step: int, **kwargs) -> None:
         """
         Report flop per step
 
@@ -210,7 +210,7 @@ class LightProfiler(BaseProfiler):
             Number of token updates per training step.
         """
         self.token_per_step = token_per_step
-        self.flop_per_step = model.get_nb_flop(seq_len=seq_len) * token_per_step
+        self.flop_per_step = model.get_nb_flop(**kwargs) * token_per_step
 
     def start_timer(self) -> None:
         if self.device:  # act as an active flag
