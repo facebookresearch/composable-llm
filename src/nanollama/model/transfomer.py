@@ -331,15 +331,15 @@ class Transformer(nn.Module):
         """
         Weight initialization
         """
-        init_std = init_std or (self.emb_dim ** (-0.5))
+        emb_init_std = init_std or (self.emb_dim ** (-0.5))
 
         # embeddings
         nn.init.trunc_normal_(
             self.embeddings.weight,
             mean=0.0,
-            std=init_std,
-            a=-3 * init_std,
-            b=3 * init_std,
+            std=emb_init_std,
+            a=-3 * emb_init_std,
+            b=3 * emb_init_std,
         )
 
         # layers
@@ -352,7 +352,7 @@ class Transformer(nn.Module):
             nn.init.trunc_normal_(
                 self.output.weight,
                 mean=0.0,
-                std=init_std,
-                a=-3 * init_std,
-                b=3 * init_std,
+                std=emb_init_std,
+                a=-3 * emb_init_std,
+                b=3 * emb_init_std,
             )

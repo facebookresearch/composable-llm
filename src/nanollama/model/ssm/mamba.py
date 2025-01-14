@@ -436,7 +436,7 @@ class BaseMambaArgs:
 
     vocab_size: int = -1
 
-    ffn_dim_multiplier: Optional[float] = None
+    hidden_dim_multiplier: Optional[float] = None
 
     multiple_of: int = 256
     """
@@ -460,7 +460,7 @@ class SSM(nn.Module):
         dim: int,
         hidden_dim: int,
         multiple_of: int,
-        ffn_dim_multiplier: Optional[float],
+        hidden_dim_multiplier: Optional[float],
         state_dim: int,
         n_heads: int,
         n_groups: int,
@@ -477,8 +477,8 @@ class SSM(nn.Module):
         self.dim = dim
 
         hidden_dim = int(2 * hidden_dim / 3)
-        if ffn_dim_multiplier is not None:
-            hidden_dim = int(ffn_dim_multiplier * hidden_dim)
+        if hidden_dim_multiplier is not None:
+            hidden_dim = int(hidden_dim_multiplier * hidden_dim)
         self.hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
         assert self.hidden_dim % n_heads == 0, (
             f"Hidden dim must be divisible by n_heads: {self.hidden_dim} % {n_heads} != 0"
@@ -745,7 +745,7 @@ class MambaBlock(nn.Module):
             dim=args.dim,
             hidden_dim=3 * args.dim,
             multiple_of=args.multiple_of,
-            ffn_dim_multiplier=args.ffn_dim_multiplier,
+            hidden_dim_multiplier=args.hidden_dim_multiplier,
             state_dim=args.state_dim,
             n_heads=args.n_heads,
             n_groups=args.n_groups,

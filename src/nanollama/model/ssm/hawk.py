@@ -18,10 +18,10 @@ from torch.nn import functional as F
 
 from ..feedforward import FeedForward
 from ..norm import RMSNorm
-from .rnn_utils import BaseFastRNNArgs, LMFastRNNArgs, conv1d, scan
+from .rnn_utils import FastRNNConfig, conv1d, scan
 
 # ------------------------------------------------------------------------------
-# Base Model
+# Square root with gradient clipping
 # ------------------------------------------------------------------------------
 
 
@@ -49,41 +49,47 @@ def sqrt_bounded_derivative(x: torch.Tensor) -> torch.Tensor:
     return SqrtBoundDerivative.apply(x)
 
 
+# ------------------------------------------------------------------------------
+# RGLRU
+# ------------------------------------------------------------------------------
+
+
 class RGLRU(nn.Module):
     def __init__(
         self,
-        dim: int,
-        n_heads: int,
+        emb_dim: int,
+        nb_heads: int,
         head_dim: int,
         conv_size: int = None,
     ):
         super().__init__()
 
-        assert dim % n_heads == 0, f"dim {dim} must be divisible by n_heads {n_heads}"
-
-        self.dim = dim
+        # dimension
+        self.emb_dim = emb_dim
         self.head_dim = head_dim
-        self.n_heads = n_heads
-        assert head_dim * n_heads == dim, f"dim {dim} must be equal to n_heads {n_heads} * head_dim {head_dim}"
+        self.nb_heads = nb_heads
+        assert emb_dim % nb_heads == 0, f"emb_dim {emb_dim} must be divisible by n_heads {nb_heads}"
 
-        self.c = 8.0
+        assert head_dim * nb_heads == emb_dim, (
+            f"dim {emb_dim} must be equal to n_heads {nb_heads} * head_dim {head_dim}"
+        )
 
+        # matrices
+        self.fc1 = nn.Linear(emb_dim, 2 * emb_dim, bias=False)
+
+        # convolution
         self.conv_size = conv_size
         if conv_size is not None:
-            assert (dim % 8 == 0) and (conv_size in [2, 3, 4]), (
+            assert (emb_dim % 8 == 0) and (conv_size in [2, 3, 4]), (
                 "Causal conv1d only supports conv_size in [2, 3, 4] and hidden_dim/head_dim % 8 == 0, "
-                f"got {dim} and {conv_size}"
+                f"got {emb_dim} and {conv_size}"
             )
-            self.conv_dim = self.dim
-            self.conv_weight = nn.Parameter(torch.empty((self.conv_dim, conv_size)))
+            self.conv_weight = nn.Parameter(torch.empty((self.emb_dim, conv_size)))
 
+        self.c = 8.0
         self.register_parameter("a", nn.Parameter(torch.empty(head_dim)))
 
-        self.input_gate = nn.Linear(n_heads * head_dim, dim, bias=False)
-
-        self.a_gate = nn.Linear(n_heads * head_dim, dim, bias=False)
-
-    def forward(self, x: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel") -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         bsz, seqlen, _ = x.shape
 
         if self.conv_size is not None:
@@ -92,256 +98,205 @@ class RGLRU(nn.Module):
             x = conv1d(
                 x=x.transpose(1, 2),
                 conv_weight=conv1d_w,
-                cu_seqlens=cu_seqlens,
-                impl=impl,
-                cache=self.cache.conv_cache if hasattr(self, "cache") else None,
+                impl="parallel",
             ).transpose(1, 2)
 
-        gate_x = F.sigmoid(self.input_gate(x.view_as(x)))
-        gate_a = F.sigmoid(self.a_gate(x.view_as(x)))
+        gate_x, gate_a = self.fc1(x).chunk(2, dim=-1)
+        gate_x = F.sigmoid(gate_x)
+        gate_a = F.sigmoid(gate_a)
 
-        gate_x = gate_x.transpose(1, 2).reshape(bsz * self.n_heads, self.head_dim, seqlen)
-        gate_a = gate_a.transpose(1, 2).reshape(bsz * self.n_heads, self.head_dim, seqlen)
+        gate_x = gate_x.transpose(1, 2).reshape(bsz * self.nb_heads, self.head_dim, seqlen)
+        gate_a = gate_a.transpose(1, 2).reshape(bsz * self.nb_heads, self.head_dim, seqlen)
 
-        a = F.softplus(self.a).unsqueeze(0).unsqueeze(-1).expand(bsz * self.n_heads, self.head_dim, seqlen)
+        a = F.softplus(self.a).unsqueeze(0).unsqueeze(-1).expand(bsz * self.nb_heads, self.head_dim, seqlen)
 
         log_a = -self.c * gate_a * a
         a = log_a.exp()
         multiplier = sqrt_bounded_derivative(1.0 - (2.0 * log_a).exp())
 
-        x = x.transpose(1, 2).reshape(bsz * self.n_heads, self.head_dim, seqlen)
+        x = x.transpose(1, 2).reshape(bsz * self.nb_heads, self.head_dim, seqlen)
 
-        h = scan(
+        out = scan(
             a=a.contiguous(),
             b=(multiplier * gate_x * x).contiguous(),
-            cu_seqlens=cu_seqlens,
-            impl=impl,
-            cache=self.cache.state_cache if hasattr(self, "cache") else None,
+            impl="parallel",
         )
 
-        h = h.view(bsz, self.dim, seqlen).transpose(1, 2)
+        out = out.view(bsz, self.emb_dim, seqlen).transpose(1, 2)
         # h = log_stats(h, "hidden_state")
 
-        return h
+        return out
 
     def reset_parameters(self, init_std: float, factor: float) -> None:
-        in_init_std = init_std or (self.dim ** (-0.5))
+        """
+        Weight initialization
+        """
+        # input
+        in_init_std = init_std or (self.emb_dim ** (-0.5))
         in_init_std = in_init_std / factor
+        nn.init.trunc_normal_(self.fc1.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
-        for w in [self.input_gate, self.a_gate]:
-            nn.init.trunc_normal_(w.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
-
+        # output gain
         min_rad, max_rad = 0.9, 0.999
         self.a.data.uniform_(min_rad**2 + 1e-8, max_rad**2 + 1e-8)
         self.a.data.log_().mul_(0.5)
 
+        # convolution
         if self.conv_size is not None:
             conv_std = init_std or (self.conv_size ** (-0.5))
             nn.init.trunc_normal_(self.conv_weight, std=conv_std, a=-3 * conv_std, b=3 * conv_std)
 
 
+# ------------------------------------------------------------------------------
+# Hawk Blocks
+# ------------------------------------------------------------------------------
+
+
 class RGLRUBlock(nn.Module):
     def __init__(
         self,
-        dim: int,
+        emb_dim: int,
         hidden_dim: int,
-        n_heads: int,
-        multiple_of: int,
-        lru_dim_multiplier: float,
+        nb_heads: int,
         conv_size: int = None,
     ):
         super().__init__()
 
-        if lru_dim_multiplier is not None:
-            hidden_dim = int(lru_dim_multiplier * hidden_dim)
-        hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
-        assert hidden_dim % n_heads == 0, f"Hidden dim must be divisible by n_heads: {hidden_dim} % {n_heads} != 0"
-
-        self.dim = dim
+        # dimension
+        self.emb_dim = emb_dim
         self.hidden_dim = hidden_dim
+        assert hidden_dim % nb_heads == 0, f"Hidden dim must be divisible by nb_heads: {hidden_dim} % {nb_heads} != 0"
 
-        self.wy = nn.Linear(
-            dim,
-            hidden_dim,
-            bias=False,
-        )
+        # matrices
+        self.fc1 = nn.Linear(emb_dim, 2 * hidden_dim, bias=False)
+        self.fc2 = nn.Linear(hidden_dim, emb_dim, bias=False)
 
-        self.wx = nn.Linear(
-            dim,
-            hidden_dim,
-            bias=False,
-        )
-
+        # rglru
         self.rglru = RGLRU(
-            dim=hidden_dim,
-            n_heads=n_heads,
-            head_dim=hidden_dim // n_heads,
+            emb_dim=hidden_dim,
+            nb_heads=nb_heads,
+            head_dim=hidden_dim // nb_heads,
             conv_size=conv_size,
         )
 
-        self.wo = nn.Linear(
-            hidden_dim,
-            dim,
-            bias=False,
-        )
-
-    def forward(self, x: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel") -> torch.Tensor:
-        h = self.rglru(self.wx(x), cu_seqlens=cu_seqlens, impl=impl)
-        h = h * F.silu(self.wy(x))
-        y = x + self.wo(h)
-
-        return y
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out1, out2 = self.fc1(x).chunk(2, dim=-1)
+        out2 = self.rglru(out2)
+        out = F.silu(out1) * out2
+        out = self.fc2(out)
+        return out
 
     def init_weights(self, init_std: float, factor: float) -> None:
-        self.rglru.reset_parameters(init_std, factor)
-
-        in_init_std = init_std or (self.dim ** (-0.5))
-        out_init_std = init_std or (self.hidden_dim ** (-0.5))
+        # input
+        in_init_std = init_std or (self.emb_dim ** (-0.5))
         in_init_std = in_init_std / factor
+        nn.init.trunc_normal_(self.fc1.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+
+        # output
+        out_init_std = init_std or (self.hidden_dim ** (-0.5))
         out_init_std = out_init_std / factor
+        nn.init.trunc_normal_(self.fc2.weight, std=out_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
-        for w in [self.wy, self.wx]:
-            nn.init.trunc_normal_(w.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
-
-        nn.init.trunc_normal_(self.wo.weight, std=out_init_std, a=-3 * out_init_std, b=3 * out_init_std)
+        # convolution
+        self.rglru.reset_parameters(init_std, factor)
 
 
 class HawkBlock(nn.Module):
-    def __init__(self, args: BaseFastRNNArgs):
+    def __init__(self, config: FastRNNConfig):
         super().__init__()
 
         self.rlgru_block = RGLRUBlock(
-            dim=args.dim,
-            hidden_dim=int(4 / 3 * args.dim),
-            n_heads=args.n_heads,
-            conv_size=args.conv_size,
-            multiple_of=args.multiple_of,
-            lru_dim_multiplier=args.lru_dim_multiplier,
+            emb_dim=config.emb_dim,
+            hidden_dim=int(4 / 3 * config.emb_dim),
+            nb_heads=config.nb_heads,
+            conv_size=config.conv_size,
         )
+        self.ffn = FeedForward(emb_dim=config.emb_dim, hidden_dim=4 * config.emb_dim)
+        self.rlgru_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
+        self.ffn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
 
-        self.feed_forward = FeedForward(
-            emb_dim=args.dim,
-            ffn_dim=4 * args.dim,
-            # multiple_of=args.multiple_of,
-            # ffn_dim_multiplier=args.ffn_dim_multiplier,
-        )
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = x + self.rlgru_block(self.rlgru_norm(x))
+        out = out + self.ffn(self.ffn_norm(out))
+        return out
 
-        self.rlgru_norm = RMSNorm(args.dim, eps=args.norm_eps)
-        self.ffn_norm = RMSNorm(args.dim, eps=args.norm_eps)
-
-    def forward(self, x: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel") -> torch.Tensor:
-        x = x + self.rlgru_block(self.rlgru_norm(x), cu_seqlens=cu_seqlens, impl=impl)
-        x = x + self.feed_forward(self.ffn_norm(x))
-        return x
-
-    def init_weights(self, init_std: float, factor: float) -> None:
+    def reset_parameters(self, init_std: float, factor: float) -> None:
         self.rlgru_block.init_weights(init_std, factor)
         self.rlgru_norm.reset_parameters()
-        self.feed_forward.reset_parameters()
+        self.ffn.reset_parameters(init_std, factor)
         self.ffn_norm.reset_parameters()
 
 
-class BaseHawk(nn.Module):
-    def __init__(self, args: BaseFastRNNArgs):
+# ------------------------------------------------------------------------------
+# Hawk Architecture
+# ------------------------------------------------------------------------------
+
+
+class Hawk(nn.Module):
+    def __init__(self, config: FastRNNConfig) -> None:
         super().__init__()
 
-        self.dim = args.dim
-        self.init_base_std = args.init_base_std
-        # self.init_std_factor = InitStdFactor(args.init_std_factor)
+        self.emb_dim = config.emb_dim
+        self.weight_tying = config.weight_tying
 
-        self.layers = nn.ModuleList()
-        for _ in range(args.n_layers):
-            self.layers.append(HawkBlock(args))
+        self.embeddings = torch.nn.Embedding(config.vocab_size, config.emb_dim)
 
-    def forward(self, h: torch.Tensor, cu_seqlens: torch.Tensor, impl: str = "parallel") -> torch.Tensor:
-        for _i, layer in enumerate(self.layers):
-            h = layer(h, cu_seqlens=cu_seqlens, impl=impl)
-        return h
+        self.layers = nn.ModuleList([HawkBlock(config) for _ in range(config.nb_layers)])
 
-    def reset_parameters(self) -> None:
-        pass
+        self.output = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
+        self.output_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
 
-    def init_weights(self) -> None:
-        self.reset_parameters()
-        for _depth, layer in enumerate(self.layers):
-            factor = 1
-            layer.init_weights(self.init_base_std, factor)
+        if config.weight_tying:
+            # Tying token embedding and un-embedding
+            self.output.weight = self.embeddings.weight
 
+        self.reset_parameters(config.init_std, factor=1.0)
 
-# ------------------------------------------------------------------------------
-# Language Model
-# ------------------------------------------------------------------------------
-
-
-class LMHawk(BaseHawk):
-    def __init__(self, args: LMFastRNNArgs) -> None:
-        super().__init__(args)
-        self.weight_tying = args.weight_tying
-        self.seed = args.seed
-
-        assert args.vocab_size > 0
-
-        self.tok_embeddings = torch.nn.Embedding(args.vocab_size, args.dim)
-
-        self.norm = RMSNorm(args.dim, eps=args.norm_eps)
-
-        self.output = nn.Linear(
-            args.dim,
-            args.vocab_size,
-            bias=False,
-        )
-
-        if args.weight_tying:
-            self.output.weight = self.embeddings.tok_embeddings.weight
-
-        self.init_weights()
-
-    def forward(
-        self,
-        token_values: torch.Tensor,
-        cu_seqlens: int = None,
-        impl: str = "parallel",
-    ) -> torch.Tensor:
-        h = self.tok_embeddings(token_values)
-
-        h = super().forward(h, cu_seqlens=cu_seqlens, impl=impl)
-
-        logits = self.output(self.norm(h))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.embeddings(x)
+        for layer in self.layers:
+            out = layer(out)
+        logits = self.output(self.output_norm(out))
         return logits
 
-    def reset_parameters(self, init_std: float = None) -> None:
-        # Either use fixed base std or sqrt model dim
-        super().reset_parameters()
-        init_std = init_std or (self.dim ** (-0.5))
-        self.norm.reset_parameters()
+    def get_nb_flop(self, **kwargs) -> int:
+        """
+        TODO
+        Number of flop to process a new token
+
+        Parameters
+        ----------
+        mode:
+            Whether to consider the forward, backward pass or both
+        """
+        return 0
+
+    def reset_parameters(self, init_std: int, factor: float) -> None:
+        """
+        Weight initialization
+        """
+        emb_init_std = init_std or (self.emb_dim ** (-0.5))
+
+        # embeddings
         nn.init.trunc_normal_(
-            self.tok_embeddings.weight,
+            self.embeddings.weight,
             mean=0.0,
-            std=init_std,
-            a=-3 * init_std,
-            b=3 * init_std,
+            std=emb_init_std,
+            a=-3 * emb_init_std,
+            b=3 * emb_init_std,
         )
+
+        # layers
+        for layer in self.layers:
+            layer.reset_parameters(init_std, factor=factor)
+
+        # output
+        self.output_norm.reset_parameters()
         if not self.weight_tying:
             nn.init.trunc_normal_(
                 self.output.weight,
                 mean=0.0,
-                std=init_std,
-                a=-3 * init_std,
-                b=3 * init_std,
+                std=emb_init_std,
+                a=-3 * emb_init_std,
+                b=3 * emb_init_std,
             )
-
-    def _get_no_recompute_ops(self):
-        return get_no_recompute_ops()
-
-    def get_nb_flop(self, **kwargs) -> int:
-        # TODO
-        return 0
-
-
-def get_no_recompute_ops() -> None:
-    return {
-        torch.ops.aten.mm.default,
-        torch.ops.aten._scaled_mm.default,
-        torch.ops.c10d_functional.reduce_scatter_tensor.default,
-        torch.ops.scan.scan_fwd.default,
-    }

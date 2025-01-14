@@ -11,8 +11,6 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-from typing import Optional
-
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -21,7 +19,7 @@ from ..norm import RMSNorm
 from .rnn_utils import FastRNNConfig, conv1d, scan
 
 # ------------------------------------------------------------------------------
-# Base Model
+# LSTM
 # ------------------------------------------------------------------------------
 
 
@@ -31,7 +29,7 @@ class LSTM(nn.Module):
         emb_dim: int,
         hidden_dim: int,  # h_t dim (state expansion)
         nb_heads: int,
-        conv_size: Optional[int] = None,
+        conv_size: int = None,
     ):
         super().__init__()
 
@@ -92,7 +90,7 @@ class LSTM(nn.Module):
         Weight initialization
         """
         # input
-        in_init_std = init_std or (self.dim ** (-0.5))
+        in_init_std = init_std or (self.emb_dim ** (-0.5))
         in_init_std = in_init_std / factor
         nn.init.trunc_normal_(self.fc1.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
@@ -105,6 +103,11 @@ class LSTM(nn.Module):
         if self.conv_size is not None:
             conv_std = init_std or (self.conv_size ** (-0.5))
             nn.init.trunc_normal_(self.conv_weight, mean=0.0, std=conv_std, a=-3 * conv_std, b=3 * conv_std)
+
+
+# ------------------------------------------------------------------------------
+# LSTM Block
+# ------------------------------------------------------------------------------
 
 
 class LSTMBlock(nn.Module):
@@ -176,15 +179,15 @@ class MinLSTM(nn.Module):
         """
         Weight initialization
         """
-        init_std = init_std or (self.emb_dim ** (-0.5))
+        emb_init_std = init_std or (self.emb_dim ** (-0.5))
 
-        # layers
+        # embeddings
         nn.init.trunc_normal_(
             self.embeddings.weight,
             mean=0.0,
-            std=init_std,
-            a=-3 * init_std,
-            b=3 * init_std,
+            std=emb_init_std,
+            a=-3 * emb_init_std,
+            b=3 * emb_init_std,
         )
 
         # layers
@@ -197,7 +200,7 @@ class MinLSTM(nn.Module):
             nn.init.trunc_normal_(
                 self.output.weight,
                 mean=0.0,
-                std=init_std,
-                a=-3 * init_std,
-                b=3 * init_std,
+                std=emb_init_std,
+                a=-3 * emb_init_std,
+                b=3 * emb_init_std,
             )

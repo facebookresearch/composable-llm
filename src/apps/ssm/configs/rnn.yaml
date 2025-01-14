@@ -48,11 +48,12 @@ run_config:
         alpha: 1e-2
 
   model:
-    implementation: minlstm
+    implementation: hawk
     dim: 256
     n_layers: 2
     n_heads: 8
-    conv_size: 4
+    conv_size: null
+    # conv_size: 4
 
   optim:
     steps: 100

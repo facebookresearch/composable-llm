@@ -11,8 +11,6 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-from typing import Optional
-
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -31,7 +29,7 @@ class GRU(nn.Module):
         emb_dim: int,
         hidden_dim: int,
         nb_heads: int,
-        conv_size: Optional[int] = None,
+        conv_size: int = None,
     ):
         super().__init__()
 
@@ -176,15 +174,15 @@ class MinGRU(nn.Module):
         """
         Weight initialization
         """
-        init_std = init_std or (self.emb_dim ** (-0.5))
+        emb_init_std = init_std or (self.emb_dim ** (-0.5))
 
-        # layers
+        # embeddings
         nn.init.trunc_normal_(
             self.embeddings.weight,
             mean=0.0,
-            std=init_std,
-            a=-3 * init_std,
-            b=3 * init_std,
+            std=emb_init_std,
+            a=-3 * emb_init_std,
+            b=3 * emb_init_std,
         )
 
         # layers
@@ -197,7 +195,7 @@ class MinGRU(nn.Module):
             nn.init.trunc_normal_(
                 self.output.weight,
                 mean=0.0,
-                std=init_std,
-                a=-3 * init_std,
-                b=3 * init_std,
+                std=emb_init_std,
+                a=-3 * emb_init_std,
+                b=3 * emb_init_std,
             )

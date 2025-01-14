@@ -1,5 +1,6 @@
 try:
-    # from .hawk import LMHawk
+    from .hawk import Hawk
+
     # from .mamba import LMMamba
     from .mingru import MinGRU
     from .minlstm import MinLSTM
