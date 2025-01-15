@@ -9,6 +9,7 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
+import copy
 from collections.abc import Generator
 from dataclasses import dataclass, field
 from logging import getLogger
@@ -237,7 +238,7 @@ def build_gssm(config: GSSMConfig, rng: np.random.Generator) -> Node:
         Dictionary of nodes.
     """
     logger.info(f"Building graph from {config}")
-    nodes_to_initialize = config.nodes
+    nodes_to_initialize = copy.deepcopy(config.nodes)
     nodes: dict[str, Node] = {}
 
     # observe all the other nodes

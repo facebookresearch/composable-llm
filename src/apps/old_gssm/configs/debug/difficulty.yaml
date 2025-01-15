@@ -1,0 +1,459 @@
+# Data configurations
+# The outer keys for the different entry could be anything
+# The inner keys should respect the same structure
+
+base:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/base.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 256
+      parents: []
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+
+sparse:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/sparse.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+
+very_sparse:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/very_sparse.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 2
+      parents: [X]
+    - name: Z2
+      state_dim: 2
+      parents: [X]
+    - name: Z3
+      state_dim: 2
+      parents: [X]
+    - name: Z4
+      state_dim: 2
+      parents: [X]
+    - name: Z5
+      state_dim: 2
+      parents: [X]
+    - name: Z6
+      state_dim: 2
+      parents: [X]
+    - name: Z7
+      state_dim: 2
+      parents: [X]
+    - name: Z8
+      state_dim: 2
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+
+dense:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/dense.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X, Z1]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X, Z1, Z3]
+    - name: X
+      state_dim: 32
+      parents: [X, Z1, Z2, Z3, Z4]
+
+very_dense:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/very_dense.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X, Z1]
+    - name: Z3
+      state_dim: 4
+      parents: [X, Z1, Z2]
+    - name: Z4
+      state_dim: 4
+      parents: [X, Z1, Z2, Z3]
+    - name: X
+      state_dim: 32
+      parents: [X, Z1, Z2, Z3, Z4]
+
+slow:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/slow.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      mode: slow
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      mode: slow
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      mode: slow
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      mode: slow
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+
+dead:
+  seq_len: 2048
+  seed: 42
+  batch_size: 128
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/dead.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      mode: dead
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      mode: dead
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      mode: dead
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      mode: dead
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+
+base_big:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/base_big.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 256
+      parents: []
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+
+sparse_big:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/sparse_big.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+
+very_sparse_big:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/very_sparse_big.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 2
+      parents: [X]
+    - name: Z2
+      state_dim: 2
+      parents: [X]
+    - name: Z3
+      state_dim: 2
+      parents: [X]
+    - name: Z4
+      state_dim: 2
+      parents: [X]
+    - name: Z5
+      state_dim: 2
+      parents: [X]
+    - name: Z6
+      state_dim: 2
+      parents: [X]
+    - name: Z7
+      state_dim: 2
+      parents: [X]
+    - name: Z8
+      state_dim: 2
+      parents: [X]
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+
+dense_big:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/dense_big.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X, Z1]
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+    - name: Z4
+      state_dim: 4
+      parents: [X, Z1, Z3]
+    - name: X
+      state_dim: 32
+      parents: [X, Z1, Z2, Z3, Z4]
+
+very_dense_big:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/very_dense_big.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+    - name: Z2
+      state_dim: 4
+      parents: [X, Z1]
+    - name: Z3
+      state_dim: 4
+      parents: [X, Z1, Z2]
+    - name: Z4
+      state_dim: 4
+      parents: [X, Z1, Z2, Z3]
+    - name: X
+      state_dim: 32
+      parents: [X, Z1, Z2, Z3, Z4]
+
+slow_big:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/slow_big.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      mode: slow
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      mode: slow
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      mode: slow
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      mode: slow
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+
+dead_big:
+  seq_len: 2048
+  seed: 42
+  batch_size: 10_000
+  alpha_X:
+    num: 10
+    min: 1e-3
+    max: 1e-1
+  alpha_Z:
+    min: 1e-3
+    max: 1e1
+    num: 20
+  path: $HOME/logs/difficulty/dead_big.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      mode: dead
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      mode: dead
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      mode: dead
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      mode: dead
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]

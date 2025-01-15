@@ -158,7 +158,7 @@ def estimate_difficulty(config: DifficultyEstimationConfig, task_id: int = 1, nb
 
         # specialize base configuration accordingly
         for node in data_config.gssm.nodes:
-            if node.observed:
+            if node.name == "X":
                 node.alpha = alpha_X
             else:
                 node.alpha = alpha_Z
