@@ -22,8 +22,7 @@ import yaml
 os.environ["CUDA_HOME"] = "/public/apps/cuda/12.2.0"  # monkey patching for accelerated_scan to work
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
-from ...nanollama.model import Model
-from ...nanollama.model.ssm import FastRNNConfig, Hawk, MinGRU, MinLSTM
+from ...nanollama.model import FastRNNConfig, Hawk, MinGRU, MinLSTM
 from ...nanollama.monitor import (
     # Checkpointer,
     Logger,
@@ -114,7 +113,7 @@ def train(config: TrainingConfig) -> None:
 
         _logger.info("Building model")
         ModelGen = dict(hawk=Hawk, mingru=MinGRU, minlstm=MinLSTM)[config.model.implementation]
-        model: Model = ModelGen(config.model)
+        model: MinLSTM = ModelGen(config.model)
         model = cluster.initialize_model(model)
 
         _logger.info("Building optimizer")

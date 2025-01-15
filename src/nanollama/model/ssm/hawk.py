@@ -132,9 +132,9 @@ class RGLRU(nn.Module):
         Weight initialization
         """
         # input
-        in_init_std = init_std or (self.emb_dim ** (-0.5))
-        in_init_std = in_init_std / factor
-        nn.init.trunc_normal_(self.W_in.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+        in_std = init_std or (self.emb_dim ** (-0.5))
+        in_std = in_std / factor
+        nn.init.trunc_normal_(self.W_in.weight, std=in_std, a=-3 * in_std, b=3 * in_std)
 
         # output gain
         min_rad, max_rad = 0.9, 0.999
@@ -188,14 +188,14 @@ class RGLRUBlock(nn.Module):
 
     def init_weights(self, init_std: float, factor: float) -> None:
         # input
-        in_init_std = init_std or (self.emb_dim ** (-0.5))
-        in_init_std = in_init_std / factor
-        nn.init.trunc_normal_(self.W_in.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+        in_std = init_std or (self.emb_dim ** (-0.5))
+        in_std = in_std / factor
+        nn.init.trunc_normal_(self.W_in.weight, std=in_std, a=-3 * in_std, b=3 * in_std)
 
         # output
-        out_init_std = init_std or (self.hidden_dim ** (-0.5))
-        out_init_std = out_init_std / factor
-        nn.init.trunc_normal_(self.W_out.weight, std=out_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+        out_std = init_std or (self.hidden_dim ** (-0.5))
+        out_std = out_std / factor
+        nn.init.trunc_normal_(self.W_out.weight, std=out_std, a=-3 * in_std, b=3 * in_std)
 
         # convolution
         self.rglru.reset_parameters(init_std, factor)
