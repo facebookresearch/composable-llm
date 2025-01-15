@@ -35,7 +35,7 @@ class NodeConfig:
     alpha: float = 0
     parents: list[str] = field(default_factory=list)
     mode: str = "default"
-    root: bool = False
+    observed: bool = False
 
     def __post_init__(self):
         """
@@ -63,7 +63,7 @@ class Node:
         Mode of the transition kernel. Can be 'default', 'slow', 'dead', or 'context'.
     rng:
         Random number generator
-    root:
+    observed:
         Whether the node is the observed node
 
     Attributes
@@ -83,14 +83,14 @@ class Node:
         parents: list["Node"],
         mode: str,
         rng: np.random.Generator,
-        root: bool,
+        observed: bool,
     ):
         self.state_dim = state_dim
         self.alpha = alpha
         self.parents = parents
         self.mode = mode
         self.rng = rng
-        self.root = root
+        self.observed = observed
 
         self.kernels = self.sample_transitions(alpha, mode)
 
@@ -105,7 +105,7 @@ class Node:
             return []
 
         # observed node does not have connection to itself
-        if self.root:
+        if self.observed:
             fan_ins = []
         else:
             fan_ins = [self.state_dim]
@@ -178,7 +178,7 @@ class Node:
                 assert parent.time == self.time, "Parent node time is not correct."
                 parent.evolve()
 
-        if self.root:
+        if self.observed:
             all_states = []
         else:
             all_states = [self.state]
@@ -201,7 +201,7 @@ class Node:
                 f"state={self.state}",
                 f"time={self.time}",
                 f"nb_parents={len(self.parents)}",
-                f"root={self.root})",
+                f"observed={self.observed})",
             ]
         )
 
@@ -268,14 +268,14 @@ def build_gssm(config: GSSMConfig, rng: np.random.Generator) -> Node:
             parents=parents,
             mode=node_config.mode,
             rng=rng,
-            root=node_config.root,
+            observed=node_config.observed,
         )
 
         logger.info("Graph is built")
-        if node_config.root:
+        if node_config.observed:
             return nodes[node_config.name]
 
-    raise ValueError("No root node found")
+    raise ValueError("No observed node found")
 
 
 # ------------------------------------------------------------------------------
