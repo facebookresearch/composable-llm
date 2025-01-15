@@ -109,7 +109,7 @@ class HMM:
         """
         Constructs the einsum string for the target node transition matrix when used as input
         """
-        observed = self.names[tgt_node] == "X"
+        observed = isinstance(tgt_node, gssm.ObservedNode)
         einsum_str = self._node_sym_in(tgt_node) if not observed else ""
         einsum_str += "".join(self._node_sym_out(p) for p in tgt_node.parents)
         einsum_str += self._node_sym_out(tgt_node)
@@ -227,6 +227,7 @@ class HMM:
         log_p_seq = torch.zeros((1, T, B), device=DEVICE)
 
         forward_probs[:, 0, :] = log_pi[:, None] + log_E[:, obs[0]]
+        #forward_probs[:,t,:] = p(Z_t, X_[t])
         log_p_seq[:,0,:] = lognorm(forward_probs[:, 0, :])
         # forward_probs[:,0,:] -= log_p_seq[:,0,:]
         
@@ -252,20 +253,10 @@ class HMM:
         return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log())
     
     def entropy_of_observations(self, observations: np.ndarray):
-        log_p_Zt_xst, _ = self.forward_probs(observations)
-        # FIXME something is wrong here still
-        print(log_p_Zt_xst)
-        P, T, B = log_p_Zt_xst.shape #helpers for readability P = product state shape
-        log_p_x_given_z = torch.tensor(self.get_p_emission(self.top_node)).log()
-        log_p_x_given_z = log_p_x_given_z[...,None,None]
-        log_p_Xt_xst = torch.logsumexp(log_p_x_given_z + log_p_Zt_xst[:,None], dim=0)
-        S, T, B = log_p_Xt_xst.shape #S = top_node.state_dim
-        def lognorm(log_x):
-            return torch.logsumexp(log_x, dim=0, keepdim=True)
-        log_p_Xt_given_xst = log_p_Xt_xst - lognorm(log_p_Xt_xst)
-        H_t = (torch.exp(log_p_Xt_xst) * log_p_Xt_given_xst).sum(0) # sum over states
-        T, B = H_t.shape
-        return H_t.sum(0) # sum over sequence
+        _, log_xst = self.forward_probs(observations)
+        H_t = -log_xst
+        H_T = H_t[-1]
+        return H_T
         
 
 
@@ -277,48 +268,33 @@ if __name__ == "__main__":
               "name": "Z1",
               "state_dim": 5,
               "parents": [],
-              "alpha": 1,
+              "alpha": .1,
               "mode": "default",
           },
           {
               "name": "Z2",
-              "state_dim": 6,
+              "state_dim": 4,
               "parents": ["Z1"],
-              "alpha": 1,
+              "alpha": .1,
               "mode": "default",
           },
           {
               "name": "Z3",
-              "state_dim": 7,
+              "state_dim": 3,
               "parents": ["Z2"],
-              "alpha": 1,
+              "alpha": .1,
               "mode": "default",
           },
           {
               "name": "X",
-              "state_dim": 8,
+              "state_dim": 2,
               "parents": ["Z1", "Z3"],
-              "alpha": 1,
+              "alpha": .1,
               "mode": "default",
           },
       ]
   }
 
-  def test_entropy(config):
-      hmm = HMM(config)
-      batch_size = 2
-      seq_len = 5
-      hmm._init_all_nodes(batch_size)
-      observations = np.zeros((seq_len, batch_size), dtype=int)
-      for i in range(seq_len):
-          observations[i] = np.array(hmm.top_node.state)
-          hmm.evolve_classic(1)
-      print(hmm.entropy_of_observations(observations))
-  
-  test_entropy(gssm_config)
-# %%
-
-# %%
   def test_prod_transition(config):
     hmm = HMM(config)
     hmm._init_all_nodes(1000)
@@ -339,7 +315,7 @@ if __name__ == "__main__":
         plt.legend()
         plt.show()
 
-  # test_prod_transition(gssm_config)
+  test_prod_transition(gssm_config)
 
   def test_forward_probs(config):
       hmm = HMM(config)
@@ -353,7 +329,21 @@ if __name__ == "__main__":
       #sanity check
       print(hmm.forward_probs(observations)[0].exp().sum(0))
 
-  # test_forward_probs(gssm_config)
+  test_forward_probs(gssm_config)
+
+  def test_entropy(config, seq_len, batch_size):
+      hmm = HMM(config)
+      hmm._init_all_nodes(batch_size)
+      observations = np.zeros((seq_len, batch_size), dtype=int)
+      for i in range(seq_len):
+          observations[i] = np.array(hmm.top_node.state)
+          hmm.evolve_classic(1)
+      return hmm.entropy_of_observations(observations).mean().item()
+  
+  for seq_len in np.logspace(0,4,10):
+    seq_len = int(seq_len)
+    print(seq_len, test_entropy(gssm_config, seq_len, 30) / seq_len)
+
 
 
 # %%
