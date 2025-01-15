@@ -210,7 +210,7 @@ def train(config: TrainingConfig) -> None:
         profiler: Profiler = context_stack.enter_context(Profiler(config.orchestration.profiler, state=state))
 
         logger.report_statistics(model)
-        seq_len = config.model.block.seq_len
+        seq_len = config.model.seq_len
         token_per_step = seq_len * config.data.batch_size * config.optim.grad_acc_steps
         profiler.report_statistics(model, token_per_step=token_per_step, seq_len=seq_len)
 

@@ -20,19 +20,18 @@ run_config:
     compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
 
   data:
-    path: $HOME/data/composition/debug/trainset.h5
-    n_data: 1_000
+    path: $HOME/data/composition/base/trainset.h5
+    n_data: 10_000
     batch_size: 128
     seed: 42
 
   model:
-    vocab_size: 256
+    vocab_size: 32
+    seq_len: 2048
     emb_dim: 64
+    nb_heads: 2
+    hidden_dim: 256
     nb_layers: 2
-    block:
-      seq_len: 2048
-      nb_heads: 2
-      hidden_dim: 256
 
   optim:
     steps: 100
@@ -64,6 +63,6 @@ run_config:
     period: 15
     asynchronous: false
     data:
-      path: $HOME/data/composition/debug/testset.h5
-      n_data: 100
+      path: $HOME/data/composition/base/testset.h5
+      n_data: 1_000
       batch_size: 16
