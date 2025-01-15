@@ -10,3 +10,14 @@ located in the root directory of this repository.
 """
 
 from .transfomer import Transformer, TransformerConfig
+
+try:
+    from .rnn import FastRNNConfig, Hawk, MinGRU, MinLSTM
+
+    # from .mamba import LMMamba
+except ImportError as e:
+    print(e)
+    print(
+        "Could not import SSM. This is likely due to the lack of installation of the ssm dependencies."
+        "You may install them with `pip install .[ssm]."
+    )

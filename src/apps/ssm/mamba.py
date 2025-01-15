@@ -21,7 +21,7 @@ import yaml
 
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
-from ...nanollama.model.ssm.mamba import (
+from ...nanollama.model.mamba import (
     LMMamba,
     LMMambaArgs,
 )
@@ -87,9 +87,9 @@ class TrainingConfig:
                 module.__check_init__()
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Training loop
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:

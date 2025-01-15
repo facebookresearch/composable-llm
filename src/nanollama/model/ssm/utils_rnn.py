@@ -1,5 +1,5 @@
 """
-RNN utilities
+RNN utils
 
 License
 -------
@@ -27,36 +27,23 @@ from .wrapper_scan import scan as accelerated_scan
 
 
 @dataclass
-class FastRNNConfig:
-    implementation: str = "minLSTM"
-
-    # Embedding parameters
-    vocab_size: int = 0
-    emb_dim: int = 512
+class RNNBlockConfig:
+    emb_dim: int = 0
 
     # Block parameters
-    nb_heads: int = 1
+    nb_heads: int = 0
     conv_size: int = None
-    hidden_dim: int = None
+    hidden_dim: int = 0
+    ffn_dim: int = 0  # for Hawk
     norm_eps: float = 1e-5
 
     # Model parameters
-    nb_layers: int = 8
-    weight_tying: bool = False
     init_std: float = None
-
-    def __post_init__(self):
-        self.implementation = self.implementation.lower()
-        assert self.implementation in ["minlstm", "mingru", "hawk"], f"{self.implementation} not found"
-        if self.hidden_dim is None:
-            if self.implementation == "hawk":
-                self.hidden_dim = int(4 * self.emb_dim / 3)
-            else:
-                self.hidden_dim = 3 * self.emb_dim
 
     def __check_init__(self):
         """Check validity of arguments."""
-        assert self.vocab_size > 0, "Vocab size must be greater than 0"
+        assert self.emb_dim, "embedding dimension should be specified"
+        assert self.nb_heads, "number of heads should be specified"
 
 
 # ------------------------------------------------------------------------------

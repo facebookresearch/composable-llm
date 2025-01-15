@@ -1,5 +1,5 @@
 """
-Initialization of the model module
+Model as blocks acting in an embedding space.
 
 License
 -------
@@ -70,11 +70,19 @@ class BlockLanguageModelConfig:
     norm_eps: float = 1e-5
     init_std: float = None
 
-    def __check_init__(self):
-        """Check validity of arguments."""
-        assert self.vocab_size, "vocabulary size should be specified"
+    def __post_init__(self):
+        assert self.block, "block should be specified"
         assert self.emb_dim, "embedding dimension should be specified"
         assert self.nb_layers, "number of layers should be specified"
+
+    def __check_init__(self):
+        """Check validity of arguments that may have been inherited."""
+        assert self.vocab_size, "vocabulary size should be specified"
+
+        # manual post initialization of all modules
+        for module in self.__dict__.values():
+            if hasattr(module, "__check_init__"):
+                module.__check_init__()
 
 
 class BlockLanguageModel(nn.Module):
@@ -101,6 +109,34 @@ class BlockLanguageModel(nn.Module):
 
         self.reset_parameters(config.init_std, factor=1.0)
 
+    def reset_parameters(self, init_std: float, factor: float) -> None:
+        """Weight initialization"""
+        emb_std = init_std or (self.emb_dim ** (-0.5))
+
+        # embeddings
+        nn.init.trunc_normal_(
+            self.embeddings.weight,
+            mean=0.0,
+            std=emb_std,
+            a=-3 * emb_std,
+            b=3 * emb_std,
+        )
+
+        # layers
+        for layer in self.layers:
+            layer.reset_parameters(init_std, factor=factor)
+
+        # output
+        self.output_norm.reset_parameters()
+        if not self.weight_tying:
+            nn.init.trunc_normal_(
+                self.output.weight,
+                mean=0.0,
+                std=emb_std,
+                a=-3 * emb_std,
+                b=3 * emb_std,
+            )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.embeddings(x)
         for layer in self.layers:
@@ -122,33 +158,3 @@ class BlockLanguageModel(nn.Module):
         """
         mode_multiplier = dict(fwd=1, bwd=2.5, both=3.5)[mode]
         return 0 * mode_multiplier
-
-    def reset_parameters(self, init_std: float, factor: float) -> None:
-        """
-        Weight initialization
-        """
-        emb_init_std = init_std or (self.emb_dim ** (-0.5))
-
-        # embeddings
-        nn.init.trunc_normal_(
-            self.embeddings.weight,
-            mean=0.0,
-            std=emb_init_std,
-            a=-3 * emb_init_std,
-            b=3 * emb_init_std,
-        )
-
-        # layers
-        for layer in self.layers:
-            layer.reset_parameters(init_std, factor=factor)
-
-        # output
-        self.output_norm.reset_parameters()
-        if not self.weight_tying:
-            nn.init.trunc_normal_(
-                self.output.weight,
-                mean=0.0,
-                std=emb_init_std,
-                a=-3 * emb_init_std,
-                b=3 * emb_init_std,
-            )

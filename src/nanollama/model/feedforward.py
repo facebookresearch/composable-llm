@@ -13,9 +13,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Feed-forward Layer
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class FeedForward(nn.Module):
@@ -38,13 +38,13 @@ class FeedForward(nn.Module):
         super().__init__()
         self.emb_dim = emb_dim
         self.hidden_dim = hidden_dim
-        self.fc1 = nn.Linear(emb_dim, 2 * hidden_dim, bias=False)
-        self.fc2 = nn.Linear(hidden_dim, emb_dim, bias=False)
+        self.W_in = nn.Linear(emb_dim, 2 * hidden_dim, bias=False)
+        self.W_out = nn.Linear(hidden_dim, emb_dim, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out1, out2 = self.fc1(x).chunk(2, dim=-1)
+        out1, out2 = self.W_in(x).chunk(2, dim=-1)
         out = F.silu(out1) * out2
-        out = self.fc2(out)
+        out = self.W_out(out)
         return out
 
     def reset_parameters(self, init_std: float = None, factor: float = 1.0) -> None:
@@ -52,22 +52,22 @@ class FeedForward(nn.Module):
         Weight initialization
         """
         # input
-        in_init_std = init_std or (self.emb_dim ** (-0.5))
+        in_std = init_std or (self.emb_dim ** (-0.5))
         nn.init.trunc_normal_(
-            self.fc1.weight,
+            self.W_in.weight,
             mean=0.0,
-            std=in_init_std,
-            a=-3 * in_init_std,
-            b=3 * in_init_std,
+            std=in_std,
+            a=-3 * in_std,
+            b=3 * in_std,
         )
 
         # output
-        out_init_std = init_std or (self.hidden_dim ** (-0.5))
-        out_init_std = out_init_std / factor
+        out_std = init_std or (self.hidden_dim ** (-0.5))
+        out_std = out_std / factor
         nn.init.trunc_normal_(
-            self.fc2.weight,
+            self.W_out.weight,
             mean=0.0,
-            std=out_init_std,
-            a=-3 * out_init_std,
-            b=3 * out_init_std,
+            std=out_std,
+            a=-3 * out_std,
+            b=3 * out_std,
         )

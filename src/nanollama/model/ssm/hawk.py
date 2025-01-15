@@ -18,7 +18,7 @@ from torch.nn import functional as F
 
 from ..feedforward import FeedForward
 from ..norm import RMSNorm
-from .rnn_utils import FastRNNConfig, conv1d, scan
+from .utils_rnn import RNNBlockConfig, conv1d, scan
 
 # ------------------------------------------------------------------------------
 # Square root with gradient clipping
@@ -75,7 +75,7 @@ class RGLRU(nn.Module):
         )
 
         # matrices
-        self.fc1 = nn.Linear(emb_dim, 2 * emb_dim, bias=False)
+        self.W_in = nn.Linear(emb_dim, 2 * emb_dim, bias=False)
 
         # convolution
         self.conv_size = conv_size
@@ -101,7 +101,7 @@ class RGLRU(nn.Module):
                 impl="parallel",
             ).transpose(1, 2)
 
-        gate_x, gate_a = self.fc1(x).chunk(2, dim=-1)
+        gate_x, gate_a = self.W_in(x).chunk(2, dim=-1)
         gate_x = F.sigmoid(gate_x)
         gate_a = F.sigmoid(gate_a)
 
@@ -134,7 +134,7 @@ class RGLRU(nn.Module):
         # input
         in_init_std = init_std or (self.emb_dim ** (-0.5))
         in_init_std = in_init_std / factor
-        nn.init.trunc_normal_(self.fc1.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+        nn.init.trunc_normal_(self.W_in.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
         # output gain
         min_rad, max_rad = 0.9, 0.999
@@ -168,8 +168,8 @@ class RGLRUBlock(nn.Module):
         assert hidden_dim % nb_heads == 0, f"Hidden dim must be divisible by nb_heads: {hidden_dim} % {nb_heads} != 0"
 
         # matrices
-        self.fc1 = nn.Linear(emb_dim, 2 * hidden_dim, bias=False)
-        self.fc2 = nn.Linear(hidden_dim, emb_dim, bias=False)
+        self.W_in = nn.Linear(emb_dim, 2 * hidden_dim, bias=False)
+        self.W_out = nn.Linear(hidden_dim, emb_dim, bias=False)
 
         # rglru
         self.rglru = RGLRU(
@@ -180,86 +180,54 @@ class RGLRUBlock(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out1, out2 = self.fc1(x).chunk(2, dim=-1)
+        out1, out2 = self.W_in(x).chunk(2, dim=-1)
         out2 = self.rglru(out2)
         out = F.silu(out1) * out2
-        out = self.fc2(out)
+        out = self.W_out(out)
         return out
 
     def init_weights(self, init_std: float, factor: float) -> None:
         # input
         in_init_std = init_std or (self.emb_dim ** (-0.5))
         in_init_std = in_init_std / factor
-        nn.init.trunc_normal_(self.fc1.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+        nn.init.trunc_normal_(self.W_in.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
         # output
         out_init_std = init_std or (self.hidden_dim ** (-0.5))
         out_init_std = out_init_std / factor
-        nn.init.trunc_normal_(self.fc2.weight, std=out_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+        nn.init.trunc_normal_(self.W_out.weight, std=out_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
         # convolution
         self.rglru.reset_parameters(init_std, factor)
 
 
 class HawkBlock(nn.Module):
-    def __init__(self, config: FastRNNConfig):
+    def __init__(self, config: RNNBlockConfig):
         super().__init__()
 
         self.rlgru_block = RGLRUBlock(
             emb_dim=config.emb_dim,
-            hidden_dim=int(4 / 3 * config.emb_dim),
+            hidden_dim=int(config.hidden_dim),
             nb_heads=config.nb_heads,
             conv_size=config.conv_size,
         )
-        self.ffn = FeedForward(emb_dim=config.emb_dim, hidden_dim=4 * config.emb_dim)
+        self.ffn = FeedForward(emb_dim=config.emb_dim, hidden_dim=config.ffn_dim)
         self.rlgru_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
         self.ffn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
+
+    def reset_parameters(self, init_std: float, factor: float) -> None:
+        """Weight initialization"""
+        self.rlgru_block.init_weights(init_std, factor)
+        self.rlgru_norm.reset_parameters()
+        self.ffn.reset_parameters(init_std, factor)
+        self.ffn_norm.reset_parameters()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = x + self.rlgru_block(self.rlgru_norm(x))
         out = out + self.ffn(self.ffn_norm(out))
         return out
 
-    def reset_parameters(self, init_std: float, factor: float) -> None:
-        self.rlgru_block.init_weights(init_std, factor)
-        self.rlgru_norm.reset_parameters()
-        self.ffn.reset_parameters(init_std, factor)
-        self.ffn_norm.reset_parameters()
-
-
-# ------------------------------------------------------------------------------
-# Hawk Architecture
-# ------------------------------------------------------------------------------
-
-
-class Hawk(nn.Module):
-    def __init__(self, config: FastRNNConfig) -> None:
-        super().__init__()
-
-        self.emb_dim = config.emb_dim
-        self.weight_tying = config.weight_tying
-
-        self.embeddings = torch.nn.Embedding(config.vocab_size, config.emb_dim)
-
-        self.layers = nn.ModuleList([HawkBlock(config) for _ in range(config.nb_layers)])
-
-        self.output = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
-        self.output_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
-
-        if config.weight_tying:
-            # Tying token embedding and un-embedding
-            self.output.weight = self.embeddings.weight
-
-        self.reset_parameters(config.init_std, factor=1.0)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.embeddings(x)
-        for layer in self.layers:
-            out = layer(out)
-        logits = self.output(self.output_norm(out))
-        return logits
-
-    def get_nb_flop(self, **kwargs) -> int:
+    def get_nb_flop(self, mode: str = "both", **kwargs) -> int:
         """
         TODO
         Number of flop to process a new token
@@ -269,34 +237,5 @@ class Hawk(nn.Module):
         mode:
             Whether to consider the forward, backward pass or both
         """
-        return 0
-
-    def reset_parameters(self, init_std: int, factor: float) -> None:
-        """
-        Weight initialization
-        """
-        emb_init_std = init_std or (self.emb_dim ** (-0.5))
-
-        # embeddings
-        nn.init.trunc_normal_(
-            self.embeddings.weight,
-            mean=0.0,
-            std=emb_init_std,
-            a=-3 * emb_init_std,
-            b=3 * emb_init_std,
-        )
-
-        # layers
-        for layer in self.layers:
-            layer.reset_parameters(init_std, factor=factor)
-
-        # output
-        self.output_norm.reset_parameters()
-        if not self.weight_tying:
-            nn.init.trunc_normal_(
-                self.output.weight,
-                mean=0.0,
-                std=emb_init_std,
-                a=-3 * emb_init_std,
-                b=3 * emb_init_std,
-            )
+        mode_multiplier = dict(fwd=1, bwd=2.5, both=3.5)[mode]
+        return 0 * mode_multiplier

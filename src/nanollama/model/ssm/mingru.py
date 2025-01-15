@@ -16,11 +16,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from ..norm import RMSNorm
-from .rnn_utils import FastRNNConfig, conv1d, scan
-
-# ------------------------------------------------------------------------------
-# Base Model
-# ------------------------------------------------------------------------------
+from .utils_rnn import RNNBlockConfig, conv1d, scan
 
 
 class GRU(nn.Module):
@@ -41,8 +37,8 @@ class GRU(nn.Module):
         assert hidden_dim % nb_heads == 0, f"Hidden dim must be divisible by nb_heads: {hidden_dim} % {nb_heads} != 0"
 
         # matrices
-        self.fc1 = nn.Linear(emb_dim, 3 * hidden_dim, bias=False)
-        self.fc2 = nn.Linear(hidden_dim, emb_dim, bias=False)
+        self.W_in = nn.Linear(emb_dim, 3 * hidden_dim, bias=False)
+        self.W_out = nn.Linear(hidden_dim, emb_dim, bias=False)
 
         # convolution
         self.conv_size = conv_size
@@ -57,7 +53,7 @@ class GRU(nn.Module):
         # dimensions
         bsz, seq_len, _ = x.shape
 
-        out1, z, h = self.fc1(x).chunk(3, dim=-1)
+        out1, z, h = self.W_in(x).chunk(3, dim=-1)
 
         z = z.transpose(1, 2)
         h = h.transpose(1, 2)
@@ -79,22 +75,20 @@ class GRU(nn.Module):
         out2 = h.view(bsz, self.hidden_dim, seq_len).transpose(1, 2)
 
         out = F.silu(out1) * out2
-        out = self.fc2(out)
+        out = self.W_out(out)
         return out
 
     def reset_parameters(self, init_std: float, factor: float) -> None:
-        """
-        Weight initialization
-        """
+        """Weight initialization"""
         # input
         in_init_std = init_std or (self.emb_dim ** (-0.5))
         in_init_std = in_init_std / factor
-        nn.init.trunc_normal_(self.fc1.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+        nn.init.trunc_normal_(self.W_in.weight, std=in_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
         # output
         out_init_std = init_std or (self.hidden_dim ** (-0.5))
         out_init_std = out_init_std / factor
-        nn.init.trunc_normal_(self.fc2.weight, std=out_init_std, a=-3 * in_init_std, b=3 * in_init_std)
+        nn.init.trunc_normal_(self.W_out.weight, std=out_init_std, a=-3 * in_init_std, b=3 * in_init_std)
 
         # convolution
         if self.conv_size is not None:
@@ -103,7 +97,7 @@ class GRU(nn.Module):
 
 
 class GRUBlock(nn.Module):
-    def __init__(self, config: FastRNNConfig):
+    def __init__(self, config: RNNBlockConfig):
         super().__init__()
 
         self.gru_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
@@ -114,49 +108,14 @@ class GRUBlock(nn.Module):
             conv_size=config.conv_size,
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.gru(self.gru_norm(x))
-        return x
-
     def reset_parameters(self, init_std: float, factor: float) -> None:
-        """
-        Weight initialization
-        """
+        """Weight initialization"""
         self.gru.reset_parameters(init_std, factor)
         self.gru_norm.reset_parameters()
 
-
-# ------------------------------------------------------------------------------
-# Language Model
-# ------------------------------------------------------------------------------
-
-
-class MinGRU(nn.Module):
-    def __init__(self, config: FastRNNConfig) -> None:
-        super().__init__()
-
-        self.emb_dim = config.emb_dim
-        self.weight_tying = config.weight_tying
-
-        self.embeddings = torch.nn.Embedding(config.vocab_size, config.emb_dim)
-
-        self.layers = nn.ModuleList([GRUBlock(config) for _ in range(config.nb_layers)])
-
-        self.output = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
-        self.output_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
-
-        if config.weight_tying:
-            # Tying token embedding and un-embedding
-            self.output.weight = self.embeddings.weight
-
-        self.reset_parameters(config.init_std, factor=1.0)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.embeddings(x)
-        for layer in self.layers:
-            out = layer(out)
-        logits = self.output(self.output_norm(out))
-        return logits
+        x = x + self.gru(self.gru_norm(x))
+        return x
 
     def get_nb_flop(self, **kwargs) -> int:
         """
@@ -169,33 +128,3 @@ class MinGRU(nn.Module):
             Whether to consider the forward, backward pass or both
         """
         return 0
-
-    def reset_parameters(self, init_std: float, factor: float) -> None:
-        """
-        Weight initialization
-        """
-        emb_init_std = init_std or (self.emb_dim ** (-0.5))
-
-        # embeddings
-        nn.init.trunc_normal_(
-            self.embeddings.weight,
-            mean=0.0,
-            std=emb_init_std,
-            a=-3 * emb_init_std,
-            b=3 * emb_init_std,
-        )
-
-        # layers
-        for layer in self.layers:
-            layer.reset_parameters(init_std, factor=factor)
-
-        # output
-        self.output_norm.reset_parameters()
-        if not self.weight_tying:
-            nn.init.trunc_normal_(
-                self.output.weight,
-                mean=0.0,
-                std=emb_init_std,
-                a=-3 * emb_init_std,
-                b=3 * emb_init_std,
-            )

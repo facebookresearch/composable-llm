@@ -38,9 +38,9 @@ from ...nanollama.utils import initialize_nested_object
 
 logger = getLogger("nanollama")
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Online Evaluation
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 @dataclass
@@ -164,15 +164,15 @@ class EvalComputer:
 def run_evaluation(config: EvaluationConfig, model: nn.Module, step: int) -> None:
     with EvalComputer(config, model, step) as computer:
         while next(computer):
-            logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss,4):>7}")
+            logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss, 4):>7}")
 
     if is_master_process():
         logger.info(f"Test loss: {round(computer.loss, 4):>7}")
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Evaluation Run
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 @dataclass
@@ -250,7 +250,7 @@ def eval(config: EvaluationRunConfig) -> None:
                 logger.warning("Preemption flag set")
                 break
 
-            logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss,4):>7}")
+            logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss, 4):>7}")
 
         # wandb logging
         wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, config))

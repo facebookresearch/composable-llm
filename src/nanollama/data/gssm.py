@@ -23,9 +23,9 @@ from .loader import DataLoader
 logger = getLogger("nanollama")
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # GSSM - Transition Kernel
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class TransitionKernel:
@@ -64,9 +64,9 @@ class TransitionKernel:
             alphas = np.full(fan_out, alphas)
         if isinstance(alphas, list):
             alphas = np.array(alphas)
-        assert alphas.shape == (
-            fan_out,
-        ), "Alphas must be a float, int, list of floats, or a numpy array of shape (fan_out,)."
+        assert alphas.shape == (fan_out,), (
+            "Alphas must be a float, int, list of floats, or a numpy array of shape (fan_out,)."
+        )
 
         # set random number generator
         if rng is None:
@@ -140,9 +140,9 @@ class TransitionKernel:
         return (random_values[:, None] < p_cumulative).argmax(axis=1)
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # GSSM - Graph Structure
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class Node:
@@ -332,9 +332,9 @@ class ObservedNode(Node):
         )
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # GSSM - Configuration and Building
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 @dataclass
@@ -445,9 +445,9 @@ def build_gssm(config: GSSMConfig, rng: np.random.Generator = None) -> dict[str,
     return nodes
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # DataLoader Manager - State and Configuration
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 @dataclass
@@ -506,9 +506,9 @@ def init_dataloader_state(config: DataConfig) -> DataLoaderState:
     return DataLoaderState(rng_state=rng_state, graph_rng_state=graph_rng_state)
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # DataLoader
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class OnlineDataLoader(DataLoader):
@@ -554,7 +554,7 @@ class OnlineDataLoader(DataLoader):
             nodes["X"].initialize(self.batch_size)
 
             for t in range(self.seq_len):
-                assert nodes["X"].time == t, f"Discrepancy in time: {nodes["X"].time} and {t}."
+                assert nodes["X"].time == t, f"Discrepancy in time: {nodes['X'].time} and {t}."
                 nodes["X"].evolve()
                 batch[:, t] = nodes["X"].state
 

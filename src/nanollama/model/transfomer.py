@@ -28,9 +28,9 @@ from .blocklm import BlockLanguageModel, BlockLanguageModelConfig
 from .feedforward import FeedForward
 from .norm import RMSNorm
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Attention Layer
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class SelfAttention(nn.Module):
@@ -66,32 +66,45 @@ class SelfAttention(nn.Module):
         assert self.emb_dim % self.nb_heads == 0, "embedding dimension must be divisible by number of heads"
 
         # matrices
-        self.qkv_mat = nn.Linear(self.emb_dim, 3 * self.emb_dim, bias=False)
-        self.output = nn.Linear(self.emb_dim, self.emb_dim, bias=False)
+        self.W_in = nn.Linear(self.emb_dim, 3 * self.emb_dim, bias=False)
+        self.W_out = nn.Linear(self.emb_dim, self.emb_dim, bias=False)
 
         # rotational positional encoding
         self.theta = rope_theta
         self.register_buffer("rope_modulator", self._get_rope_modulator(self.seq_len, self.head_dim, self.theta))
 
+    def reset_parameters(self, init_std: float, factor: float) -> None:
+        """
+        Weight initialization
+        """
+        # input
+        in_std = init_std or (self.emb_dim ** (-0.5))
+        nn.init.trunc_normal_(
+            self.W_in.weight,
+            mean=0.0,
+            std=in_std,
+            a=-3 * in_std,
+            b=3 * in_std,
+        )
+
+        # output
+        out_std = init_std or (self.emb_dim ** (-0.5))
+        out_std = out_std / factor
+        nn.init.trunc_normal_(
+            self.W_out.weight,
+            mean=0.0,
+            std=out_std,
+            a=-3 * in_std,
+            b=3 * in_std,
+        )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Self attention
-
-        Parameters
-        ----------
-        x: torch.Tensor (B, S, D)
-            input sequence
-
-        Returns
-        -------
-        z: torch.Tensor (B, S, D)
-            output sequence
-        """
+        """Self attention"""
         # dimensions
         bsz, seq_len, _ = x.size()
 
         # Query, key, value: (B, S, D) @ (D, 3 * D) -> (B, S, 3 * D) -> (B, S, D) * 3
-        q, k, v = self.qkv_mat(x).chunk(3, dim=-1)
+        q, k, v = self.W_in(x).chunk(3, dim=-1)
 
         # reformating: (B, S, D) -> (B, S, H, D / H) -> (B, H, S, D / H)
         q, k, v = map(lambda t: t.view(bsz, seq_len, self.nb_heads, self.head_dim).transpose(1, 2), (q, k, v))
@@ -111,28 +124,8 @@ class SelfAttention(nn.Module):
         z = z.transpose(1, 2).reshape(bsz, seq_len, self.emb_dim)
 
         # output layer: (B, L, D) @ (D, D) -> (N, L, D)
-        z = self.output(z)
+        z = self.W_out(z)
         return z
-
-    def reset_parameters(self, init_std: float, factor: float) -> None:
-        """
-        Weight initialization
-        """
-        init_std = init_std or (self.emb_dim ** (-0.5))
-        nn.init.trunc_normal_(
-            self.qkv_mat.weight,
-            mean=0.0,
-            std=init_std,
-            a=-3 * init_std,
-            b=3 * init_std,
-        )
-        nn.init.trunc_normal_(
-            self.output.weight,
-            mean=0.0,
-            std=init_std / factor,
-            a=-3 * init_std,
-            b=3 * init_std,
-        )
 
     @staticmethod
     def _get_rope_modulator(seq_len: int, dim: int, theta: float) -> torch.Tensor:
@@ -181,9 +174,9 @@ class SelfAttention(nn.Module):
         return out.type_as(qk).view((B, H, S, dim))
 
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Configuration Class
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 @dataclass
@@ -194,28 +187,21 @@ class TransformerBlockConfig:
     # Transformer block parameters
     nb_heads: int = 0
     rope_theta: float = 10_000
-    hidden_dim: int = None
+    hidden_dim: int = 0
     norm_eps: float = 1e-5
 
-    # Transformer parameters
-    init_std: float = None
-
-    def __post_init__(self):
-        # hidden feed-forward dimension
-        if self.hidden_dim is None:
-            self.hidden_dim = 4 * self.emb_dim
-
     def __check_init__(self):
-        """Check validity of arguments."""
+        """Check validity of arguments that may have been inherited."""
         assert self.seq_len, "sequence length should be specified"
         assert self.emb_dim, "embedding dimension should be specified"
+        assert self.hidden_dim, "hidden dimension should be specified"
         assert self.nb_heads, "number of heads should be specified"
         assert self.emb_dim // (2 * self.nb_heads), "embedding dimension should be divisible by 2 * number of heads"
 
 
-# -------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Transformer Block
-# -------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class TransformerBlock(nn.Module):
@@ -237,6 +223,13 @@ class TransformerBlock(nn.Module):
         self.attn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
         self.ffn_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
 
+    def reset_parameters(self, init_std: float, factor: float) -> None:
+        """Weight initialization"""
+        self.attn.reset_parameters(init_std, factor)
+        self.attn_norm.reset_parameters()
+        self.ffn.reset_parameters(init_std, factor)
+        self.ffn_norm.reset_parameters()
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = x + self.attn(self.attn_norm(x))
         out = out + self.ffn(self.ffn_norm(out))
@@ -249,27 +242,18 @@ class TransformerBlock(nn.Module):
 
         Parameters
         ----------
-        seq_len:
-            Sequence length.
         mode:
             Whether to consider the forward, backward pass or both
+        seq_len:
+            Sequence length.
         """
         mode_multiplier = dict(fwd=1, bwd=2.5, both=3.5)[mode]
         return 0 * mode_multiplier
 
-    def reset_parameters(self, init_std: float, factor: float) -> None:
-        """
-        Weight initialization
-        """
-        self.attn.reset_parameters(init_std, factor)
-        self.attn_norm.reset_parameters()
-        self.ffn.reset_parameters(init_std, factor)
-        self.ffn_norm.reset_parameters()
 
-
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Transformer Architecture
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 @dataclass
@@ -277,35 +261,19 @@ class TransformerConfig(BlockLanguageModelConfig):
     block: TransformerBlockConfig = field(default_factory=TransformerBlockConfig)
 
     def __post_init__(self):
-        """Inherit parameters from the block model configuration."""
-        for attr in ["emb_dim", "norm_eps", "init_std"]:
+        super().__post_init__()
+
+        # Inherit parameters from the block model configuration.
+        for attr in ["emb_dim", "norm_eps"]:
             setattr(self.block, attr, getattr(self, attr))
+
+        # default scaling of ffn dimension
+        if not self.block.hidden_dim:
+            self.block.hidden_dim = 4 * self.emb_dim
 
 
 class Transformer(BlockLanguageModel):
-    """
-    Decoder only transformer.
-
-    Parameters
-    ----------
-    config: configuration class with
-        n_layer: int
-            number of transformer blocks
-        weight_tying: bool
-            whether to use weight tying between the token embedding and the output layer
-        output_dropout: float
-            dropout probability for the embeddings layer
-        norm: str
-            type of normalization layer. Options are "layer", "rms"
-        norm_bias: bool
-            whether to use bias in the normalization layer
-        and the parameter to initialize TransformerBlock and Embedding
-
-    See Also
-    --------
-    Embedding
-    TransformerBlock
-    """
+    """Decoder only transformer."""
 
     def __init__(self, config: TransformerConfig):
         super().__init__(config, block=TransformerBlock)
