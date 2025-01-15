@@ -34,6 +34,7 @@ from ...nanollama.distributed import (
 )
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import (
+    # Checkpointer,
     Logger,
     OrchestratorConfig,
     PreemptionHandler,
@@ -178,7 +179,9 @@ def train(config: TrainingConfig) -> None:
 
         profiler: Profiler = context_stack.enter_context(Profiler(config.orchestration.profiler, state=state))
 
-        profiler.report_statistics()
+        # TODO for flops calculation
+        token_per_step = 0
+        profiler.report_statistics(model, token_per_step)
         logger.report_statistics(model)
 
         # ---------------------------------------------------------------------

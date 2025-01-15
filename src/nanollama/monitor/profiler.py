@@ -22,7 +22,7 @@ import torch
 import torch.profiler as profiler
 
 from ..distributed import get_local_rank, get_rank
-from ..model import Model
+from ..model.blocklm import BlockModel
 from ..utils import TrainState
 
 logger = getLogger("nanollama")
@@ -196,7 +196,7 @@ class LightProfiler(BaseProfiler):
 
         self.step += 1
 
-    def report_statistics(self, model: Model, token_per_step: int, **kwargs) -> None:
+    def report_statistics(self, model: BlockModel, token_per_step: int, **kwargs) -> None:
         """
         Report flop per step
 

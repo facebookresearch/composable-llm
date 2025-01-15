@@ -18,51 +18,15 @@ located in the root directory of this repository.
 """
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .blocklm import BlockLanguageModel, BlockLanguageModelConfig
 from .feedforward import FeedForward
 from .norm import RMSNorm
-
-# -----------------------------------------------------------------------------
-# Configuration Class
-# -----------------------------------------------------------------------------
-
-
-@dataclass
-class TransformerConfig:
-    # Embedding parameters
-    vocab_size: int = 0
-    seq_len: int = 0
-    emb_dim: int = 0
-
-    # Transformer block parameters
-    nb_heads: int = 0
-    rope_theta: float = 10_000
-    hidden_dim: int = None
-    norm_eps: float = 1e-5
-
-    # Transformer parameters
-    nb_layers: int = 0
-    weight_tying: bool = False
-    init_std: float = None
-
-    def __post_init__(self):
-        # hidden feed-forward dimension
-        if self.hidden_dim is None:
-            self.hidden_dim = 4 * self.emb_dim
-
-    def __check_init__(self):
-        """Check validity of arguments."""
-        assert self.vocab_size, "vocabulary size should be specified"
-        assert self.emb_dim, "embedding dimension should be specified"
-        assert self.nb_heads, "number of heads should be specified"
-        assert self.nb_layers, "number of layers should be specified"
-        assert self.emb_dim // (2 * self.nb_heads), "embedding dimension should be divisible by 2 * number of heads"
-
 
 # -----------------------------------------------------------------------------
 # Attention Layer
@@ -217,6 +181,38 @@ class SelfAttention(nn.Module):
         return out.type_as(qk).view((B, H, S, dim))
 
 
+# -----------------------------------------------------------------------------
+# Configuration Class
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class TransformerBlockConfig:
+    seq_len: int = 0
+    emb_dim: int = 0
+
+    # Transformer block parameters
+    nb_heads: int = 0
+    rope_theta: float = 10_000
+    hidden_dim: int = None
+    norm_eps: float = 1e-5
+
+    # Transformer parameters
+    init_std: float = None
+
+    def __post_init__(self):
+        # hidden feed-forward dimension
+        if self.hidden_dim is None:
+            self.hidden_dim = 4 * self.emb_dim
+
+    def __check_init__(self):
+        """Check validity of arguments."""
+        assert self.seq_len, "sequence length should be specified"
+        assert self.emb_dim, "embedding dimension should be specified"
+        assert self.nb_heads, "number of heads should be specified"
+        assert self.emb_dim // (2 * self.nb_heads), "embedding dimension should be divisible by 2 * number of heads"
+
+
 # -------------------------------------------------------------------------------
 # Transformer Block
 # -------------------------------------------------------------------------------
@@ -231,7 +227,7 @@ class TransformerBlock(nn.Module):
     config: configuration class containing arguments for SelfAttention and FeedForward
     """
 
-    def __init__(self, config: TransformerConfig):
+    def __init__(self, config: TransformerBlockConfig):
         super().__init__()
 
         self.attn = SelfAttention(
@@ -245,6 +241,21 @@ class TransformerBlock(nn.Module):
         out = x + self.attn(self.attn_norm(x))
         out = out + self.ffn(self.ffn_norm(out))
         return out
+
+    def get_nb_flop(self, mode: str = "both", seq_len: int = None) -> int:
+        """
+        TODO
+        Number of flop to process a new token
+
+        Parameters
+        ----------
+        seq_len:
+            Sequence length.
+        mode:
+            Whether to consider the forward, backward pass or both
+        """
+        mode_multiplier = dict(fwd=1, bwd=2.5, both=3.5)[mode]
+        return 0 * mode_multiplier
 
     def reset_parameters(self, init_std: float, factor: float) -> None:
         """
@@ -261,7 +272,17 @@ class TransformerBlock(nn.Module):
 # -----------------------------------------------------------------------------
 
 
-class Transformer(nn.Module):
+@dataclass
+class TransformerConfig(BlockLanguageModelConfig):
+    block: TransformerBlockConfig = field(default_factory=TransformerBlockConfig)
+
+    def __post_init__(self):
+        """Inherit parameters from the block model configuration."""
+        for attr in ["emb_dim", "norm_eps", "init_std"]:
+            setattr(self.block, attr, getattr(self, attr))
+
+
+class Transformer(BlockLanguageModel):
     """
     Decoder only transformer.
 
@@ -287,72 +308,4 @@ class Transformer(nn.Module):
     """
 
     def __init__(self, config: TransformerConfig):
-        super().__init__()
-
-        self.emb_dim = config.emb_dim
-        self.weight_tying = config.weight_tying
-
-        self.embeddings = nn.Embedding(config.vocab_size, config.emb_dim)
-
-        self.layers = nn.ModuleList([TransformerBlock(config) for _ in range(config.nb_layers)])
-
-        self.output = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
-        self.output_norm = RMSNorm(config.emb_dim, eps=config.norm_eps)
-
-        if config.weight_tying:
-            # Tying token embedding and un-embedding
-            self.output.weight = self.embeddings.weight
-
-        self.reset_parameters(config.init_std, factor=1.0)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.embeddings(x)
-        for layer in self.layers:
-            out = layer(out)
-        logits = self.output(self.output_norm(out))
-        return logits
-
-    def get_nb_flop(self, seq_len: int = None, mode: str = "both") -> int:
-        """
-        TODO
-        Number of flop to process a new token
-
-        Parameters
-        ----------
-        seq_len:
-            Sequence length.
-        mode:
-            Whether to consider the forward, backward pass or both
-        """
-        mode_multiplier = dict(fwd=1, bwd=2.5, both=3.5)[mode]
-        return 0 * mode_multiplier
-
-    def reset_parameters(self, init_std: float, factor: float) -> None:
-        """
-        Weight initialization
-        """
-        emb_init_std = init_std or (self.emb_dim ** (-0.5))
-
-        # embeddings
-        nn.init.trunc_normal_(
-            self.embeddings.weight,
-            mean=0.0,
-            std=emb_init_std,
-            a=-3 * emb_init_std,
-            b=3 * emb_init_std,
-        )
-
-        # layers
-        for layer in self.layers:
-            layer.reset_parameters(init_std, factor=factor)
-
-        # output
-        self.output_norm.reset_parameters()
-        if not self.weight_tying:
-            nn.init.trunc_normal_(
-                self.output.weight,
-                mean=0.0,
-                std=emb_init_std,
-                a=-3 * emb_init_std,
-                b=3 * emb_init_std,
-            )
+        super().__init__(config, block=TransformerBlock)
