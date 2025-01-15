@@ -14,8 +14,15 @@ located in the root directory of this repository.
 from typing import List, Optional  # noqa: UP035 (torch compile does not parse `list` keyword yet)
 
 import torch
-from mamba_ssm.ops.triton.ssd_combined import _mamba_chunk_scan_combined_bwd, _mamba_chunk_scan_combined_fwd
 from torch.autograd.function import FunctionCtx
+try:
+    from mamba_ssm.ops.triton.ssd_combined import _mamba_chunk_scan_combined_bwd, _mamba_chunk_scan_combined_fwd
+except ImportError as e:
+    print(e)
+    print(
+        "Could not import Mamba. This is likely due to the lack of installation of the ssm dependencies."
+        "You may install them with `pip install .[ssm]."
+    )
 
 # ------------------------------------------------------------------------------
 # Compiled functions

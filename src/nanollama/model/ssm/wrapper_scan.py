@@ -12,8 +12,18 @@ located in the root directory of this repository.
 import torch
 
 # from accelerated_scan.triton import scan as triton_scan
-from accelerated_scan.warp import warpscan_backward, warpscan_forward
 from torch.autograd.function import FunctionCtx
+try:
+    from accelerated_scan.warp import warpscan_backward, warpscan_forward
+except ImportError as e:
+    print(e)
+    print(
+        "Could not import FastRNN. This is likely due to the lack of installation of the ssm dependencies."
+        "You may install them with `pip install .[ssm]."
+    )
+except OSError as e:
+    print(e)
+    print("Could not import FastRNN. This is likely due to missing OS environment variables.")
 
 
 @torch.library.custom_op(

@@ -15,8 +15,18 @@ from typing import Any
 import torch
 
 # from accelerated_scan.triton import scan as triton_scan
-from accelerated_scan.ref import scan as ref_scan
-from causal_conv1d.causal_conv1d_varlen import causal_conv1d_varlen_states
+try:
+    from accelerated_scan.ref import scan as ref_scan
+    from causal_conv1d.causal_conv1d_varlen import causal_conv1d_varlen_states
+except ImportError as e:
+    print(e)
+    print(
+        "Could not import FastRNN. This is likely due to the lack of installation of the ssm dependencies."
+        "You may install them with `pip install .[ssm]."
+    )
+except OSError as e:
+    print(e)
+    print("Could not import FastRNN. This is likely due to missing OS environment variables.")
 
 from .wrapper_causal_conv1d import causal_conv1d_fn, causal_conv1d_update
 from .wrapper_scan import scan as accelerated_scan

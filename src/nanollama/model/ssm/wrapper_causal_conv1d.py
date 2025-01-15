@@ -11,9 +11,16 @@ located in the root directory of this repository.
 
 from typing import Optional
 
-import causal_conv1d_cuda
 import torch
 from torch.autograd.function import FunctionCtx
+try:
+    import causal_conv1d_cuda
+except ImportError as e:
+    print(e)
+    print(
+        "Could not import Mamba. This is likely due to the lack of installation of the ssm dependencies."
+        "You may install them with `pip install .[ssm]."
+    )
 
 
 # Causal Conv1D Forward Function
