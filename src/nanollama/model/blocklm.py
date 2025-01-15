@@ -109,6 +109,7 @@ class BlockLanguageModel(nn.Module):
 
         self.reset_parameters(config.init_std, factor=1.0)
 
+    @torch.inference_mode()
     def reset_parameters(self, init_std: float, factor: float) -> None:
         """Weight initialization"""
         emb_std = init_std or (self.emb_dim ** (-0.5))

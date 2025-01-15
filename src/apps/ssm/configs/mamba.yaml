@@ -45,12 +45,12 @@ run_config:
         alpha: 1e-2
 
   model:
-    dim: 256
-    n_layers: 2
-    n_heads: 8
-    state_dim: 64
-    conv_size: 4
-    dt_bias: false
+    emb_dim: 256
+    nb_layers: 2
+    block:
+      nb_heads: 8
+      state_dim: 64
+      conv_size: 4
 
   optim:
     steps: 100

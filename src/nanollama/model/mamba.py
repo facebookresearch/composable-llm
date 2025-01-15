@@ -132,8 +132,8 @@ class SSM(nn.Module):
             nn.init.trunc_normal_(self.conv_weight, std=conv_std, a=-3 * conv_std, b=3 * conv_std)
 
         # Initialize A and D
-        self.A_log.uniform_(1, 16)
-        self.A_log.log_()
+        self.A_log.data.uniform_(1, 16)
+        self.A_log.data.log_()
         self.D.data.fill_(1.0)
 
 
@@ -162,25 +162,26 @@ class MambaBlockConfig:
 
 
 class MambaBlock(nn.Module):
-    def __init__(self, args: MambaBlockConfig):
+    def __init__(self, config: MambaBlockConfig):
         super().__init__()
 
-        self.ssm_norm = RMSNorm(args.emb_dim, args.norm_eps)
+        self.ssm_norm = RMSNorm(config.emb_dim, config.norm_eps)
         self.ssm = SSM(
-            dim=args.emb_dim,
-            hidden_dim=args.hidden_dim,
-            state_dim=args.state_dim,
-            n_heads=args.nb_heads,
-            n_groups=args.nb_groups,
-            conv_size=args.conv_size,
-            chunk_size=args.ssm_chunk_size,
+            emb_dim=config.emb_dim,
+            hidden_dim=config.hidden_dim,
+            state_dim=config.state_dim,
+            nb_heads=config.nb_heads,
+            nb_groups=config.nb_groups,
+            conv_size=config.conv_size,
+            chunk_size=config.ssm_chunk_size,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x + self.ssm(self.ssm_norm(x))
         return x
 
-    def init_weights(self, init_std: float = None, factor: float = 1.0) -> None:
+    def reset_parameters(self, init_std: float = None, factor: float = 1.0) -> None:
+        """Weight initialization"""
         self.ssm_norm.reset_parameters()
         self.ssm.reset_parameters(init_std, factor)
 

@@ -22,8 +22,8 @@ import yaml
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
 from ...nanollama.model.mamba import (
-    LMMamba,
-    LMMambaArgs,
+    Mamba,
+    MambaConfig,
 )
 from ...nanollama.monitor import (
     # Checkpointer,
@@ -53,7 +53,7 @@ _logger = logging.getLogger("nanollama")
 @dataclass
 class TrainingConfig:
     data: DataConfig = field(default_factory=DataConfig)
-    model: LMMambaArgs = field(default_factory=LMMambaArgs)
+    model: MambaConfig = field(default_factory=MambaConfig)
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
 
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
@@ -114,7 +114,7 @@ def train(config: TrainingConfig) -> None:
         # ---------------------------------------------------------------------
 
         _logger.info("Building model")
-        model = LMMamba(config.model)
+        model = Mamba(config.model)
         model = cluster.initialize_model(model)
 
         _logger.info("Building optimizer")
