@@ -61,8 +61,8 @@ class TrainingConfig:
         Check validity of arguments and fill in missing values.
         """
         # sequence length
-        if not self.model.block.seq_len:
-            self.model.block.seq_len = self.data.seq_len
+        if not self.model.seq_len:
+            self.model.seq_len = self.data.seq_len
 
         # vocabulary size
         if not self.model.vocab_size:

@@ -22,27 +22,33 @@ run_config:
     batch_size: 16
     seed: 42
     gssm:
+      # see `data.yaml` for other graph configuration
       nodes:
       - name: Z1
-        state_dim: 256
-        parents: []
-        alpha: 1
+        state_dim: 4
+        parents: [X]
+        alpha: 1e3
       - name: Z2
-        state_dim: 512
-        parents: []
-        alpha: 1
+        state_dim: 4
+        alpha: 1e3
+      - name: Z3
+        state_dim: 4
+        alpha: 1e3
+      - name: Z4
+        state_dim: 4
+        parents: [X, Z3]
+        alpha: 1e3
       - name: X
-        state_dim: 256
-        parents: [Z1, Z2]
+        state_dim: 32
+        parents: [Z1, Z2, Z3, Z4]
         alpha: 1e-2
-        observed: True
 
   model:
+    vocab_size: 32
     emb_dim: 64
+    nb_heads: 2
+    hidden_dim: 256
     nb_layers: 2
-    block:
-      nb_heads: 2
-      hidden_dim: 256
 
   optim:
     steps: 100
