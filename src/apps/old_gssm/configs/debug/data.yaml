@@ -1,0 +1,191 @@
+# Data configurations
+# The outer keys for the different entry could be anything
+# The inner keys should respect the same structure
+
+base:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 256
+      parents: []
+      alpha: 1
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      alpha: 1e-2
+  sets:
+  - n_data: 1_000_000
+    path: $HOME/data/composition/base/trainset.h5
+  - n_data: 10_000
+    path: $HOME/data/composition/base/testset.h5
+
+sparse:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      alpha: 1
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      alpha: 1
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      alpha: 1
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      alpha: 1
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+  sets:
+  - n_data: 1_000_000
+    path: $HOME/data/composition/sparse/trainset.h5
+  - n_data: 10_000
+    path: $HOME/data/composition/sparse/testset.h5
+
+dense:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      alpha: 1
+    - name: Z2
+      state_dim: 4
+      parents: [X, Z1]
+      alpha: 1
+    - name: Z3
+      state_dim: 4
+      parents: [X, Z1, Z2]
+      alpha: 1
+    - name: Z4
+      state_dim: 4
+      parents: [X, Z1, Z2, Z3]
+      alpha: 1
+    - name: X
+      state_dim: 32
+      parents: [X, Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+  sets:
+  - n_data: 1_000_000
+    path: $HOME/data/composition/dense/trainset.pt
+  - n_data: 10_000
+    path: $HOME/data/composition/dense/testset.pt
+
+low_entropy:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      alpha: 1e-2
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      alpha: 1e-2
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      alpha: 1e-2
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      alpha: 1e-2
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+  sets:
+  - n_data: 1_000_000
+    path: $HOME/data/composition/low/trainset.pt
+  - n_data: 10_000
+    path: $HOME/data/composition/low/testset.pt
+
+slow_evolving:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      mode: slow
+      alpha: 1e-2
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      mode: slow
+      alpha: 1e-2
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      mode: slow
+      alpha: 1e-2
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      mode: slow
+      alpha: 1e-2
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+  sets:
+  - n_data: 1_000_000
+    path: $HOME/data/composition/slow/trainset.pt
+  - n_data: 10_000
+    path: $HOME/data/composition/slow/testset.pt
+
+dead_mode_env:
+  seq_len: 2048
+  seed: 42
+  chunk_size: 10_000
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: [X]
+      mode: dead
+      alpha: 1e-2
+    - name: Z2
+      state_dim: 4
+      parents: [X]
+      mode: dead
+      alpha: 1e-2
+    - name: Z3
+      state_dim: 4
+      parents: [X]
+      mode: dead
+      alpha: 1e-2
+    - name: Z4
+      state_dim: 4
+      parents: [X]
+      mode: dead
+      alpha: 1e-2
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      alpha: 1e-2
+  sets:
+  - n_data: 1_000_000
+    path: $HOME/data/composition/slow/trainset.pt
+  - n_data: 10_000
+    path: $HOME/data/composition/slow/testset.pt
