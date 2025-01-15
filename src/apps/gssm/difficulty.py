@@ -48,8 +48,9 @@ def get_compression_ratio(batch: np.ndarray, level: int = 9) -> float:
     -------
     Entropy estimate.
     """
-    compressed_data = zlib.compress(batch.tobytes(), level=level)
-    return len(compressed_data) / batch.size
+    bytes_batch = batch.tobytes()
+    compressed_data = zlib.compress(bytes_batch, level=level)
+    return len(compressed_data) / len(bytes_batch)
 
 
 def estimate_config_difficulty(config: DataConfig, level: int = 9) -> float:
