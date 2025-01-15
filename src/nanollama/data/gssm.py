@@ -79,6 +79,7 @@ class Node:
 
     def __init__(
         self,
+        name: str,
         state_dim: int,
         alpha: float,
         parents: list["Node"],
@@ -86,6 +87,7 @@ class Node:
         rng: np.random.Generator,
         observed: bool,
     ):
+        self.name = name
         self.state_dim = state_dim
         self.alpha = alpha
         self.parents = parents
@@ -185,7 +187,9 @@ class Node:
             all_states = [self.state]
 
         all_states += [parent.state for parent in self.parents]
-        proba = sum([kernel[state] for kernel, state in zip(self.kernels, all_states)])
+        # proba = sum([kernel[state] for kernel, state in zip(self.kernels, all_states)])
+        # print(proba.shape)
+        proba = np.prod([kernel[state] for kernel, state in zip(self.kernels, all_states)], axis=0)
 
         # Vectorized sampling
         random_values = self.rng.random(self.state.shape)
@@ -264,6 +268,7 @@ def build_gssm(config: GSSMConfig, rng: np.random.Generator) -> Node:
 
         logger.info(f"Initializing node {node_config.name}")
         nodes[node_config.name] = Node(
+            name=node_config.name,
             state_dim=node_config.state_dim,
             alpha=float(node_config.alpha),
             parents=parents,

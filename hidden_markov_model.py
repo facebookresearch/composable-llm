@@ -17,53 +17,57 @@ class HMM:
         """
         self.config = initialize_nested_object(gssm.GSSMConfig, config, inplace=False)
         self.rng = np.random.default_rng(random_seed)
-        self.nodes = gssm.build_gssm(self.config, self.rng)
-        self.names = self._names_to_nodes(self.nodes)
-        self.top_node = self.nodes["X"]  # WARNING assumption
-        self.topo_order = self._dfs_names(self.top_node)
-        self.indexs = {self.nodes[name]: i for i, name in enumerate(self.topo_order)}
-        self.transitions = {node: self._format_transition(node) for node in self.nodes.values()}
+        self.top_node = gssm.build_gssm(self.config, self.rng)
+        self.topo_order = self._dfs(self.top_node)
+        self.indexs = {node: i for i, (_,node) in enumerate(self.topo_order)}
+        self.transitions = {node: self._format_transition(node) for _,node in self.topo_order}
 
     def evolve_classic(self, steps):
         for _ in range(steps):
             self.top_node.evolve()
-        return {name: node.state for name, node in self.nodes.items()}
+        return {name: node.state for name, node in self.topo_order}
 
     def _node_init(self, node: gssm.Node, bsz, i=0):
         node.time = 0
         for parent in node.parents:
-            if parent.time != 0 and not isinstance(parent, gssm.ObservedNode):
+            if parent.time != 0 and not parent.observed:
                 self._node_init(parent, bsz, i + 1)
         node.state = np.zeros(bsz, dtype=int)
         assert (node.state == 0).all() # this is assumed in self.forward_probs
+        # enable this to debug product transiiton and such
+        # node.state = self.rng.integers(0,node.state_dim, size=bsz)
 
     def _init_all_nodes(self, bsz):
         self._node_init(self.top_node, bsz)
 
-    @staticmethod
-    def _names_to_nodes(nodes):
-        names = {}
-        for name, node in nodes.items():
-            names[node] = name
-        return names
-
-    def _dfs_names(self, node):
-        def __dfs_names(node, fc=True):
-            if not fc and isinstance(node, gssm.ObservedNode):
-                return [self.names[node]]
-            return [d for p in node.parents for d in __dfs_names(p, False)] + [
-                self.names[node]
+    def _dfs(self, node):
+        def __dfs(node, fc=True):
+            if not fc and node.observed:
+                return [(node.name, node)]
+            return [d for p in node.parents for d in __dfs(p, False)] + [
+                (node.name, node)
             ]
+        return list(dict.fromkeys(__dfs(node)))
 
-        return list(dict.fromkeys(__dfs_names(node)))
+    @staticmethod
+    def _join_parent_kernels(node):
+      n_in = len(node.kernels)
+      # p(x|a), p(x|b) -> p(x|ab)
+      # print("individual:\n", [x.sum(-1) for x in node.kernels])
+      einsum_str = ",".join([f"{HMM.SYM_IN[i]}X" for i in range(n_in)])
+      einsum_str += "->" + "".join([HMM.SYM_IN[i] for i in range(n_in)]) + "X"
+      trans = np.einsum(einsum_str, *node.kernels)
+      trans[trans.sum(-1) == 0] = 1/node.state_dim
+      trans = trans / trans.sum(-1, keepdims=True)
+      # print("prod_trans: \n", trans)
+      return trans
 
     @staticmethod
     def _format_transition(node):
         parents = node.parents
         parent_state_dims = tuple([p.state_dim for p in parents])
-        observed = isinstance(node, gssm.ObservedNode)
-        trans = node.kernel.p_transition
-        target_shape = tuple() if observed else (node.state_dim,)
+        trans = HMM._join_parent_kernels(node)
+        target_shape = tuple() if node.observed else (node.state_dim,)
         target_shape += parent_state_dims + (node.state_dim,)
         return trans.reshape(target_shape)
 
@@ -81,7 +85,7 @@ class HMM:
         return res.reshape(list(targets.shape) + [nb_classes])
 
     def one_hot_product_state(self, node):
-        node_order = self._dfs_names(node)
+        node_order = self._dfs(node)
         einsum_str = (
             "B"
             + ",B".join(HMM.SYM_IN[: len(node_order)])
@@ -89,7 +93,7 @@ class HMM:
             + HMM.SYM_IN[: len(node_order)]
         )
         product_state = np.einsum(
-            einsum_str, *[self._one_hot_state(self.nodes[name]) for name in node_order]
+            einsum_str, *[self._one_hot_state(node) for _,node in node_order]
         )
         return product_state.reshape(product_state.shape[0], -1)
 
@@ -97,7 +101,7 @@ class HMM:
         return self.one_hot_product_state(tgt_node).argmax(-1)
 
     def individual_states(self, prod_state, node_order):
-        state_dims = [self.nodes[name].state_dim for name in node_order]
+        state_dims = [node.state_dim for _,node in node_order]
         return np.unravel_index(prod_state, state_dims)
 
     @staticmethod
@@ -109,8 +113,7 @@ class HMM:
         """
         Constructs the einsum string for the target node transition matrix when used as input
         """
-        observed = isinstance(tgt_node, gssm.ObservedNode)
-        einsum_str = self._node_sym_in(tgt_node) if not observed else ""
+        einsum_str = self._node_sym_in(tgt_node) if not tgt_node.observed else ""
         einsum_str += "".join(self._node_sym_out(p) for p in tgt_node.parents)
         einsum_str += self._node_sym_out(tgt_node)
         return einsum_str
@@ -119,14 +122,13 @@ class HMM:
         """
         Constructs the einsum string for the target node transition matrix in the product state form
         """
-        ordered_nodes = [self.nodes[name] for name in self._dfs_names(tgt_node)]
+        ordered_nodes = [node for _,node in self._dfs(tgt_node)]
         in_str = "".join(self._node_sym_in(n) for n in ordered_nodes)
         out_str = "".join(self._node_sym_out(n) for n in ordered_nodes)
         return in_str + out_str
 
     def make_prod_transition(self, tgt_node):
-        node_order = self._dfs_names(tgt_node)
-        node_order = [self.nodes[name] for name in node_order]
+        node_order = [node for _,node in self._dfs(tgt_node)]
         state_dims = [node.state_dim for node in node_order]
         prod_input_str = HMM.SYM_IN[: len(node_order)]
 
@@ -162,6 +164,7 @@ class HMM:
         return self.square_matrix(np.einsum(einsum_str, *input_tensors))
 
     def fwd_product_state(self, prod_transition):
+        raise NotImplementedError()
         p_transition = self.square_matrix(prod_transition)
         kernel = gssm.TransitionKernel(*p_transition.shape, 1)
         kernel.p_transition = p_transition
@@ -170,9 +173,8 @@ class HMM:
         return self.individual_states(next_state, self.topo_order)
 
     def fwd_via_matmul(self, prod_transition):
-        p_transition = self.square_matrix(prod_transition)
         state = self.one_hot_product_state(self.top_node)
-        next_state = state @ p_transition
+        next_state = state @ prod_transition
         # sampling
         samples = torch.multinomial(torch.tensor(next_state), 1).numpy()
         return self.individual_states(samples, self.topo_order)
@@ -180,15 +182,15 @@ class HMM:
     def get_p_emission(self, tgt_node):
         # p_emission is a projection matrix from the product state
         # state @ p_emission = state_X
-        assert isinstance(tgt_node, gssm.ObservedNode)
+        assert tgt_node.observed
         idx = self.indexs[tgt_node]
         shape = [1] * (len(self.topo_order) + 1)
         dim = tgt_node.state_dim
         shape[idx] = dim
         shape[-1] = dim
         p_emission = np.eye(dim).reshape(shape)
-        for i, name in enumerate(self.topo_order):
-            shape[i] = self.nodes[name].state_dim
+        for i, (_,node) in enumerate(self.topo_order):
+            shape[i] = node.state_dim
         p_emission = np.broadcast_to(p_emission, shape)
         p_emission = p_emission.reshape(-1, dim)
         return p_emission
@@ -266,31 +268,35 @@ if __name__ == "__main__":
       "nodes": [
           {
               "name": "Z1",
-              "state_dim": 5,
+              "state_dim": 3,
               "parents": [],
-              "alpha": .1,
+              "alpha": .01,
               "mode": "default",
+              "observed":False
           },
           {
               "name": "Z2",
               "state_dim": 4,
               "parents": ["Z1"],
-              "alpha": .1,
+              "alpha": .01,
               "mode": "default",
+              "observed":False
           },
           {
               "name": "Z3",
-              "state_dim": 3,
+              "state_dim": 6,
               "parents": ["Z2"],
-              "alpha": .1,
+              "alpha": .01,
               "mode": "default",
+              "observed":False
           },
           {
               "name": "X",
-              "state_dim": 2,
-              "parents": ["Z1", "Z3"],
-              "alpha": .1,
+              "state_dim": 5,
+              "parents": ["Z1", "Z2", "Z3"],
+              "alpha": .01,
               "mode": "default",
+              "observed":True
           },
       ]
   }
@@ -299,17 +305,15 @@ if __name__ == "__main__":
     hmm = HMM(config)
     hmm._init_all_nodes(1000)
     prod_transition = hmm.make_prod_transition(hmm.top_node)
-    data_prod = hmm.fwd_product_state(prod_transition)
-    data_prod = {name: data_prod[i] for i, name in enumerate(hmm.topo_order)}
+    # data_prod = hmm.fwd_product_state(prod_transition)
+    # data_prod = {name: data_prod[i] for i, name in enumerate(hmm.topo_order)}
     data_prod_mm = hmm.fwd_via_matmul(prod_transition)
-    data_prod_mm = {name: data_prod_mm[i] for i, name in enumerate(hmm.topo_order)}
+    data_prod_mm = {name: data_prod_mm[i] for i, (name,_) in enumerate(hmm.topo_order)}
     data_classic = hmm.evolve_classic(1)
     import matplotlib.pyplot as plt
-
-
     for name in data_classic:
         plt.title(name)
-        plt.hist(data_prod[name], label="prod", alpha=0.5)
+        # plt.hist(data_prod[name], label="prod", alpha=0.5)
         plt.hist(data_prod_mm[name], label="prod_mm", alpha=0.5)
         plt.hist(data_classic[name], label="classic", alpha=0.5)
         plt.legend()
@@ -317,19 +321,19 @@ if __name__ == "__main__":
 
   test_prod_transition(gssm_config)
 
-  def test_forward_probs(config):
-      hmm = HMM(config)
-      batch_size = 2
-      seq_len = 2
-      hmm._init_all_nodes(batch_size)
-      observations = np.zeros((seq_len, batch_size), dtype=int)
-      for i in range(seq_len):
-          observations[i] = np.array(hmm.top_node.state)
-          hmm.evolve_classic(1)
-      #sanity check
-      print(hmm.forward_probs(observations)[0].exp().sum(0))
+  # def test_forward_probs(config):
+  #     hmm = HMM(config)
+  #     batch_size = 2
+  #     seq_len = 2
+  #     hmm._init_all_nodes(batch_size)
+  #     observations = np.zeros((seq_len, batch_size), dtype=int)
+  #     for i in range(seq_len):
+  #         observations[i] = np.array(hmm.top_node.state)
+  #         hmm.evolve_classic(1)
+  #     #sanity check
+  #     print(hmm.forward_probs(observations)[0].exp().sum(0))
 
-  test_forward_probs(gssm_config)
+  # test_forward_probs(gssm_config)
 
   def test_entropy(config, seq_len, batch_size):
       hmm = HMM(config)
@@ -340,10 +344,8 @@ if __name__ == "__main__":
           hmm.evolve_classic(1)
       return hmm.entropy_of_observations(observations).mean().item()
   
-  for seq_len in np.logspace(0,4,10):
+  for seq_len in np.logspace(0,2.5,10):
     seq_len = int(seq_len)
     print(seq_len, test_entropy(gssm_config, seq_len, 30) / seq_len)
-
-
 
 # %%
