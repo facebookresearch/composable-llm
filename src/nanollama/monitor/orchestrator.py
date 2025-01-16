@@ -102,7 +102,7 @@ class EvalOrchestratorConfig:
     utils: UtilityConfig = field(default_factory=UtilityConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)
 
-    def __post_init__(self):
+    def __check_init__(self) -> None:
         """
         Check validity of arguments and fill in missing values.
         """
@@ -140,7 +140,6 @@ class EvalOrchestratorConfig:
             if hasattr(module, "__check_init__"):
                 module.__check_init__()
 
-    def __check_init__(self) -> None:
         # create directory
         Path(self.parent_dir).mkdir(parents=True, exist_ok=True)
         Path(self.log_dir).mkdir(parents=True, exist_ok=True)

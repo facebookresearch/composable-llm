@@ -27,22 +27,24 @@ run_config:
 
   model:
     vocab_size: 256
-    # emb_dim: 64
-    # nb_layers: 2
-    # block:
-    #   seq_len: 2048
-    #   nb_heads: 2
-    #   hidden_dim: 256
-
-    implementation: mamba
-    emb_dim: 256
+    emb_dim: 64
     nb_layers: 2
     block:
-      nb_heads: 8
-      state_dim: 64
-      conv_size: 4
+      seq_len: 2048
+      nb_heads: 2
+      hidden_dim: 256
+
+    # implementation: mamba
+    # vocab_size: 256
+    # emb_dim: 256
+    # nb_layers: 2
+    # block:
+    #   nb_heads: 8
+    #   state_dim: 64
+    #   conv_size: 4
 
     # implementation: mingru
+    # vocab_size: 256
     # emb_dim: 256
     # nb_layers: 2
     # block:
