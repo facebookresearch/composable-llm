@@ -26,14 +26,17 @@ run_config:
       - name: Z1
         state_dim: 256
         parents: []
+        mode: slow
         alpha: 1
       - name: Z2
         state_dim: 512
         parents: []
+        mode: dead
         alpha: 1
       - name: X
         state_dim: 256
         parents: [Z1, Z2]
+        mode: slow
         alpha: 1e-2
         observed: True
 
