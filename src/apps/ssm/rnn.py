@@ -22,9 +22,9 @@ import yaml
 os.environ["CUDA_HOME"] = "/public/apps/cuda/12.2.0"  # monkey patching for accelerated_scan to work
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
-from ...nanollama.model import FastRNNConfig, Hawk, MinGRU, MinLSTM
+from ...nanollama.model.rnn import FastRNNConfig, Hawk, MinGRU, MinLSTM
 from ...nanollama.monitor import (
-    # Checkpointer,
+    Checkpointer,
     Logger,
     OrchestratorConfig,
     PreemptionHandler,
@@ -61,10 +61,6 @@ class TrainingConfig:
         """
         Check validity of arguments and fill in missing values.
         """
-        # sequence length
-        # if not self.model.seq_len:
-        #     self.model.seq_len = self.data.seq_len
-
         # vocabulary size
         if not self.model.vocab_size:
             nodes = self.data.gssm.nodes
@@ -130,11 +126,11 @@ def train(config: TrainingConfig) -> None:
             optim=init_optimizer_state(),
         )
 
-        # checkpoint: Checkpointer = context_stack.enter_context(
-        #     Checkpointer(
-        #         config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
-        #     )
-        # )
+        checkpoint: Checkpointer = context_stack.enter_context(
+            Checkpointer(
+                config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
+            )
+        )
 
         # ---------------------------------------------------------------------
         # DataLoader
@@ -226,7 +222,7 @@ def train(config: TrainingConfig) -> None:
             step = state.optim.step
 
             profiler.start_timer()
-            # checkpoint()
+            checkpoint()
             profiler()
             utils()
             profiler.end_timer("monitor_time")

@@ -26,7 +26,7 @@ from ...nanollama.model.mamba import (
     MambaConfig,
 )
 from ...nanollama.monitor import (
-    # Checkpointer,
+    Checkpointer,
     Logger,
     OrchestratorConfig,
     PreemptionHandler,
@@ -131,11 +131,11 @@ def train(config: TrainingConfig) -> None:
             optim=init_optimizer_state(),
         )
 
-        # checkpoint: Checkpointer = context_stack.enter_context(
-        #     Checkpointer(
-        #         config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
-        #     )
-        # )
+        checkpoint: Checkpointer = context_stack.enter_context(
+            Checkpointer(
+                config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
+            )
+        )
 
         # ---------------------------------------------------------------------
         # DataLoader
@@ -227,7 +227,7 @@ def train(config: TrainingConfig) -> None:
             step = state.optim.step
 
             profiler.start_timer()
-            # checkpoint()
+            checkpoint()
             profiler()
             utils()
             profiler.end_timer("monitor_time")

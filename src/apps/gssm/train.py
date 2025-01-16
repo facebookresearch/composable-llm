@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import yaml
 
@@ -55,13 +56,15 @@ _logger = logging.getLogger("nanollama")
 
 @dataclass
 class TrainingConfig:
-    data: DataConfig = field(default_factory=DataConfig)
-    model: TransformerConfig = field(default_factory=TransformerConfig)
-    optim: OptimizerConfig = field(default_factory=OptimizerConfig)
-
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
-    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
+
+    data: DataConfig = field(default_factory=DataConfig)
+    optim: OptimizerConfig = field(default_factory=OptimizerConfig)
+    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+
+    model: TransformerConfig = field(default_factory=None)
+    model_gen: callable = field(init=False, default=None)
 
     def __post_init__(self):
         """
@@ -79,6 +82,45 @@ class TrainingConfig:
         for module in self.__dict__.values():
             if hasattr(module, "__check_init__"):
                 module.__check_init__()
+
+
+@dataclass
+class TransformerTrainingConfig(TrainingConfig):
+    model: TransformerConfig = field(default_factory=TransformerConfig)
+    model_gen: callable = field(init=False, default=Transformer)
+
+
+def mamba_config_gen() -> Any:
+    """
+    Wrapper to load mamba packages only if needed.
+    """
+    from ...nanollama.model.mamba import Mamba, MambaConfig
+
+    @dataclass
+    class MambaTrainingConfig(TrainingConfig):
+        model: MambaConfig = field(default_factory=MambaConfig)
+        model_gen: callable = field(init=False, default=Mamba)
+
+    return MambaTrainingConfig
+
+
+def rnn_config_gen() -> Any:
+    """
+    Wrapper to load fastRNN packages only if needed.
+    """
+    os.environ["CUDA_HOME"] = "/public/apps/cuda/12.2.0"  # monkey patching for accelerated_scan to work
+    from ...nanollama.model.rnn import FastRNNConfig, Hawk, MinGRU, MinLSTM
+
+    @dataclass
+    class FastRNNTrainingConfig(TrainingConfig):
+        model: FastRNNConfig = field(default_factory=FastRNNConfig)
+        model_gen: callable = field(init=False, default=None)
+
+        def __post_init__(self):
+            self.model_gen = dict(hawk=Hawk, mingru=MinGRU, minlstm=MinLSTM)[self.model.implementation]
+            super().__post_init__()
+
+    return FastRNNTrainingConfig
 
 
 def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]) -> None:
@@ -165,7 +207,7 @@ def train(config: TrainingConfig) -> None:
         # ---------------------------------------------------------------------
 
         _logger.info("Building model")
-        model = Transformer(config.model)
+        model: nn.Module = config.model_gen(config.model)
         model = cluster.initialize_model(model)
 
         # ---------------------------------------------------------------------
@@ -210,7 +252,7 @@ def train(config: TrainingConfig) -> None:
         profiler: Profiler = context_stack.enter_context(Profiler(config.orchestration.profiler, state=state))
 
         logger.report_statistics(model)
-        seq_len = config.model.block.seq_len
+        seq_len = 0  # config.model.block.seq_len
         token_per_step = seq_len * config.data.batch_size * config.optim.grad_acc_steps
         profiler.report_statistics(model, token_per_step=token_per_step, seq_len=seq_len)
 
@@ -414,7 +456,14 @@ def main() -> None:
     run_config.pop("slurm")
 
     # initialize configuration
-    config = initialize_nested_object(TrainingConfig, run_config)
+    implementation = run_config.get("model", {}).get("implementation", "").lower()
+    if implementation == "mamba":
+        config_gen = mamba_config_gen()
+    elif implementation in ["hawk", "mingru", "minlstm"]:
+        config_gen = rnn_config_gen()
+    else:
+        config_gen = TransformerTrainingConfig
+    config = initialize_nested_object(config_gen, run_config)
 
     # launch job
     train(config)

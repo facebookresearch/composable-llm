@@ -18,7 +18,7 @@ run_config:
     compile_model: false  # You can compile on V100 or better GPU (I have P100, which do not allow for compilation)
 
   data:
-    seq_len: 32
+    seq_len: 33
     batch_size: 16
     seed: 42
     gssm:
@@ -43,6 +43,21 @@ run_config:
     block:
       nb_heads: 2
       hidden_dim: 256
+
+    # implementation: mamba
+    # emb_dim: 256
+    # nb_layers: 2
+    # block:
+    #   nb_heads: 8
+    #   state_dim: 64
+    #   conv_size: 4
+
+    # implementation: mingru
+    # emb_dim: 256
+    # nb_layers: 2
+    # block:
+    #   nb_heads: 8
+    #   conv_size: null
 
   optim:
     steps: 100

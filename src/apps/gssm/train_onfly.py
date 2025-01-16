@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import yaml
 
@@ -49,12 +50,34 @@ _logger = logging.getLogger("nanollama")
 
 @dataclass
 class TrainingConfig:
-    data: DataConfig = field(default_factory=DataConfig)
-    model: TransformerConfig = field(default_factory=TransformerConfig)
-    optim: OptimizerConfig = field(default_factory=OptimizerConfig)
-
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
+
+    data: DataConfig = field(default_factory=DataConfig)
+    optim: OptimizerConfig = field(default_factory=OptimizerConfig)
+
+    model: TransformerConfig = field(default_factory=None)
+    model_gen: callable = field(init=False, default=None)
+
+    def __post_init__(self):
+        """
+        Check validity of arguments and fill in missing values.
+        """
+        # restriction for cpu run
+        if self.cluster.device.type == "cpu":
+            assert self.optim.fused is False, "Fused Adam is not supported on CPU"
+            assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
+
+        # check validity of submodule
+        for module in self.__dict__.values():
+            if hasattr(module, "__check_init__"):
+                module.__check_init__()
+
+
+@dataclass
+class TransformerTrainingConfig(TrainingConfig):
+    model: TransformerConfig = field(default_factory=TransformerConfig)
+    model_gen: callable = field(init=False, default=Transformer)
 
     def __post_init__(self):
         """
@@ -68,20 +91,74 @@ class TrainingConfig:
         if not self.model.vocab_size:
             nodes = self.data.gssm.nodes
             for node in nodes:
-                if node.name == "X":
+                if node.observed:
                     break
             _logger.info(f"Setting vocab size to {node.state_dim}")
             self.model.vocab_size = node.state_dim
 
-        # restriction for cpu run
-        if self.cluster.device.type == "cpu":
-            assert self.optim.fused is False, "Fused Adam is not supported on CPU"
-            assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
+        super().__post_init__()
 
-        # check validity of submodule
-        for module in self.__dict__.values():
-            if hasattr(module, "__check_init__"):
-                module.__check_init__()
+
+def mamba_config_gen() -> Any:
+    """
+    Wrapper to load mamba packages only if needed.
+    """
+    from ...nanollama.model.mamba import Mamba, MambaConfig
+
+    @dataclass
+    class MambaTrainingConfig(TrainingConfig):
+        model: MambaConfig = field(default_factory=MambaConfig)
+        model_gen: callable = field(init=False, default=Mamba)
+
+        def __post_init__(self):
+            """
+            Check validity of arguments and fill in missing values.
+            """
+            # vocabulary size
+            if not self.model.vocab_size:
+                nodes = self.data.gssm.nodes
+                for node in nodes:
+                    if node.observed:
+                        break
+                _logger.info(f"Setting vocab size to {node.state_dim}")
+                self.model.vocab_size = node.state_dim
+
+            super().__post_init__()
+
+    return MambaTrainingConfig
+
+
+def rnn_config_gen() -> Any:
+    """
+    Wrapper to load fastRNN packages only if needed.
+    """
+    os.environ["CUDA_HOME"] = "/public/apps/cuda/12.2.0"  # monkey patching for accelerated_scan to work
+    from ...nanollama.model.rnn import FastRNNConfig, Hawk, MinGRU, MinLSTM
+
+    @dataclass
+    class FastRNNTrainingConfig(TrainingConfig):
+        model: FastRNNConfig = field(default_factory=FastRNNConfig)
+        model_gen: callable = field(init=False, default=None)
+
+        def __post_init__(self):
+            """
+            Check validity of arguments and fill in missing values.
+            """
+
+            self.model_gen = dict(hawk=Hawk, mingru=MinGRU, minlstm=MinLSTM)[self.model.implementation]
+
+            # vocabulary size
+            if not self.model.vocab_size:
+                nodes = self.data.gssm.nodes
+                for node in nodes:
+                    if node.observed:
+                        break
+                _logger.info(f"Setting vocab size to {node.state_dim}")
+                self.model.vocab_size = node.state_dim
+
+            super().__post_init__()
+
+    return FastRNNTrainingConfig
 
 
 # ------------------------------------------------------------------------------
@@ -97,36 +174,22 @@ def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 def train(config: TrainingConfig) -> None:
     with ExitStack() as context_stack:
         # ---------------------------------------------------------------------
-        # Handle preemption
+        # Handle preemption, computing environment, logging, and utils
         # ---------------------------------------------------------------------
 
         preemption: PreemptionHandler = context_stack.enter_context(PreemptionHandler())
-
-        # ---------------------------------------------------------------------
-        # Computing Environment
-        # ---------------------------------------------------------------------
-
         cluster: ClusterManager = context_stack.enter_context(ClusterManager(config.cluster))
-
-        # ---------------------------------------------------------------------
-        # Monitor: logging, and utils
-        # ---------------------------------------------------------------------
-
         logger: Logger = context_stack.enter_context(Logger(config.orchestration.logging))
         utils: UtilityManager = context_stack.enter_context(UtilityManager(config.orchestration.utils))
         wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, run_config=config))
 
         # ---------------------------------------------------------------------
-        # Build and Parallelize model
+        # Build and Parallelize model, optimizer, scheduler
         # ---------------------------------------------------------------------
 
         _logger.info("Building model")
-        model = Transformer(config.model)
+        model: nn.Module = config.model_gen(config.model)
         model = cluster.initialize_model(model)
-
-        # ---------------------------------------------------------------------
-        # Build Optimizer
-        # ---------------------------------------------------------------------
 
         _logger.info("Building optimizer")
         optimizer = init_optimizer(model, config.optim)
@@ -313,7 +376,14 @@ def main() -> None:
             run_config["orchestration"][key] = launcher[key]
 
     # initialize configuration
-    config = initialize_nested_object(TrainingConfig, run_config)
+    implementation = run_config.get("model", {}).get("implementation", "").lower()
+    if implementation == "mamba":
+        config_gen = mamba_config_gen()
+    elif implementation in ["hawk", "mingru", "minlstm"]:
+        config_gen = rnn_config_gen()
+    else:
+        config_gen = TransformerTrainingConfig
+    config = initialize_nested_object(config_gen, run_config)
 
     # Launch training with the config
     train(config)
