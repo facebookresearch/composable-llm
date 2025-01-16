@@ -91,20 +91,20 @@ class Node:
         self.state_dim = state_dim
         self.alpha = alpha
         self.parents = parents
-        self.mode = mode
+        self.mode = mode.lower()
         self.rng = rng
         self.observed = observed
 
-        self.kernels = self.sample_transitions(alpha, mode)
+        self.kernels = self.sample_transitions(alpha)
 
         self.state = None
         self.time = None
 
-    def sample_transitions(self, alpha: float, mode: str = "default") -> list[np.ndarray[float]]:
+    def sample_transitions(self, alpha: float) -> list[np.ndarray[float]]:
         """Initialize transition kernels"""
 
         # in the `context` mode, the transition matrix change each time
-        if mode == "context":
+        if self.mode == "context":
             return []
 
         # observed node does not have connection to itself
@@ -114,9 +114,9 @@ class Node:
             fan_ins = [self.state_dim]
         fan_ins += [pnode.state_dim for pnode in self.parents]
 
-        return [self.sample_transition(fan_in=fan_in, alpha=alpha, mode=mode) for fan_in in fan_ins]
+        return [self.sample_transition(fan_in=fan_in, alpha=alpha) for fan_in in fan_ins]
 
-    def sample_transition(self, fan_in: int, alpha: float, mode: str) -> np.ndarray[float]:
+    def sample_transition(self, fan_in: int, alpha: float) -> np.ndarray[float]:
         """Sample transition kernel"""
 
         # transition
@@ -124,18 +124,8 @@ class Node:
         # operations in log space for numerical stability
         transition = np.log(self.rng.dirichlet(alphas, size=fan_in))
 
-        # handle special modes
-        mode = mode.lower()
-        # in the `slow` mode, argmax p(state[t+1] | state[t]=z) = z
-        if mode == "slow":
-            index = np.arange(fan_in)
-            argmax = transition.argmax(axis=1)
-            max_val = transition[index, argmax]
-            transition[index, argmax] = transition[index, index]
-            transition[index, index] = max_val
-
         # in the `dead` mode, argmax p(state[t+1] | ...) = 0
-        elif mode == "dead":
+        if self.mode == "dead":
             index = np.arange(fan_in)
             argmax = transition.argmax(axis=1)
             max_val = transition[index, argmax]
@@ -189,6 +179,14 @@ class Node:
         proba = sum([kernel[state] for kernel, state in zip(self.kernels, all_states)])
         # proba -= np.log(np.sum(np.exp(proba), axis=1, keepdims=True))  # normalization is log space
         np.exp(proba, out=proba)
+
+        # in the `slow` mode, argmax p(state[t+1] | state[t]=z) = z
+        if self.mode == "slow" and self.time != 0:
+            index = np.arange(len(self.state))
+            argmax = proba.argmax(axis=1)
+            max_val = proba[index, argmax]
+            proba[index, argmax] = proba[index, self.state]
+            proba[index, self.state] = max_val
 
         # Vectorized sampling
         random_values = self.rng.random(self.state.shape)
