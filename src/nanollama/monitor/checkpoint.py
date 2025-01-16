@@ -129,6 +129,10 @@ class Checkpointer(Monitor):
         eval:
             Whether to save the checkpoint for evaluation
         """
+        # do not checkpoint twice
+        if self.saved_step == self.step:
+            return
+
         save_dir = self.path / self.folder_name.format(self.state.optim.step)
         save_dir.mkdir(parents=False, exist_ok=True)
 
@@ -136,10 +140,6 @@ class Checkpointer(Monitor):
         if eval:
             eval_flag = save_dir / "eval"
             eval_flag.touch()
-
-        # do not checkpoint twice
-        if self.saved_step == self.step:
-            return
 
         logger.info(f"Saving checkpoint at step {self.state.optim.step} to {str(save_dir)}")
 
