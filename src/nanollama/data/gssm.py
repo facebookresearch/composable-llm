@@ -114,17 +114,15 @@ class Node:
             fan_ins = [self.state_dim]
         fan_ins += [pnode.state_dim for pnode in self.parents]
 
-        return [
-            self.sample_transition(fan_in=fan_in, alpha=alpha, mode=mode)
-            for fan_in in fan_ins
-        ]
+        return [self.sample_transition(fan_in=fan_in, alpha=alpha, mode=mode) for fan_in in fan_ins]
 
     def sample_transition(self, fan_in: int, alpha: float, mode: str) -> np.ndarray[float]:
         """Sample transition kernel"""
 
         # transition
         alphas = np.full(self.state_dim, alpha)
-        transition = self.rng.dirichlet(alphas, size=fan_in)
+        # operations in log space for numerical stability
+        transition = np.log(self.rng.dirichlet(alphas, size=fan_in))
 
         # handle special modes
         mode = mode.lower()
@@ -187,16 +185,17 @@ class Node:
             all_states = [self.state]
 
         all_states += [parent.state for parent in self.parents]
-        # proba = sum([kernel[state] for kernel, state in zip(self.kernels, all_states)])
-        # print(proba.shape)
-        proba = np.prod([kernel[state] for kernel, state in zip(self.kernels, all_states)], axis=0)
+        # proba = np.prod([kernel[state] for kernel, state in zip(self.kernels, all_states)], axis=0)
+        proba = sum([kernel[state] for kernel, state in zip(self.kernels, all_states)])
+        # proba -= np.log(np.sum(np.exp(proba), axis=1, keepdims=True))  # normalization is log space
+        np.exp(proba, out=proba)
 
         # Vectorized sampling
         random_values = self.rng.random(self.state.shape)
-        p_cumulative = proba.cumsum(axis=-1)
-        p_cumulative /= p_cumulative[..., -1:]
+        proba.cumsum(axis=-1, out=proba)
+        proba /= proba[..., -1:]
 
-        self.state = (random_values[:, None] < p_cumulative).argmax(axis=1)
+        self.state = (random_values[:, None] < proba).argmax(axis=1)
         self.time += 1
 
     def __repr__(self):
