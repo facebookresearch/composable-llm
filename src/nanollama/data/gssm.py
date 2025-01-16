@@ -132,6 +132,7 @@ class Node:
             transition[index, argmax] = transition[:, 0]
             transition[:, 0] = max_val
 
+        transition[np.isinf(transition)] = -2e1
         return transition
 
     def initialize(self, bsz: int) -> None:
@@ -274,8 +275,8 @@ def build_gssm(config: GSSMConfig, rng: np.random.Generator) -> Node:
             observed=node_config.observed,
         )
 
-        logger.info("Graph is built")
         if node_config.observed:
+            logger.info("Graph is built")
             return nodes[node_config.name]
 
     raise ValueError("No observed node found")

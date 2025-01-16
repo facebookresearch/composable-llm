@@ -149,7 +149,12 @@ class LightProfiler(BaseProfiler):
         # device
         rank = get_local_rank()
         self.device = torch.device(rank)
-        self.capacity = torch.cuda.get_device_properties(rank).total_memory / 100  # divide for percentage
+        try:
+            self.capacity = torch.cuda.get_device_properties(self.device).total_memory / 100  # divide for percentage
+        except Exception as e:
+            logger.warning("Could not get device properties")
+            logger.warning(e)
+            self.capacity = 1
 
     def __enter__(self):
         logger.info(f"Light profiler active. Traces will be saved at {self.path}")
