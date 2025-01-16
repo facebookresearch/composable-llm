@@ -183,36 +183,22 @@ def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 def train(config: TrainingConfig) -> None:
     with ExitStack() as context_stack:
         # ---------------------------------------------------------------------
-        # Handle preemption
+        # Handle preemption, computing environment, logging, and utils
         # ---------------------------------------------------------------------
 
         preemption: PreemptionHandler = context_stack.enter_context(PreemptionHandler())
-
-        # ---------------------------------------------------------------------
-        # Computing Environment
-        # ---------------------------------------------------------------------
-
         cluster: ClusterManager = context_stack.enter_context(ClusterManager(config.cluster))
-
-        # ---------------------------------------------------------------------
-        # Monitor: logging, and utils
-        # ---------------------------------------------------------------------
-
         logger: Logger = context_stack.enter_context(Logger(config.orchestration.logging))
         utils: UtilityManager = context_stack.enter_context(UtilityManager(config.orchestration.utils))
         wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, run_config=config))
 
         # ---------------------------------------------------------------------
-        # Build and Parallelize model
+        # Build and Parallelize model, optimizer, scheduler
         # ---------------------------------------------------------------------
 
         _logger.info("Building model")
         model: nn.Module = config.model_gen(config.model)
         model = cluster.initialize_model(model)
-
-        # ---------------------------------------------------------------------
-        # Build Optimizer
-        # ---------------------------------------------------------------------
 
         _logger.info("Building optimizer")
         optimizer = init_optimizer(model, config.optim)
