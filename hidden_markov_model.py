@@ -204,6 +204,7 @@ class HMM:
         log_T: torch.tensor,
         log_E: torch.tensor,
         log_pi: torch.tensor,
+        device="cuda",
     ):
         """
         Perform the forward-backward algorithm to compute the forward and backward probabilities.
@@ -218,15 +219,18 @@ class HMM:
         Returns:
             forward_probs (torch.tensor): Forward probabilities [S, seq_len, B]
         """
-        DEVICE = "cpu"
         num_states = log_T.shape[0]
         T, B = obs.shape
+        log_T = log_T.to(device)
+        log_E = log_E.to(device)
+        log_pi = log_pi.to(device)
+        obs = obs.to(device)
 
         def lognorm(log_x):
             return torch.logsumexp(log_x, dim=0, keepdim=True)
 
-        forward_probs = torch.zeros((num_states, T, B), device=DEVICE)
-        log_p_seq = torch.zeros((1, T, B), device=DEVICE)
+        forward_probs = torch.zeros((num_states, T, B), device=device)
+        log_p_seq = torch.zeros((1, T, B), device=device)
 
         forward_probs[:, 0, :] = log_pi[:, None] + log_E[:, obs[0]]
         #forward_probs[:,t,:] = p(Z_t, X_[t])
@@ -243,7 +247,7 @@ class HMM:
             log_p_seq[:,t,:] = lognorm(forward_probs[:, t, :])
             # forward_probs[:, t, :] = forward_probs[:,t,:] - log_p_seq[:,t,:]
 
-        return forward_probs, log_p_seq.reshape(T, B)
+        return forward_probs.cpu(), log_p_seq.reshape(T, B).cpu()
 
     def forward_probs(self, observations: np.ndarray):
         T, B = observations.shape
@@ -266,43 +270,43 @@ if __name__ == "__main__":
 
   gssm_config = {
       "nodes": [
-          {
-              "name": "Z1",
-              "state_dim": 3,
-              "parents": [],
-              "alpha": .01,
-              "mode": "default",
-              "observed":False
-          },
-          {
-              "name": "Z2",
-              "state_dim": 4,
-              "parents": ["Z1"],
-              "alpha": .01,
-              "mode": "default",
-              "observed":False
-          },
-          {
-              "name": "Z3",
-              "state_dim": 6,
-              "parents": ["Z2"],
-              "alpha": .01,
-              "mode": "default",
-              "observed":False
-          },
-          {
-              "name": "X",
-              "state_dim": 5,
-              "parents": ["Z1", "Z2", "Z3"],
-              "alpha": .01,
-              "mode": "default",
-              "observed":True
-          },
+            {
+                "name": "Z1",
+                "state_dim": 2,
+                "parents": [],
+                "alpha": .05,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "Z2",
+                "state_dim": 3,
+                "parents": ["Z1"],
+                "alpha": .05,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "Z3",
+                "state_dim": 4,
+                "parents": ["Z2"],
+                "alpha": .05,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 5,
+                "parents": ["Z1", "Z3"],
+                "alpha": .05,
+                "mode": "default",
+                "observed": True,
+            },
       ]
   }
 
   def test_prod_transition(config):
-    hmm = HMM(config)
+    hmm = HMM(config, random_seed=42)
     hmm._init_all_nodes(1000)
     prod_transition = hmm.make_prod_transition(hmm.top_node)
     # data_prod = hmm.fwd_product_state(prod_transition)
@@ -335,17 +339,23 @@ if __name__ == "__main__":
 
   # test_forward_probs(gssm_config)
 
-  def test_entropy(config, seq_len, batch_size):
-      hmm = HMM(config)
-      hmm._init_all_nodes(batch_size)
+  def test_entropy(config, seq_len, batch_size, seed=3892493):
       observations = np.zeros((seq_len, batch_size), dtype=int)
-      for i in range(seq_len):
-          observations[i] = np.array(hmm.top_node.state)
-          hmm.evolve_classic(1)
-      return hmm.entropy_of_observations(observations).mean().item()
+      n_seeds = 10
+      entropys = []
+      for i_batch in range(n_seeds):
+        mini_batch = batch_size//n_seeds
+        batch_slice = slice(i_batch*mini_batch, (i_batch+1)*mini_batch)
+        hmm = HMM(config, random_seed=seed + i_batch*1942)
+        hmm._init_all_nodes(mini_batch)
+        for i in range(seq_len):
+            observations[i,batch_slice] = np.array(hmm.top_node.state)
+            hmm.evolve_classic(1)
+        entropys.append(hmm.entropy_of_observations(observations[:,batch_slice]).mean().item())
+      return np.mean(entropys)
   
-  for seq_len in np.logspace(0,2.5,10):
+  for seq_len in np.logspace(0,np.log10(100),10):
     seq_len = int(seq_len)
-    print(seq_len, test_entropy(gssm_config, seq_len, 30) / seq_len)
+    print(seq_len, test_entropy(gssm_config, seq_len, 200) / seq_len)
 
 # %%
