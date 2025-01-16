@@ -13,6 +13,7 @@ import torch
 
 # from accelerated_scan.triton import scan as triton_scan
 from torch.autograd.function import FunctionCtx
+
 try:
     from accelerated_scan.warp import warpscan_backward, warpscan_forward
 except ImportError as e:

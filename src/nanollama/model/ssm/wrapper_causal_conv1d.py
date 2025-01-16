@@ -13,6 +13,7 @@ from typing import Optional
 
 import torch
 from torch.autograd.function import FunctionCtx
+
 try:
     import causal_conv1d_cuda
 except ImportError as e:

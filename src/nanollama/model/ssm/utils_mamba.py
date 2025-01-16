@@ -15,6 +15,7 @@ from typing import List, Optional  # noqa: UP035 (torch compile does not parse `
 
 import torch
 from torch.autograd.function import FunctionCtx
+
 try:
     from mamba_ssm.ops.triton.ssd_combined import _mamba_chunk_scan_combined_bwd, _mamba_chunk_scan_combined_fwd
 except ImportError as e:
