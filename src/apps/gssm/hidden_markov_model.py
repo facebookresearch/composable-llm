@@ -6,22 +6,28 @@ from nanollama.utils import initialize_nested_object
 from src.nanollama.data import gssm
 import numpy as np
 import torch
+from functools import lru_cache
 
 class HMM:
     SYM_IN = "abcxdefghijklmnopqrstuvwxyz"
     SYM_OUT = "ABCXDEFGHIJKLMNOPQRSTUVWXYZ"
 
-    def __init__(self, config, random_seed=100):
+    def __init__(self, config=None, top_node=None, random_seed=100):
         """
         makes an HMM from a graph config via the product state
         """
-        self.config = initialize_nested_object(gssm.GSSMConfig, config, inplace=False)
-        self.rng = np.random.default_rng(random_seed)
-        self.top_node = gssm.build_gssm(self.config, self.rng)
+        if config is not None:
+          assert top_node is None
+          config = initialize_nested_object(gssm.GSSMConfig, config, inplace=False)
+          self.rng = np.random.default_rng(random_seed)
+          self.top_node = gssm.build_gssm(config, self.rng)
+        else:
+          assert top_node is not None
+          self.top_node = top_node
         self.topo_order = self._dfs(self.top_node)
         self.indexs = {node: i for i, (_,node) in enumerate(self.topo_order)}
         self.transitions = {node: self._format_transition(node) for _,node in self.topo_order}
-
+    
     def evolve_classic(self, steps):
         for _ in range(steps):
             self.top_node.evolve()
@@ -34,8 +40,7 @@ class HMM:
                 self._node_init(parent, bsz, i + 1)
         node.state = np.zeros(bsz, dtype=int)
         assert (node.state == 0).all() # this is assumed in self.forward_probs
-        # enable this to debug product transiiton and such
-        # node.state = self.rng.integers(0,node.state_dim, size=bsz)
+
 
     def _init_all_nodes(self, bsz):
         self._node_init(self.top_node, bsz)
@@ -56,7 +61,7 @@ class HMM:
       # print("individual:\n", [x.sum(-1) for x in node.kernels])
       einsum_str = ",".join([f"{HMM.SYM_IN[i]}X" for i in range(n_in)])
       einsum_str += "->" + "".join([HMM.SYM_IN[i] for i in range(n_in)]) + "X"
-      trans = np.einsum(einsum_str, *node.kernels)
+      trans = np.einsum(einsum_str, *(np.exp(x) for x in node.kernels))
       trans[trans.sum(-1) == 0] = 1/node.state_dim
       trans = trans / trans.sum(-1, keepdims=True)
       # print("prod_trans: \n", trans)
@@ -127,6 +132,7 @@ class HMM:
         out_str = "".join(self._node_sym_out(n) for n in ordered_nodes)
         return in_str + out_str
 
+    @lru_cache(100)
     def make_prod_transition(self, tgt_node):
         node_order = [node for _,node in self._dfs(tgt_node)]
         state_dims = [node.state_dim for node in node_order]
@@ -179,6 +185,7 @@ class HMM:
         samples = torch.multinomial(torch.tensor(next_state), 1).numpy()
         return self.individual_states(samples, self.topo_order)
 
+    @lru_cache
     def get_p_emission(self, tgt_node):
         # p_emission is a projection matrix from the product state
         # state @ p_emission = state_X
@@ -221,9 +228,9 @@ class HMM:
         """
         num_states = log_T.shape[0]
         T, B = obs.shape
-        log_T = log_T.to(device)
-        log_E = log_E.to(device)
-        log_pi = log_pi.to(device)
+        log_T = log_T.to(device).to(torch.float64)
+        log_E = log_E.to(device).to(torch.float64)
+        log_pi = log_pi.to(device).to(torch.float64)
         obs = obs.to(device)
 
         def lognorm(log_x):

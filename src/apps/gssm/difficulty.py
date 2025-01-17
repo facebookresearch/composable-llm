@@ -57,6 +57,18 @@ def gzip_loss(config: DataConfig, level: int = 9, overhead: int = 888, coef: flo
     return len(compressed_data) / batch.size
 
 
+def hmm_loss(config: DataConfig):
+
+  state = init_dataloader_state(config)
+  dataloader = OnlineDataLoader(config, state)
+  batch = next(dataloader.generator)
+
+  from .hidden_markov_model import HMM
+  hmm = HMM(top_node=dataloader.node)
+  entropys = hmm.entropy_of_observations(batch.T)
+  return entropys.mean().item()
+
+
 # ------------------------------------------------------------------------------
 # Loop Over Configurations
 # ------------------------------------------------------------------------------
@@ -138,7 +150,7 @@ def estimate_gzip_losses(config: DifficultyEstimationConfig, task_id: int = 1, n
             continue
 
         # set seed
-        data_config.seed = seed
+        data_config.seed = int(np.random.randint(100, 100001))
 
         # specialize base configuration accordingly
         for node in data_config.gssm.nodes:
@@ -150,11 +162,12 @@ def estimate_gzip_losses(config: DifficultyEstimationConfig, task_id: int = 1, n
         logger.info(f"Estimating difficulty for alpha_X={alpha_X:.2e}, alpha_Z={alpha_Z:.2e}, seed={seed}.")
         difficulty = {
             "seed": seed,
-            "difficulty": gzip_loss(data_config, level=config.level),
+            "difficulty_hmm": hmm_loss(data_config),
+            "difficulty_gzip": gzip_loss(data_config, level=config.level),
             "alpha_X": alpha_X,
             "alpha_Z": alpha_Z,
         }
-        logger.info(f"Difficulty: {difficulty['difficulty']:.2f}")
+        logger.info(f"Difficulty: {difficulty['difficulty_hmm']:.2f}, {difficulty['difficulty_gzip']:.2f}")
 
         with open(config.path, "a") as f:
             print(json.dumps(difficulty), file=f, flush=True)
@@ -166,7 +179,7 @@ def estimate_gzip_losses(config: DifficultyEstimationConfig, task_id: int = 1, n
 
 
 def read_results(path: str) -> dict[str, float]:
-    alpha_X, alpha_Z, difficulty = [], [], []
+    alpha_X, alpha_Z, difficulty_hmm, difficulty_gzip = [], [], [], []
     with open(path) as f:
         for line in f:
             try:
@@ -174,22 +187,25 @@ def read_results(path: str) -> dict[str, float]:
             except Exception as e:
                 print(e)
                 continue
-            for key in ["alpha_X", "alpha_Z", "difficulty"]:
+            for key in ["alpha_X", "alpha_Z", "difficulty_hmm", "difficulty_gzip"]:
                 locals()[key].append(res[key])
 
     alpha_X = np.array(alpha_X)
     alpha_Z = np.array(alpha_Z)
-    difficulty = np.array(difficulty)
+    difficulty_hmm = np.array(difficulty_hmm)
+    difficulty_gzip = np.array(difficulty_gzip)
 
     all_alpha_X = np.unique(alpha_X)
     all_alpha_Z = np.unique(alpha_Z)
 
-    ave_difficulty = {}
+    ave_difficulty_hmm = {}
+    ave_difficulty_gzip = {}
     for alphaX, alphaZ in product(all_alpha_X, all_alpha_Z):
         idx = (alpha_X == alphaX) & (alpha_Z == alphaZ)
-        ave_difficulty[(float(alphaX), float(alphaZ))] = float(difficulty[idx].mean())
+        ave_difficulty_hmm[(float(alphaX), float(alphaZ))] = float(difficulty_hmm[idx].mean())
+        ave_difficulty_gzip[(float(alphaX), float(alphaZ))] = float(difficulty_gzip[idx].mean())
 
-    return ave_difficulty
+    return ave_difficulty_hmm, ave_difficulty_gzip
 
 
 # ------------------------------------------------------------------------------
