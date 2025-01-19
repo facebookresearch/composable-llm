@@ -115,8 +115,7 @@ class Node:
         """Sample transition kernel"""
         # transition
         alphas = np.full(self.state_dim, alpha)
-        # operations in log space for numerical stability
-        transition = np.log(self.rng.dirichlet(alphas, size=fan_in))
+        transition = self.rng.dirichlet(alphas, size=fan_in)
 
         # in the `dead` mode, argmax p(state[t+1] | ...) = 0
         if self.mode == "dead":
@@ -126,7 +125,7 @@ class Node:
             transition[index, argmax] = transition[:, 0]
             transition[:, 0] = max_val
 
-        transition[np.isinf(transition)] = -2e1  # avoid overflow
+        np.clip(transition, a_min=1e-10, a_max=None, out=transition)  # avoid underflow
         return transition
 
     def initialize(self, bsz: int) -> None:
@@ -170,10 +169,7 @@ class Node:
             all_states = [self.state]
 
         all_states += [parent.state for parent in self.parents]
-        # proba = np.prod([kernel[state] for kernel, state in zip(self.kernels, all_states)], axis=0)
-        proba = sum([kernel[state] for kernel, state in zip(self.kernels, all_states)])
-        # proba -= np.log(np.sum(np.exp(proba), axis=1, keepdims=True))  # normalization is log space
-        np.exp(proba, out=proba)
+        proba = np.prod([kernel[state] for kernel, state in zip(self.kernels, all_states)], axis=0)
 
         # in the `slow` mode, argmax p(state[t+1] | state[t]=z) = z
         if self.mode == "slow" and self.time != 0:
