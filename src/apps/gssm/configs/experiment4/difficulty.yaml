@@ -1,0 +1,128 @@
+slow:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 20
+    min: 1e-3
+    max: 1e1
+  path: $HOME/logs/exp4/difficulty/slow.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      mode: slow
+    - name: Z2
+      state_dim: 4
+      mode: slow
+    - name: Z3
+      state_dim: 4
+      mode: slow
+    - name: Z4
+      state_dim: 4
+      mode: slow
+    - name: Z5
+      state_dim: 4
+      mode: slow
+    - name: Z6
+      state_dim: 4
+      mode: slow
+    - name: Z7
+      state_dim: 4
+      mode: slow
+    - name: Z8
+      state_dim: 4
+      mode: slow
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+      observed: true
+
+dead:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 20
+    min: 1e-3
+    max: 1e1
+  path: $HOME/logs/exp4/difficulty/dead.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      mode: dead
+    - name: Z2
+      state_dim: 4
+      mode: dead
+    - name: Z3
+      state_dim: 4
+      mode: dead
+    - name: Z4
+      state_dim: 4
+      mode: dead
+    - name: Z5
+      state_dim: 4
+      mode: dead
+    - name: Z6
+      state_dim: 4
+      mode: dead
+    - name: Z7
+      state_dim: 4
+      mode: dead
+    - name: Z8
+      state_dim: 4
+      mode: dead
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+      observed: true
+
+context:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 20
+    min: 1e-3
+    max: 1e1
+  path: $HOME/logs/exp4/difficulty/context.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      mode: context
+    - name: Z2
+      state_dim: 4
+      mode: context
+    - name: Z3
+      state_dim: 4
+      mode: context
+    - name: Z4
+      state_dim: 4
+      mode: context
+    - name: Z5
+      state_dim: 4
+      mode: context
+    - name: Z6
+      state_dim: 4
+      mode: context
+    - name: Z7
+      state_dim: 4
+      mode: context
+    - name: Z8
+      state_dim: 4
+      mode: context
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+      observed: true
