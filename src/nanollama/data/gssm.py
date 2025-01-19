@@ -102,11 +102,6 @@ class Node:
 
     def sample_transitions(self, alpha: float) -> list[np.ndarray[float]]:
         """Initialize transition kernels"""
-
-        # in the `context` mode, the transition matrix change each time
-        if self.mode == "context":
-            return []
-
         # observed node does not have connection to itself
         if self.observed:
             fan_ins = []
@@ -118,7 +113,6 @@ class Node:
 
     def sample_transition(self, fan_in: int, alpha: float) -> np.ndarray[float]:
         """Sample transition kernel"""
-
         # transition
         alphas = np.full(self.state_dim, alpha)
         # operations in log space for numerical stability
