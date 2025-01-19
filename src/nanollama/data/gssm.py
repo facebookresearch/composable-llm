@@ -132,7 +132,7 @@ class Node:
             transition[index, argmax] = transition[:, 0]
             transition[:, 0] = max_val
 
-        transition[np.isinf(transition)] = -2e1
+        transition[np.isinf(transition)] = -2e1  # avoid overflow
         return transition
 
     def initialize(self, bsz: int) -> None:

@@ -24,6 +24,8 @@ import yaml
 from nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from nanollama.utils import initialize_nested_object
 
+from .hidden_markov_model import HMM
+
 logger = logging.getLogger("nanollama")
 
 
@@ -57,16 +59,14 @@ def gzip_loss(config: DataConfig, level: int = 9, overhead: int = 888, coef: flo
     return len(compressed_data) / batch.size
 
 
-def hmm_loss(config: DataConfig):
+def hmm_loss(config: DataConfig) -> float:
+    state = init_dataloader_state(config)
+    dataloader = OnlineDataLoader(config, state)
+    batch = next(dataloader.generator)
 
-  state = init_dataloader_state(config)
-  dataloader = OnlineDataLoader(config, state)
-  batch = next(dataloader.generator)
-
-  from .hidden_markov_model import HMM
-  hmm = HMM(top_node=dataloader.node)
-  entropys = hmm.entropy_of_observations(batch.T)
-  return entropys.mean().item()
+    hmm = HMM(top_node=dataloader.node)
+    entropys = hmm.entropy_of_observations(batch.T)
+    return entropys.mean().item()
 
 
 # ------------------------------------------------------------------------------
