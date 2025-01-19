@@ -152,7 +152,7 @@ def estimate_gzip_losses(config: DifficultyEstimationConfig, task_id: int = 1, n
             continue
 
         # set seed
-        data_config.seed = int(np.random.randint(100, 100001))
+        data_config.seed = seed
 
         # specialize base configuration accordingly
         for node in data_config.gssm.nodes:
@@ -165,7 +165,8 @@ def estimate_gzip_losses(config: DifficultyEstimationConfig, task_id: int = 1, n
         difficulty = {
             "seed": seed,
             "difficulty_hmm": hmm_loss(data_config),
-            "difficulty_gzip": gzip_loss(data_config, level=config.level),
+            # "difficulty_hmm": 0,
+            "difficulty_gzip": gzip_loss(data_config, level=config.level)[1],
             "alpha_X": alpha_X,
             "alpha_Z": alpha_Z,
         }
