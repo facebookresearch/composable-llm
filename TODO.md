@@ -1,14 +1,9 @@
 # TODOS
 
-Compute entropy in close form.
-Think about the entropy baseline for "in-context learning" experiments.
-
 #### Further improvements
 
 Real data:
-1. Add real data for pretraining
 1. Add real evals
-1. Add mamba model
 
 Generation:
 1. Implement the caching mechanism.
