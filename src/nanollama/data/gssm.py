@@ -377,13 +377,12 @@ class OnlineDataLoader(DataLoader):
         while True:
             batch = np.empty((self.batch_size, self.seq_len), dtype=int)
             self.node.initialize(self.batch_size)
+            batch[:, 0] = self.node.state
 
-            for t in range(self.seq_len):
+            for t in range(1, self.seq_len):
+                self.node.evolve()
                 assert self.node.time == t, f"Discrepancy in time: {self.node.time} and {t}."
                 batch[:, t] = self.node.state
-                if t == self.seq_len - 1:
-                    break
-                self.node.evolve()
 
             self.rng_state = rng.bit_generator.state
             yield batch
