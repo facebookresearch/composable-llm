@@ -166,7 +166,7 @@ def estimate_gzip_losses(config: DifficultyEstimationConfig, task_id: int = 1, n
             "seed": seed,
             "difficulty_hmm": hmm_loss(data_config),
             # "difficulty_hmm": 0,
-            "difficulty_gzip": gzip_loss(data_config, level=config.level)[1],
+            "difficulty_gzip": gzip_loss(data_config, level=config.level),
             "alpha_X": alpha_X,
             "alpha_Z": alpha_Z,
         }
