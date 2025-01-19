@@ -45,7 +45,9 @@ class TrainState(Stateful):
 # ------------------------------------------------------------------------------
 
 
-def flatten_config(config: dict[str, Any], separator: str = ".", _parent_key: str = "") -> dict[str, Any]:
+def flatten_config(
+    config: dict[str, Any], separator: str = ".", flatten_list: bool = False, _parent_key: str = ""
+) -> dict[str, Any]:
     """
     Flatten a nested dictionary into a dot-separated format.
 
@@ -55,6 +57,8 @@ def flatten_config(config: dict[str, Any], separator: str = ".", _parent_key: st
         The dictionary to flatten
     separator:
         The string used to separate flattened keys
+    flatten_list:
+        Whether to flatten lists
     _parent_key:
         The string to prepend to dictionary's keys
 
@@ -62,14 +66,15 @@ def flatten_config(config: dict[str, Any], separator: str = ".", _parent_key: st
     ------
     A flattened dictionary
     """
+    args = (separator, flatten_list)
     items = []
     for k, v in config.items():
         new_key = f"{_parent_key}{separator}{k}" if _parent_key else k
         if isinstance(v, MutableMapping):
-            items.extend(flatten_config(v, separator, new_key).items())
-        elif isinstance(v, list):
+            items.extend(flatten_config(v, *args, new_key).items())
+        elif flatten_list and isinstance(v, list):
             for _k, _v in enumerate(v):
-                items.extend(flatten_config({str(_k): _v}, separator, new_key).items())
+                items.extend(flatten_config({str(_k): _v}, *args, new_key).items())
         else:
             items.append((new_key, v))
     return dict(items)

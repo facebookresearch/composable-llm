@@ -100,7 +100,7 @@ class WandbLogger:
         else:
             # Starting a new run
             self.run = wandb.init(
-                config=flatten_config(asdict(self.run_config)),
+                config=flatten_config(asdict(self.run_config), flatten_list=True),
                 project=self.project,
                 entity=self.entity,
                 name=self.name,
