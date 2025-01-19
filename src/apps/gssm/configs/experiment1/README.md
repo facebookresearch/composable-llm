@@ -24,7 +24,7 @@ python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly.yaml
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/onfly.yaml
 ```
 
-#### Finite data
+#### (TODO) Finite data
 Start by generating data in advance by running
 ```bash
 python -m src.apps.gssm.data src/apps/gssm/configs/experiment1/data.yaml

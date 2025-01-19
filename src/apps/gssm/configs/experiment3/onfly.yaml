@@ -1,0 +1,106 @@
+launcher:
+  name: onfly
+  overwrite: true
+  log_dir: $HOME/logs/exp3/onfly
+
+  script: src.apps.gssm.train_onfly
+
+  slurm:
+    nodes: 1
+    nb_gpus: 8
+    mem: 16G
+    partition: scavenge
+    time: 60          # job time in minutes
+    signal_time: 120  # alert time in seconds
+
+  grid:
+    model:
+      emb_dim: [8, 32, 128]
+    data:
+      seed: [0, 1, 2, 3, 4, 5]
+      gssm:
+        nodes:
+        - - {name: Z1, state_dim: 4, alpha: 1e-0}
+          - {name: Z2, state_dim: 4, alpha: 1e-0}
+          - {name: Z3, state_dim: 4, alpha: 1e-0}
+          - {name: Z4, state_dim: 4, alpha: 1e-0}
+          - {name: Z5, state_dim: 4, alpha: 1e-0}
+          - {name: Z6, state_dim: 4, alpha: 1e-0}
+          - {name: Z7, state_dim: 4, alpha: 1e-0}
+          - {name: Z8, state_dim: 4, alpha: 1e-0}
+          - {name: X, state_dim: 32, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+        - - {name: Z1, state_dim: 4, alpha: 1e-0}
+          - {name: Z2, state_dim: 4, alpha: 1e-0, parents: [Z1]}
+          - {name: Z3, state_dim: 4, alpha: 1e-0}
+          - {name: Z4, state_dim: 4, alpha: 1e-0, parents: [Z3]}
+          - {name: Z5, state_dim: 4, alpha: 1e-0}
+          - {name: Z6, state_dim: 4, alpha: 1e-0, parents: [Z5]}
+          - {name: Z7, state_dim: 4, alpha: 1e-0}
+          - {name: Z8, state_dim: 4, alpha: 1e-0, parents: [Z7]}
+          - {name: X, state_dim: 32, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+        - - {name: Z1, state_dim: 4, alpha: 1e-0}
+          - {name: Z2, state_dim: 4, alpha: 1e-0, parents: [Z1]}
+          - {name: Z3, state_dim: 4, alpha: 1e-0, parents: [Z2]}
+          - {name: Z4, state_dim: 4, alpha: 1e-0, parents: [Z3]}
+          - {name: Z5, state_dim: 4, alpha: 1e-0, parents: [Z4]}
+          - {name: Z6, state_dim: 4, alpha: 1e-0, parents: [Z5]}
+          - {name: Z7, state_dim: 4, alpha: 1e-0, parents: [Z6]}
+          - {name: Z8, state_dim: 4, alpha: 1e-0, parents: [Z7]}
+          - {name: X, state_dim: 32, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+        - - {name: Z1, state_dim: 4, alpha: 1e-0}
+          - {name: Z2, state_dim: 4, alpha: 1e-0, parents: [Z1]}
+          - {name: Z3, state_dim: 4, alpha: 1e-0, parents: [Z1, Z2]}
+          - {name: Z4, state_dim: 4, alpha: 1e-0, parents: [Z1, Z2, Z3]}
+          - {name: Z5, state_dim: 4, alpha: 1e-0, parents: [Z1, Z2, Z3, Z4]}
+          - {name: Z6, state_dim: 4, alpha: 1e-0, parents: [Z1, Z2, Z3, Z4, Z5]}
+          - {name: Z7, state_dim: 4, alpha: 1e-0, parents: [Z1, Z2, Z3, Z4, Z5, Z6]}
+          - {name: Z8, state_dim: 4, alpha: 1e-0, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7]}
+          - {name: X, state_dim: 32, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+
+run_config:
+  cluster:
+    compile_model: true
+
+  data:
+    seq_len: 2048
+    batch_size: 16
+    seed: 42
+    gssm:
+      nodes:
+      - name: Z1
+        state_dim: 256
+        parents: []
+        alpha: 1e-3
+      - name: X
+        state_dim: 32
+        parents: [Z1]
+        alpha: 1e-2
+
+  model:
+    emb_dim: 128
+    nb_layers: 4
+    block:
+      nb_heads: 4
+
+  optim:
+    steps: 2000
+    lr: 1e-3
+    weight_decay: 0
+    scheduler: constant
+
+  orchestration:
+    utils:
+      seed: 100
+
+    logging:
+      period: 1
+      level: info
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1
+
+    wandb:
+      active: true
+      project: exp3

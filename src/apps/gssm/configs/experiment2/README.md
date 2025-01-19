@@ -29,14 +29,6 @@ Or on the cluster with
 sbatch src/apps/gssm/configs/experiment2/difficulty.sh
 ```
 
-One can flag the following configurations:
-```yaml
-one_node:    {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.0087}
-two_nodes:   {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.058}
-four_nodes:  {"difficulty": 0.74, "alpha_X": 0.001, "alpha_Z": 0.14}
-eight_nodes: {"difficulty": 0.75, "alpha_X": 0.001, "alpha_Z": 0.267}
-```
-
 #### Run with infinite data
 After choosing pairs, you can generate a training run where you generate new data on the fly.
 You may run it on a cluster with
@@ -44,7 +36,7 @@ You may run it on a cluster with
 python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/onfly.yaml
 ```
 
-#### Generate finite data
+#### (TODO) Generate finite data
 You may equally fix the number of data in advance by running
 ```bash
 python -m src.apps.gssm.data src/apps/gssm/configs/experiment2/data.yaml

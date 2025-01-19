@@ -1,4 +1,4 @@
-# Script to fit the pairs (alpha_X, alpha_Z) for the first experiment
+# Script to fit alpha_Z
 # Run with the `difficulty` script
 # python -m src.apps.gssm.difficulty <path to this file>
 
