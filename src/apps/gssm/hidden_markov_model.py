@@ -1,5 +1,6 @@
 # %%
 from functools import lru_cache
+from logging import getLogger
 
 import numpy as np
 import torch
@@ -7,6 +8,8 @@ import torch
 # from omegaconf import OmegaConf
 from nanollama.utils import initialize_nested_object
 from src.nanollama.data import gssm
+
+logger = getLogger("nanollama")
 
 
 class HMM:
@@ -25,8 +28,10 @@ class HMM:
         else:
             assert top_node is not None
             self.top_node = top_node
+        logger.info("Retrieving topological order")
         self.topo_order = self._dfs(self.top_node)
         self.indexs = {node: i for i, (_, node) in enumerate(self.topo_order)}
+        logger.info("Rewriting transition matrices")
         self.transitions = {node: self._format_transition(node) for _, node in self.topo_order}
 
     def evolve_classic(self, steps):
@@ -68,6 +73,7 @@ class HMM:
 
     @staticmethod
     def _format_transition(node):
+        logger.info(f"Rewriting transition matrix for {node}")
         parents = node.parents
         parent_state_dims = tuple([p.state_dim for p in parents])
         trans = HMM._join_parent_kernels(node)
@@ -218,6 +224,7 @@ class HMM:
         Returns:
             forward_probs (torch.tensor): Forward probabilities [S, seq_len, B]
         """
+        logger.info("Starting forward algorithm")
         num_states = log_T.shape[0]
         T, B = obs.shape
         log_T = log_T.to(device).to(torch.float64)
@@ -239,23 +246,24 @@ class HMM:
         log_T = log_T[:, :, None]
 
         for t in range(1, T):
+            logger.info(f"Forward step {t}/{T}")
             forward_probs[:, t, :] = log_E[:, obs[t]] + torch.logsumexp(forward_probs[:, None, t - 1, :] + log_T, dim=0)
             log_p_seq[:, t, :] = lognorm(forward_probs[:, t, :])
             # forward_probs[:, t, :] = forward_probs[:,t,:] - log_p_seq[:,t,:]
 
         return forward_probs.cpu(), log_p_seq.reshape(T, B).cpu()
 
-    def forward_probs(self, observations: np.ndarray):
+    def forward_probs(self, observations: np.ndarray, device: str = "cuda"):
         T, B = observations.shape
         observations = torch.tensor(observations)
         self._init_all_nodes(B)
         prior = torch.tensor(self.current_one_hot_product_state()[0])
         transition = torch.tensor(self.make_prod_transition(self.top_node))
         emission = torch.tensor(self.get_p_emission(self.top_node))
-        return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log())
+        return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log(), device=device)
 
-    def entropy_of_observations(self, observations: np.ndarray):
-        _, log_xst = self.forward_probs(observations)
+    def entropy_of_observations(self, observations: np.ndarray, device: str = "cuda"):
+        _, log_xst = self.forward_probs(observations, device=device)
         H_t = -log_xst
         H_T = H_t[-1]
         return H_T

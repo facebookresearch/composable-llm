@@ -2,8 +2,8 @@
 
 # Logging configuration
 #SBATCH --job-name=difficulty_estimation
-#SBATCH --output=/private/home/%u/logs/exp3/difficulty/logs/%a.log
-#SBATCH --error=/private/home/%u/logs/exp3/difficulty/logs/%a.err
+#SBATCH --output=/private/home/%u/logs/exp1/difficulty/logs/%a.log
+#SBATCH --error=/private/home/%u/logs/exp1/difficulty/logs/%a.err
 #SBATCH --open-mode=append
 
 # Job specification
@@ -12,9 +12,8 @@
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:0
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=16G
-#SBATCH --array=1-50
-#SBATCH --time=10:00:00
+#SBATCH --array=1-100
+#SBATCH --time=1:00:00
 
 # activate conda environment
 eval "$(/private/home/vivc/miniconda/bin/conda shell.bash hook)"
@@ -32,4 +31,4 @@ fi
 
 echo "Running task $SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
 
-python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment3/difficulty.yaml 
+python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment1/difficulty.yaml 

@@ -243,7 +243,7 @@ def build_gssm(config: GSSMConfig, rng: np.random.Generator) -> Node:
     nodes_to_initialize = copy.deepcopy(config.nodes)
     nodes: dict[str, Node] = {}
 
-    # observe all the other nodes
+    # initialize all nodes
     while nodes_to_initialize:
         node_config = nodes_to_initialize.pop(0)
 

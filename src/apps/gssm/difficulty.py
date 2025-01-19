@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import torch
 import yaml
 
 from nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
@@ -65,7 +66,8 @@ def hmm_loss(config: DataConfig) -> float:
     batch = next(dataloader.generator)
 
     hmm = HMM(top_node=dataloader.node)
-    entropys = hmm.entropy_of_observations(batch.T)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    entropys = hmm.entropy_of_observations(batch.T, device=device)
     return entropys.mean().item()
 
 
