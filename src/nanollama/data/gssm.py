@@ -380,10 +380,10 @@ class OnlineDataLoader(DataLoader):
 
             for t in range(self.seq_len):
                 assert self.node.time == t, f"Discrepancy in time: {self.node.time} and {t}."
-                self.node.evolve()
                 batch[:, t] = self.node.state
                 if t == self.seq_len - 1:
                     break
+                self.node.evolve()
 
             self.rng_state = rng.bit_generator.state
             yield batch
