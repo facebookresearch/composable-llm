@@ -17,7 +17,9 @@ logger = getLogger("nanollama")
 # ------------------------------------------------------------------------------
 
 
-def extract_config_info(log_dir: PosixPath, task_id: int, keys: list[str], num_keys: list[str]) -> dict[str, Any]:
+def extract_config_info(
+    log_dir: PosixPath, task_id: int, keys: list[str], num_keys: list[str], copy_num: bool = False
+) -> dict[str, Any]:
     """
     Extract configuration informations.
 
@@ -31,6 +33,8 @@ def extract_config_info(log_dir: PosixPath, task_id: int, keys: list[str], num_k
         The configuration keys to extract.
     num_keys:
         The keys to extract as numbers.
+    copy_num:
+        Whether to copy the original values of the numerical keys.
     """
     res = {}
 
@@ -41,9 +45,11 @@ def extract_config_info(log_dir: PosixPath, task_id: int, keys: list[str], num_k
     for key in keys:
         res[key] = config[f"run_config.{key}"]
     for key in num_keys:
-        res[key] = config[f"run_config.{key}"]
+        val = config[f"run_config.{key}"]
         all_val = config[f"launcher.grid.{key}"]
-        res[f"num:{key}"] = all_val.index(res[key])
+        res[f"num:{key}"] = all_val.index(val)
+        if copy_num:
+            res[key] = val
 
     # number of parameters
     metric_path = log_dir / "metrics" / str(task_id)
