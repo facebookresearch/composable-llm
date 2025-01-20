@@ -150,7 +150,7 @@ def main() -> None:
         for set_config in file_configs["sets"]:
             set_config["path"] = set_config["path"].replace("$GRIDID", str(i))
         logger.info(f"Creating datasets for environment {seed=}, {nodes=}")
-        config = initialize_nested_object(DataGenerationConfig, file_configs)
+        config = initialize_nested_object(DataGenerationConfig, file_configs, inplace=False)
         create_dataset(config)
 
 
