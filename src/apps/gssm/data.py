@@ -129,14 +129,26 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("config", type=str, help="Path to configuration file")
+    parser.add_argument("--task-id", type=int, default=1, help="Task id in the job array.")
+    parser.add_argument("--nb-tasks", type=int, default=1, help="Number of tasks in the job array.")
     path = parser.parse_args().config
+    task_id = parser.parse_args().task_id
+    nb_tasks = parser.parse_args().nb_tasks
 
     with open(path) as f:
         file_configs = yaml.safe_load(f)
 
-    for env, file_config in file_configs.items():
-        logger.info(f"Creating datasets for environment {env}")
-        config = initialize_nested_object(DataGenerationConfig, file_config)
+    all_seeds = file_configs["seed"]
+    all_nodes = file_configs["gssm"]["nodes"]
+
+    for i, (nodes, seed) in enumerate(zip(all_nodes, all_seeds)):
+        if i % nb_tasks != task_id - 1:
+            continue
+
+        file_configs["gssm"]["nodes"] = nodes
+        file_configs["seed"] = seed
+        logger.info(f"Creating datasets for environment {seed=}, {nodes=}")
+        config = initialize_nested_object(DataGenerationConfig, file_configs)
         create_dataset(config)
 
 
