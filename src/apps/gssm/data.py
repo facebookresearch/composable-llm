@@ -147,6 +147,8 @@ def main() -> None:
 
         file_configs["gssm"]["nodes"] = nodes
         file_configs["seed"] = seed
+        for set_config in file_configs["sets"]:
+            set_config["path"] = set_config["path"].replace("$GRIDID", str(i))
         logger.info(f"Creating datasets for environment {seed=}, {nodes=}")
         config = initialize_nested_object(DataGenerationConfig, file_configs)
         create_dataset(config)
