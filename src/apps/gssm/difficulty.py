@@ -245,7 +245,9 @@ def main(path: str, task_id: int, nb_tasks: int, bsz: int) -> None:
 
 def estimate_entropy(path: str, task_id: int, nb_tasks: int, bsz: int) -> None:
     """
-    Launch a difficulty estimation job from configuration file specified by cli argument.
+    Launch a difficulty estimation job from training configuration file specified by cli argument.
+
+    The configuration is the same as the one to launch train_onfly
 
     Usage:
     ```
