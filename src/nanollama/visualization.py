@@ -4,6 +4,7 @@ from pathlib import PosixPath
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import yaml
 
 from .utils import flatten_config
@@ -48,7 +49,7 @@ def extract_config_info(log_dir: PosixPath, task_id: int, keys: list[str], num_k
     metric_path = log_dir / "metrics" / str(task_id)
     filepath = metric_path / "info_model.jsonl"
     with open(filepath) as f:
-        res["nb_params"] = json.loads(f.readline())['model_params']
+        res["nb_params"] = json.loads(f.readline())["model_params"]
     return res
 
 
@@ -114,13 +115,11 @@ def get_losses(metric_path: str, steps: list, eval: bool = False) -> dict[str, f
     Parameters
     ----------
     metric_path:
-        The path to the metric files.
-    world_size:
-        The number of processes.
+        Path to metric files.
     steps:
-        The steps to consider.
+        Training steps to snapshot the loss.
     eval:
-        Whether to consider the evaluation or training loss.
+        Whether to consider the testing or training loss.
 
     Returns
     -------
@@ -140,7 +139,7 @@ def get_losses(metric_path: str, steps: list, eval: bool = False) -> dict[str, f
         else:
             loss += data["loss"]
         world_size += 1
-    logger.info(f"Directory {metric_path} World_size: {world_size}")
+    logger.debug(f"Directory {metric_path} World_size: {world_size}")
     loss /= world_size
 
     # extract statistics
@@ -150,3 +149,85 @@ def get_losses(metric_path: str, steps: list, eval: bool = False) -> dict[str, f
         res[f"loss_{snapshot}"] = loss[idx].item()
     res["best"] = loss.min().item()
     return res
+
+
+# ------------------------------------------------------------------------------
+# Postprocessing Utilities
+# ------------------------------------------------------------------------------
+
+
+def get_task_ids(log_dir: PosixPath) -> list[int]:
+    """
+    Get the task ids from the given log directory.
+
+    Parameters
+    ----------
+    log_dir:
+        Path to logging directory.
+
+    Returns
+    -------
+    The list of task ids.
+    """
+    task_ids = [int(p.name) for p in (log_dir / "metrics").glob("*") if p.is_dir()]
+    task_ids.sort()
+    return task_ids
+
+
+def process_results(log_dir: PosixPath, keys: list[str], num_keys: list[str], steps: list[int], eval: bool) -> None:
+    """
+    Process the results of the given experiments.
+
+    Parameters
+    ----------
+    log_dir:
+        Path to logging directory.
+    keys:
+        The configuration keys to extract.
+    num_keys:
+        The keys to extract as numbers.
+    steps:
+        Training steps to snapshot the loss.
+    eval:
+        Whether to consider the testing or training loss.
+    """
+    logger.info(f"Processing results in {log_dir}")
+    all_task_ids = get_task_ids(log_dir)
+    for task_id in all_task_ids:
+        try:
+            metric_path = log_dir / "metrics" / str(task_id)
+            res = extract_config_info(log_dir, task_id, keys, num_keys)
+            res |= get_losses(metric_path, steps, eval=eval)
+
+            with open(metric_path / "process.json", "w") as f:
+                print(json.dumps(res, indent=4), file=f, flush=True)
+        except Exception as e:
+            logger.error(f"Error processing task {task_id}: {e}")
+            continue
+
+
+def get_processed_results(log_dir: PosixPath) -> pd.DataFrame:
+    """
+    Load multiple JSON files into a single pandas DataFrame.
+
+    Parameters
+    ----------
+    log_dir:
+        Path to logging directory.
+
+    Returns
+    -------
+    A DataFrame containing the data from all the loaded JSON files.
+    """
+
+    logger.info(f"Loading processed results in {log_dir}")
+    data = []
+    for file in log_dir.rglob("process.json"):
+        try:
+            with open(file) as f:
+                json_data = json.load(f)
+            data.append(json_data)
+        except Exception as e:
+            print(f"Error loading file {file}: {str(e)}")
+
+    return pd.DataFrame(data)
