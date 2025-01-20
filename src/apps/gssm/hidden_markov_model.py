@@ -64,7 +64,7 @@ class HMM:
         # print("individual:\n", [x.sum(-1) for x in node.kernels])
         einsum_str = ",".join([f"{HMM.SYM_IN[i]}X" for i in range(n_in)])
         einsum_str += "->" + "".join([HMM.SYM_IN[i] for i in range(n_in)]) + "X"
-        trans = np.einsum(einsum_str, *(np.exp(x) for x in node.kernels))
+        trans = np.einsum(einsum_str, *node.kernels)
         trans[trans.sum(-1) == 0] = 1 / node.state_dim
         trans = trans / trans.sum(-1, keepdims=True)
         # print("prod_trans: \n", trans)
