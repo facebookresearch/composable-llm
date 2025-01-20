@@ -1,7 +1,6 @@
 # %%
 from functools import lru_cache
 from logging import getLogger
-
 import numpy as np
 import torch
 
@@ -232,30 +231,28 @@ class HMM:
         log_pi = log_pi.to(device).to(torch.float64)
         obs = obs.to(device)
 
-        def lognorm(log_x):
-            return torch.logsumexp(log_x, dim=0, keepdim=True)
 
         forward_probs = torch.zeros((num_states, T, B), device=device)
-        log_p_seq = torch.zeros((1, T, B), device=device)
 
         forward_probs[:, 0, :] = log_pi[:, None] + log_E[:, obs[0]]
-        # forward_probs[:,t,:] = p(Z_t, X_[t])
-        log_p_seq[:, 0, :] = lognorm(forward_probs[:, 0, :])
-        # forward_probs[:,0,:] -= log_p_seq[:,0,:]
+        #forward_probs[:,t,:] = p(Z_t, X_[t])
+        
 
         log_T = log_T[:, :, None]
 
         for t in range(1, T):
             logger.info(f"Forward step {t}/{T}")
-            forward_probs[:, t, :] = log_E[:, obs[t]] + torch.logsumexp(forward_probs[:, None, t - 1, :] + log_T, dim=0)
-            log_p_seq[:, t, :] = lognorm(forward_probs[:, t, :])
-            # forward_probs[:, t, :] = forward_probs[:,t,:] - log_p_seq[:,t,:]
+            forward_probs[:, t, :] = log_E[:, obs[t]] + torch.logsumexp(
+                forward_probs[:, None, t - 1, :] + log_T, dim=0
+            )
 
-        return forward_probs.cpu(), log_p_seq.reshape(T, B).cpu()
+        log_p_seq = torch.logsumexp(forward_probs, dim=0)
+
+        return forward_probs.cpu(), log_p_seq.cpu()
 
     def forward_probs(self, observations: np.ndarray, device: str = "cuda"):
         T, B = observations.shape
-        observations = torch.tensor(observations)
+        observations = torch.as_tensor(observations)
         self._init_all_nodes(B)
         prior = torch.tensor(self.current_one_hot_product_state()[0])
         transition = torch.tensor(self.make_prod_transition(self.top_node))
@@ -328,37 +325,35 @@ if __name__ == "__main__":
 
     test_prod_transition(gssm_config)
 
-    # def test_forward_probs(config):
-    #     hmm = HMM(config)
-    #     batch_size = 2
-    #     seq_len = 2
-    #     hmm._init_all_nodes(batch_size)
-    #     observations = np.zeros((seq_len, batch_size), dtype=int)
-    #     for i in range(seq_len):
-    #         observations[i] = np.array(hmm.top_node.state)
-    #         hmm.evolve_classic(1)
-    #     #sanity check
-    #     print(hmm.forward_probs(observations)[0].exp().sum(0))
+    def test_forward_probs(config):
+        hmm = HMM(config)
+        batch_size = 2
+        seq_len = 2
+        hmm._init_all_nodes(batch_size)
+        observations = np.zeros((seq_len, batch_size), dtype=int)
+        for i in range(seq_len):
+            observations[i] = np.array(hmm.top_node.state)
+            hmm.evolve_classic(1)
+        #sanity check
+        print(hmm.forward_probs(observations)[0].exp().sum(0))
 
-    # test_forward_probs(gssm_config)
+    test_forward_probs(gssm_config)
 
     def test_entropy(config, seq_len, batch_size, seed=3892493):
         observations = np.zeros((seq_len, batch_size), dtype=int)
         n_seeds = 10
         entropys = []
         for i_batch in range(n_seeds):
-            mini_batch = batch_size // n_seeds
-            batch_slice = slice(i_batch * mini_batch, (i_batch + 1) * mini_batch)
-            hmm = HMM(config, random_seed=seed + i_batch * 1942)
-            hmm._init_all_nodes(mini_batch)
-            for i in range(seq_len):
-                observations[i, batch_slice] = np.array(hmm.top_node.state)
-                hmm.evolve_classic(1)
-            entropys.append(hmm.entropy_of_observations(observations[:, batch_slice]).mean().item())
-        return np.mean(entropys)
-
-    for seq_len in np.logspace(0, np.log10(100), 10):
-        seq_len = int(seq_len)
-        print(seq_len, test_entropy(gssm_config, seq_len, 200) / seq_len)
-
-# %%
+          mini_batch = batch_size//n_seeds
+          batch_slice = slice(i_batch*mini_batch, (i_batch+1)*mini_batch)
+          hmm = HMM(config, random_seed=seed + i_batch*1942)
+          hmm._init_all_nodes(mini_batch)
+          for i in range(seq_len):
+              observations[i,batch_slice] = np.array(hmm.top_node.state)
+              hmm.evolve_classic(1)
+          entropys.append(hmm.entropy_of_observations(observations[:,batch_slice]).mean().item())
+        return np.mean(entropys) / seq_len, np.median(entropys) / seq_len
+    
+    for seq_len in np.logspace(0,np.log10(100),10):
+      seq_len = int(seq_len)
+      print(seq_len, test_entropy(gssm_config, seq_len, 200))
