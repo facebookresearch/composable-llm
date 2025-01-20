@@ -22,11 +22,13 @@ This 75% could change later if we realize that it was not a good target.
 
 The experiment can be launched locally with
 ```bash
-bash src/apps/gssm/configs/experiment2/difficulty.sh
+bash src/apps/gssm/configs/experiment2/difficulty.sh main
+bash src/apps/gssm/configs/experiment2/difficulty.sh entropy
 ```
 Or on the cluster with
 ```bash
-sbatch src/apps/gssm/configs/experiment2/difficulty.sh
+sbatch src/apps/gssm/configs/experiment2/difficulty.sh main
+sbatch src/apps/gssm/configs/experiment2/difficulty.sh entropy
 ```
 
 #### Run with infinite data

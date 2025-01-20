@@ -31,4 +31,15 @@ fi
 
 echo "Running task $SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
 
-python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment1/difficulty.yaml 
+export COMMAND=$1
+
+if [ "$COMMAND" == "main" ]; then
+    export FILENAME=difficulty
+elif [ "$COMMAND" == "entropy" ]; then
+    export FILENAME=onfly
+else
+    echo "Invalid command"
+    exit 1
+fi
+
+python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT --bsz 1024 $COMMAND $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment1/$FILENAME.yaml 

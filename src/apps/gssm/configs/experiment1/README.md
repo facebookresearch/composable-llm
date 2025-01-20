@@ -45,11 +45,13 @@ This 75% could change later if we realize that it was not a good target.
 
 The experiment can be launched locally with
 ```bash
-bash src/apps/gssm/configs/experiment1/difficulty.sh
+bash src/apps/gssm/configs/experiment1/difficulty.sh main
+bash src/apps/gssm/configs/experiment1/difficulty.sh entropy
 ```
 Or on the cluster with
 ```bash
-sbatch src/apps/gssm/configs/experiment1/difficulty.sh
+sbatch src/apps/gssm/configs/experiment1/difficulty.sh main
+sbatch src/apps/gssm/configs/experiment1/difficulty.sh entropy
 ```
 
 For example, with 32 observable tokens and four hidden nodes with four states, one can flag

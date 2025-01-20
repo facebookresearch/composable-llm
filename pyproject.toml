@@ -38,11 +38,12 @@ llm = [
 ]
 
 visu = [
-  "ipykernel",          # jupyter notebooks
-  "ipywidgets",         # jupyter widgets
-  "matplotlib", 
-  "nbformat",           # jupyter format
-  "plotly",
+  "ipykernel",    # jupyter notebooks
+  "ipywidgets",   # jupyter widgets
+  "matplotlib",   # plots 
+  "nbformat",     # jupyter format
+  "pandas",       # dataframes
+  "plotly",       # interactive plots
 ]
 
 ssm = [
