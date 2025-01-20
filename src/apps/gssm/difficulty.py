@@ -165,8 +165,8 @@ def estimate_alphas_entropy(config: DifficultyEstimationConfig, task_id: int = 1
         logger.info(f"Estimating difficulty for alpha_X={alpha_X:.2e}, alpha_Z={alpha_Z:.2e}, seed={seed}.")
         difficulty = {
             "seed": seed,
-            # "difficulty_hmm": hmm_loss(data_config),
-            "difficulty_hmm": 0,
+            "difficulty_hmm": hmm_loss(data_config),
+            # "difficulty_hmm": 0,
             "difficulty_gzip": gzip_loss(data_config, level=config.level),
             "alpha_X": alpha_X,
             "alpha_Z": alpha_Z,
@@ -277,8 +277,8 @@ def estimate_entropy(path: str, task_id: int, nb_tasks: int, bsz: int) -> None:
 
         difficulty = {
             "seed": config.seed,
-            # "difficulty_hmm": hmm_loss(config),
-            "difficulty_hmm": 0,
+            "difficulty_hmm": hmm_loss(config),
+            # "difficulty_hmm": 0,
             "difficulty_gzip": gzip_loss(config),
             "num:data.gssm.node": all_nodes.index(nodes),
             "data.gssm.node": nodes,

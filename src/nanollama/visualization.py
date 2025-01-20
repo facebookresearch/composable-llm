@@ -180,7 +180,9 @@ def get_task_ids(log_dir: PosixPath) -> list[int]:
     return task_ids
 
 
-def process_results(log_dir: PosixPath, keys: list[str], num_keys: list[str], steps: list[int], eval: bool) -> None:
+def process_results(
+    log_dir: PosixPath, keys: list[str], num_keys: list[str], steps: list[int], eval: bool, copy_num: bool = False
+) -> None:
     """
     Process the results of the given experiments.
 
@@ -196,13 +198,15 @@ def process_results(log_dir: PosixPath, keys: list[str], num_keys: list[str], st
         Training steps to snapshot the loss.
     eval:
         Whether to consider the testing or training loss.
+    copy_num:
+        Whether to copy the original values of the numerical keys.
     """
     logger.info(f"Processing results in {log_dir}")
     all_task_ids = get_task_ids(log_dir)
     for task_id in all_task_ids:
         try:
             metric_path = log_dir / "metrics" / str(task_id)
-            res = extract_config_info(log_dir, task_id, keys, num_keys)
+            res = extract_config_info(log_dir, task_id, keys, num_keys, copy_num=copy_num)
             res |= get_losses(metric_path, steps, eval=eval)
 
             with open(metric_path / "process.json", "w") as f:
