@@ -11,10 +11,8 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-import yaml
 
-from nanollama.utils import flatten_config
-from nanollama.visualization import jsonl_to_numpy
+from nanollama.visualization import extract_config_info, get_losses
 
 HOME_DIR = Path("/private/home/vivc/")
 
@@ -38,109 +36,25 @@ def get_statistics(exp: int, name: str, nb_tasks: int) -> dict[str, dict[str, An
     """
     res = {}
     log_dir = HOME_DIR / "logs" / f"exp{exp}" / name
+    keys = ["model.emb_dim", "data.seed"]
+    num_keys = ["data.gssm.nodes"]
+    steps = [30, 100, 300, 1000]
 
     for task_id in range(nb_tasks):
         task_id += 1
-        config_path = log_dir / "tasks" / f"{task_id}.yaml"
 
-        # configuration
-        with open(config_path) as f:
-            config = flatten_config(yaml.safe_load(f))
-
-        data_seed = config["run_config.data.seed"]
-
-        # data configuration
-        onfly_config = True
-        try:
-            nodes = config["run_config.data.gssm.nodes"]
-        except AttributeError:
-            nodes = config["run_config.data.path"]
-            onfly_config = False
-
+        log_dir = HOME_DIR / "logs" / f"exp{exp}" / name
         metric_path = log_dir / "metrics" / str(task_id)
 
-        # scaling parameters
-        scaling_variable = None
-        if onfly_config:
-            # number of parameters when onfly
-            filepath = metric_path / "info_model.jsonl"
-            scaling_variable = jsonl_to_numpy(filepath, keys=["model_params"])["model_params"][0]
-        else:
-            # number of data otherwise
-            scaling_variable = config["run_config.data.n_data"]
+        local_res = extract_config_info(log_dir, task_id, keys, num_keys)
+        local_res |= get_losses(metric_path, steps, eval=False)
 
-        # training results
-        try:
-            loss = None
-            for rank in range(8):
-                filepath = metric_path / f"raw_{rank}.jsonl"
-                keys = ["loss", "step"]
-                data = jsonl_to_numpy(filepath, keys=keys)
-                rank_loss = data["loss"]
-                if loss is None:
-                    loss = rank_loss
-                else:
-                    loss += rank_loss
-            loss /= 8
-            best_train_loss = loss.min()
-        except Exception as e:
-            print(e, name, task_id)
-            best_train_loss = None
-
-        # testing results
-        if onfly_config:
-            best_test_loss = None
-        else:
-            loss = None
-            for rank in range(8):
-                filepath = metric_path / f"eval_{rank}.jsonl"
-                keys = ["loss"]
-                rank_loss = jsonl_to_numpy(filepath, keys=keys)["loss"]
-                if loss is None:
-                    loss = rank_loss
-                else:
-                    loss += rank_loss
-            loss /= 8
-            best_test_loss = loss.min()
-
-        res[task_id] = {
-            "data_seed": data_seed,
-            "nodes": nodes,
-            "scaling_var": scaling_variable,
-            "best_train_loss": best_train_loss,
-            "best_test_loss": best_test_loss,
-        }
-
+        res[task_id] = local_res
     return res
 
 
-def extract_useful_info(exp: int, name: str) -> Any:
-    log_dir = HOME_DIR / "logs" / f"exp{exp}" / name
-    task_id = 1
-    config_path = log_dir / "tasks" / f"{task_id}.yaml"
-    with open(config_path) as f:
-        config = flatten_config(yaml.safe_load(f))
-
-    # get keys
-    data_seeds = config.get("launcher.grid.data.seed", None)
-    if data_seeds is None:
-        data_seeds = [config.get("run_config.data.seed")]
-    graphs = config.get("launcher.grid.data.gssm.nodes", None)
-
-    # wether training with finite data
-    if "run_config.data.path" in config:
-        xkey = "nb_data"
-        ykey = "best_test_loss"
-    # or with infinite data
-    else:
-        xkey = "nb_params"
-        ykey = "best_train_loss"
-
-    return xkey, ykey, data_seeds, graphs
-
-
 exp_list = [
-    {"exp": 1, "name": "onfly", "nb_tasks": 234},
+    # {"exp": 1, "name": "onfly", "nb_tasks": 234},
     {"exp": 2, "name": "onfly", "nb_tasks": 72},
     {"exp": 3, "name": "onfly", "nb_tasks": 72},
     {"exp": 4, "name": "onfly", "nb_tasks": 72},
@@ -152,18 +66,23 @@ for exp_config in exp_list:
     nb_tasks = exp_config["nb_tasks"]
 
     res = get_statistics(exp, name, nb_tasks)
+    xkey = "nb_params"
+    ykey = "best"
 
-    xkey, ykey, data_seeds, all_nodes = extract_useful_info(exp, name)
+    node_configs = np.unique([local_res["data.gssm.nodes"] for local_res in res.values()]).tolist()
+    data_seeds = np.unique([local_res["data.seed"] for local_res in res.values()]).tolist()
 
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
-    for i, nodes in enumerate(all_nodes):
-        xaxis, yaxis, nb = None, None, None
+    for i, node in enumerate(node_configs):
+        xaxis: np.ndarray = None
+        yaxis: np.ndarray = None
+        nb = 0
         # average losses over seeds
         for data_seed in data_seeds:
             local_x, local_y = [], []
             for local_res in res.values():
-                if local_res["nodes"] == nodes and local_res["data_seed"] == data_seed:
-                    local_x.append(local_res["scaling_var"])
+                if local_res["data.gssm.nodes"] == node and local_res["data.seed"] == data_seed:
+                    local_x.append(local_res[xkey])
                     local_y.append(local_res[ykey])
 
             order = np.argsort(local_x)
@@ -173,7 +92,6 @@ for exp_config in exp_list:
             if xaxis is None:
                 xaxis = np.array(local_x, float)[order]
                 yaxis = np.array(local_y, float)[order]
-                nb = 0
             else:
                 assert (xaxis == np.array(local_x, float)[order]).all()
                 yaxis += local_y
@@ -181,9 +99,9 @@ for exp_config in exp_list:
 
         yaxis /= nb
 
-        ax.plot(xaxis, yaxis, color=f"C{i}", label=str(nodes))
+        ax.plot(xaxis, yaxis, color=f"C{i}", label=node)
 
-    ax.set_title(f"Exp {exp}")
+    ax.set_title(f"Data seed: {data_seed}, Nodes: {node}")
     ax.set_xlabel(xkey)
     ax.set_ylabel(ykey)
     ax.legend()
@@ -196,4 +114,4 @@ for exp_config in exp_list:
         prefix = "onfly_"
     else:
         prefix = ""
-    fig.savefig(save_dir / f"{prefix}exp{exp}.png")
+    fig.savefig(save_dir / f"{prefix}data{data_seed}_node{node}.png")

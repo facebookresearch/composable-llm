@@ -1,12 +1,59 @@
-import csv
 import json
+from logging import getLogger
 from pathlib import PosixPath
 from typing import Any
 
 import numpy as np
+import yaml
+
+from .utils import flatten_config
+
+logger = getLogger("nanollama")
+
 
 # ------------------------------------------------------------------------------
-# Utilities
+# Configuration Utilities
+# ------------------------------------------------------------------------------
+
+
+def extract_config_info(log_dir: PosixPath, task_id: int, keys: list[str], num_keys: list[str]) -> dict[str, Any]:
+    """
+    Extract configuration informations.
+
+    Parameters
+    ----------
+    log_dir:
+        Path to logging directory.
+    task_id:
+        Id of the task to extract information from.
+    keys:
+        The configuration keys to extract.
+    num_keys:
+        The keys to extract as numbers.
+    """
+    res = {}
+
+    # configuration information
+    config_path = log_dir / "tasks" / f"{task_id}.yaml"
+    with open(config_path) as f:
+        config = flatten_config(yaml.safe_load(f))
+    for key in keys:
+        res[key] = config[f"run_config.{key}"]
+    for key in num_keys:
+        val = config[f"run_config.{key}"]
+        all_val = config[f"launcher.grid.{key}"]
+        res[key] = all_val.index(val)
+
+    # number of parameters
+    metric_path = log_dir / "metrics" / str(task_id)
+    filepath = metric_path / "info_model.jsonl"
+    with open(filepath) as f:
+        res["nb_params"] = json.loads(f.readline())['model_params']
+    return res
+
+
+# ------------------------------------------------------------------------------
+# Metrics Utilities
 # ------------------------------------------------------------------------------
 
 
@@ -60,58 +107,46 @@ def get_keys(path: str, readall: bool = True) -> list[str]:
     return list(keys)
 
 
-# ------------------------------------------------------------------------------
-# (Deprecated) Trace Visualization
-# ------------------------------------------------------------------------------
-
-
-def get_traces(path: PosixPath) -> dict[int, dict[str, np.ndarray]]:
+def get_losses(metric_path: str, steps: list, eval: bool = False) -> dict[str, float]:
     """
-    Get traces from csv files
+    Get the loss for the given metric path.
 
-    Example
+    Parameters
+    ----------
+    metric_path:
+        The path to the metric files.
+    world_size:
+        The number of processes.
+    steps:
+        The steps to consider.
+    eval:
+        Whether to consider the evaluation or training loss.
+
+    Returns
     -------
-    ```python
-    from pathlib import Path
-    import matplotlib.pyplot as plt
-    from nanollama.monitor.profiler import LightProfiler
-
-    path = <your path to profiler traces>
-    res = LightProfiler.get_traces(path)
-    xlabel = 'step'
-    keys = list(res[0].keys())
-    for key in keys:
-        plt.figure()
-        for rank in res:
-            data = res[rank]
-            plt.plot(data[xlabel], data[key], label=f"rank {rank}")
-        plt.legend(); plt.title(key); plt.xlabel(xlabel)
-    ```
+    The loss for the given metric path.
     """
     res = {}
-    for file_path in path.glob("*.csv"):
-        rank = int(str(file_path.name).split("_")[1])
-        header, data = _csv_to_numpy(file_path)
-        res[rank] = _process_data(header, data)
-    return res
+    prefix = "eval" if eval else "raw"
 
+    # compute the loss
+    loss = None
+    world_size = 0
+    for filepath in metric_path.glob(f"{prefix}_*.jsonl"):
+        keys = ["loss", "step"]
+        data = jsonl_to_numpy(filepath, keys=keys)
+        if loss is None:
+            loss = data["loss"]
+        else:
+            loss += data["loss"]
+        world_size += 1
+    logger.info(f"Directory {metric_path} World_size: {world_size}")
+    loss /= world_size
 
-def _csv_to_numpy(file_path: PosixPath) -> tuple[list[str], np.ndarray]:
-    with open(file_path, newline="") as csvfile:
-        csvreader = csv.reader(csvfile)
-        header = next(csvreader)
-        data = np.array([row for row in csvreader], dtype=float)
-    return header, data
-
-
-def _process_data(header: list[str], data: np.ndarray) -> dict[str, np.ndarray]:
-    res = {}
-    index = -1
-    assert header[index] == "mem_capacity"
-    capacity = data[0, index]
-    for i, key in enumerate(header):
-        res[key] = data[:, i]
-        if key in ["mem", "mem_reserved"]:
-            res[key + "_gib"] = res[key] / (1024**3)
-            res[key + "_ratio"] = res[key] / capacity
+    # extract statistics
+    step = data["step"]
+    for snapshot in steps:
+        idx = step == snapshot
+        res[f"loss_{snapshot}"] = loss[idx].item()
+    res["best"] = loss.min().item()
     return res
