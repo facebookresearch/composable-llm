@@ -21,7 +21,7 @@ from typing import Any
 import torch
 import torch.profiler as profiler
 
-from ..distributed import get_local_rank, get_rank, is_distributed_job
+from ..distributed import get_local_rank, get_rank, get_world_size
 from ..model.blocklm import BlockModel
 from ..utils import TrainState
 
@@ -214,7 +214,7 @@ class LightProfiler(BaseProfiler):
         flop_multiplier:
             Number of token updates per training step.
         """
-        module = model.module if is_distributed_job() else model
+        module = model.module if get_world_size() > 1 else model
         self.token_per_step = token_per_step
         self.flop_per_step = module.get_nb_flop(**kwargs) * token_per_step
 
