@@ -160,7 +160,7 @@ class Checkpointer(Monitor):
         self.saved_step = self.step
 
     @classmethod
-    def get_last_checkpoint_path(cls, path) -> str:
+    def get_last_checkpoint_path(cls, path: str) -> str:
         """
         Get last existing checkpoint
         """
@@ -183,7 +183,7 @@ class Checkpointer(Monitor):
                 shutil.rmtree(prefix)
 
     @classmethod
-    def _list_checkpoints(cls, path) -> list[PosixPath]:
+    def _list_checkpoints(cls, path: str) -> list[PosixPath]:
         """
         List all existing checkpoints
         """
@@ -209,11 +209,10 @@ class EvalCheckpointer:
     def __init__(self, model: nn.Module, path: str, train_step: int = None) -> None:
         self.model = model
         if train_step is None:
-          path = Path(path)
-          self.save_dir = Path(Checkpointer.get_last_checkpoint_path(path))
+            path = Path(path)
+            self.save_dir = Path(Checkpointer.get_last_checkpoint_path(path))
         else:
-          self.save_dir = Path(path) / Checkpointer.folder_name.format(train_step)
-
+            self.save_dir = Path(path) / Checkpointer.folder_name.format(train_step)
 
     def __enter__(self):
         logger.info(f"Loading model from: {str(self.save_dir)}")

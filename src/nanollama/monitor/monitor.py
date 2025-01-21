@@ -31,9 +31,9 @@ class Monitor(ABC):
 
     def __call__(self) -> None:
         """Call update function periodically."""
+        self.step += 1
         if self.period <= 0:
             return
-        self.step += 1
         if self.step % self.period == 0:
             self.update()
 
