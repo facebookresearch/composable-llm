@@ -114,7 +114,7 @@ def get_keys(path: str, readall: bool = True) -> list[str]:
     return list(keys)
 
 
-def get_losses(metric_path: str, steps: list, eval: bool = False) -> dict[str, float]:
+def get_losses(metric_path: PosixPath, steps: list, eval: bool = False) -> dict[str, float]:
     """
     Get the loss for the given metric path.
 
@@ -156,6 +156,10 @@ def get_losses(metric_path: str, steps: list, eval: bool = False) -> dict[str, f
     res["best"] = loss.min().item()
     return res
 
+def get_metrics(metric_path: PosixPath):
+    with open(metric_path / "metrics.json", "r") as f:
+      metrics = json.load(f)
+    return metrics
 
 # ------------------------------------------------------------------------------
 # Postprocessing Utilities
@@ -208,10 +212,12 @@ def process_results(
             metric_path = log_dir / "metrics" / str(task_id)
             res = extract_config_info(log_dir, task_id, keys, num_keys, copy_num=copy_num)
             res |= get_losses(metric_path, steps, eval=eval)
+            res |= get_metrics(metric_path)
 
             with open(metric_path / "process.json", "w") as f:
                 print(json.dumps(res, indent=4), file=f, flush=True)
         except Exception as e:
+            print(log_dir / "metrics" / str(task_id))
             logger.error(f"Error processing task {task_id}: {e}")
             continue
 
