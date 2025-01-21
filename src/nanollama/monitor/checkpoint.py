@@ -175,7 +175,7 @@ class Checkpointer(Monitor):
         """
         if self.keep_only <= 0:
             return
-        all_checkpoints = self._list_checkpoints()
+        all_checkpoints = self._list_checkpoints(self.path)
         all_checkpoints.sort(key=lambda p: self._get_key_step(p.name))
         for prefix in all_checkpoints[: -self.keep_only]:
             if not (prefix / "eval").exists():
