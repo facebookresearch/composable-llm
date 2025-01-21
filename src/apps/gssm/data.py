@@ -141,6 +141,7 @@ def main() -> None:
 
     all_seeds = file_configs["seed"]
     all_nodes = file_configs["gssm"]["nodes"]
+    original_paths = [set_config["path"] for set_config in file_configs["sets"]]
 
     for i, (nodes, seed) in enumerate(product(all_nodes, all_seeds)):
         if i % nb_tasks != task_id - 1:
@@ -148,8 +149,8 @@ def main() -> None:
 
         file_configs["gssm"]["nodes"] = nodes
         file_configs["seed"] = seed
-        for set_config in file_configs["sets"]:
-            set_config["path"] = set_config["path"].replace("$GRIDID", str(i))
+        for set_config, abc_path in zip(file_configs["sets"], original_paths):
+            set_config["path"] = abc_path.replace("$GRIDID", str(i))
         logger.info(f"Creating datasets for environment {seed=}, {nodes=}")
         config = initialize_nested_object(DataGenerationConfig, file_configs, inplace=False)
         create_dataset(config)
