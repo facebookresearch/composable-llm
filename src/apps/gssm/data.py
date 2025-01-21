@@ -157,7 +157,7 @@ def main() -> None:
         create_dataset(config)
 
     if task_id == 1:
-        map_datasetid_gssm(path, Path(path).parent / "data_gsmm_map.jsonl")
+        map_datasetid_gssm(path, Path(path).parent / "data_gssm_map.jsonl")
 
 
 # ------------------------------------------------------------------------------

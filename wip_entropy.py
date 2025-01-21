@@ -1,10 +1,8 @@
 import json
-from itertools import product
 from pathlib import Path
 from types import TracebackType
 
 import torch
-import yaml
 from numpy.random import default_rng
 
 from nanollama.data.gssm import DataConfig as GSSMConfig
@@ -100,35 +98,13 @@ class EntropyComputer:
 
 
 if __name__ == "__main__":
-    path = "/private/home/vivc/code/composable-llm/src/apps/gssm/configs/experiment1/data.yaml"
-
+    path = "/private/home/vivc/code/composable-llm/src/apps/gssm/configs/experiment1/data_gssm_map.jsonl"
+    all_configs = []
     with open(path) as f:
-        file_configs = yaml.safe_load(f)
-
-    all_seeds = file_configs["seed"]
-    all_nodes = file_configs["gssm"]["nodes"]
-    testset_path = file_configs.pop("sets")[1]["path"]
-    file_configs.pop("chunk_size")
-
-    all_configs = []  # FAKE
+        for line in f:
+            all_configs.append(json.loads(line))
 
     data_config = {"n_data": 10_000, "batch_size": 100}
-
-    for i, (nodes, seed) in enumerate(product(all_nodes, all_seeds)):
-        # specify gssm config
-        gssm_config = {}
-        gssm_config["gssm"] = file_configs["gssm"]
-        gssm_config["gssm"]["nodes"] = nodes
-        gssm_config["seed"] = seed
-        gssm_config["batch_size"] = "FAKE"
-        gssm_config["seq_len"] = "FAKE"
-
-        # retrieve where the generated testset is stored.
-        data_config |= {"path": testset_path.replace("$GRIDID", str(i))}
-
-        # write configs and launch the run asynchronously.
-        # TODO
-        all_configs.append({"data": data_config, "gssm": gssm_config})
 
     # write configs and launch the run asynchronously.
     for file_config in all_configs:
@@ -140,7 +116,7 @@ if __name__ == "__main__":
         node = build_gssm(config.gssm, rng=rng)
         hmm = HMM(top_node=node)
 
-        config = initialize_nested_object(DataConfig, file_config["data"], inplace=False)
+        config = initialize_nested_object(DataConfig, data_config | file_config["data"], inplace=False)
         dataloader = FileEvaluator(config)
 
         # get the data from the hdf5 file specified by the path.
