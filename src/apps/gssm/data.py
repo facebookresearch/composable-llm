@@ -11,6 +11,7 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
+import json
 import logging
 import os
 from dataclasses import dataclass, field
@@ -154,6 +155,48 @@ def main() -> None:
         logger.info(f"Creating datasets for environment {seed=}, {nodes=}")
         config = initialize_nested_object(DataGenerationConfig, file_configs, inplace=False)
         create_dataset(config)
+
+    if task_id == 1:
+        map_datasetid_gssm(path, Path(path).parent / "data_gsmm_map.jsonl")
+
+
+# ------------------------------------------------------------------------------
+# Mapping from dataset to gssm configuration
+# ------------------------------------------------------------------------------
+
+
+def map_datasetid_gssm(data_path: str, save_path: str) -> None:
+    """
+    Retrieve gssm configuration linked to datasets generated from the main function.
+    """
+
+    with open(data_path) as f:
+        file_configs = yaml.safe_load(f)
+
+    with open(save_path, "w") as f:
+        pass
+
+    all_seeds = file_configs["seed"]
+    all_nodes = file_configs["gssm"]["nodes"]
+    testset_path: str = file_configs.pop("sets")[1]["path"]
+    file_configs.pop("chunk_size")
+
+    data_config = {}
+
+    for i, (nodes, seed) in enumerate(product(all_nodes, all_seeds)):
+        # specify gssm config
+        gssm_config = {}
+        gssm_config["gssm"] = file_configs["gssm"]
+        gssm_config["gssm"]["nodes"] = nodes
+        gssm_config["seed"] = seed
+        gssm_config["batch_size"] = "FAKE"
+        gssm_config["seq_len"] = "FAKE"
+
+        # retrieve where the generated testset is stored.
+        data_config |= {"path": testset_path.replace("$GRIDID", str(i))}
+
+        with open(save_path, "a") as f:
+            print(json.dumps({"data": data_config, "gssm": gssm_config}), file=f, flush=True)
 
 
 if __name__ == "__main__":
