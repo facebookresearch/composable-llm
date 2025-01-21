@@ -1,7 +1,7 @@
 launcher:
-  name: exp3data
+  name: exp3params
   overwrite: true
-  log_dir: /checkpoint/vivc/icml/logs/exp3/data
+  log_dir: /checkpoint/vivc/icml/logs/exp3/params
 
   script: src.apps.gssm.train
 
