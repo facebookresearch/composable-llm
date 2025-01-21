@@ -19,15 +19,8 @@ You can also launch this job on the cluster
 sbatch src/apps/gssm/configs/experiment2/data.sh
 ```
 
-#### (TODO) Generate finite data
-Before running the training with these data
+You can launch an array job to train models
 ```bash
-python -m src.apps.gssm.train src/apps/gssm/configs/experiment2/four_nodes.yaml
-```
-You can also run it on the cluster with
-```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/one_node.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/two_nodes.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/four_nodes.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/eight_nodes.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/nb_data.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/nb_params.yaml
 ```

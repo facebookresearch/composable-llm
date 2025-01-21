@@ -23,24 +23,15 @@ You can also launch this job on the cluster
 sbatch src/apps/gssm/configs/experiment1/data.sh
 ```
 
-#### (Deprecated) Infinite data
-Commands to launch training runs where new data are generated on the fly.
+You can launch an array job to train models
 ```bash
-python -m src.apps.gssm.train_onfly src/apps/gssm/configs/experiment1/onfly.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/onfly.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/nb_data.yaml
+python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/nb_params.yaml
 ```
 
-#### (TODO) Finite data
-Start by generating data in advance by running
-```bash
-python -m src.apps.gssm.data src/apps/gssm/configs/experiment1/data.yaml
-```
-```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment1/from_file.yaml
-```
+#### (TODO) Entropy baseline
 
-#### (TODO) Compression performance
-
+#### (TODO) Plots
 
 #### Note on setting the difficulty level
 How to determine fair `alpha` for various graphs?
