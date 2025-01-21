@@ -50,7 +50,7 @@ class DataGenerationConfig:
     sets: list[DatasetConfig] = field(default_factory=list)
 
     def __post_init__(self):
-        # Mimic the nanollama.data.gssm.DataLoaderConfig
+        # Mimic the nanollama.data.gssm.DataConfig
         self.asynchronous = False
         self.buffer_size = None
         self.batch_size = 0
