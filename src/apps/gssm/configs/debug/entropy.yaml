@@ -21,6 +21,7 @@ run_config:
     path: /checkpoint/vivc/datasets/icml/exp1/0/testset.h5
     n_data: 1_000
     batch_size: 128
+    asynchronous: false
 
   gssm:
     seed: 0
@@ -30,23 +31,3 @@ run_config:
       nodes: 
       - {name: Z1, state_dim: 64, alpha: 1e-3}
       - {name: X, state_dim: 32, parents: [Z1], "alpha": 1e-3, "observed": true}
-
-  orchestration:
-    parent_dir: $HOME/logs/debug/
-    task_id: 0
-    train_step: 100
-
-    utils:
-      seed: 100
-
-    logging:
-      period: 1
-      # level: debug
-      level: info
-    wandb:
-      active: false
-
-    profiler:
-      active: true
-      wait: 1
-      steps: -1

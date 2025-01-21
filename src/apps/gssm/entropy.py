@@ -27,10 +27,7 @@ from ...nanollama.data.gssm import build_gssm, init_dataloader_state
 from ...nanollama.data.hdf5 import DataConfig, FileEvaluator
 from ...nanollama.distributed import get_local_rank, get_rank, is_master_process
 from ...nanollama.monitor import (
-    EvalOrchestratorConfig,
-    Logger,
     PreemptionHandler,
-    WandbLogger,
 )
 from ...nanollama.utils import initialize_nested_object
 from .hidden_markov_model import HMM
@@ -44,14 +41,14 @@ logger = getLogger("nanollama")
 
 @dataclass
 class EntropyConfig:
+    log_dir: str = ""
     data: DataConfig = field(default_factory=DataConfig)
     gssm: GSSMConfig = field(default_factory=GSSMConfig)
     hmm: HMM = field(init=False)
 
-    orchestration: EvalOrchestratorConfig = field(default_factory=EvalOrchestratorConfig)
-
     def __post_init__(self) -> None:
         """Check validity of arguments"""
+        assert self.log_dir, "No logging directory set."
 
         state = init_dataloader_state(self.gssm)
         rng = default_rng()
@@ -81,12 +78,15 @@ class EntropyComputer:
     def __init__(self, config: EntropyConfig) -> None:
         self.data_config = config.data
         self.hmm = config.hmm
-        self.path = Path(config.orchestration.log_dir) / f"eval_{get_rank()}.jsonl"
-        self.tmp_file = Path(config.orchestration.log_dir) / f".{get_rank()}.tmp"
+        log_dir = Path(config.log_dir)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        self.path = log_dir / f"eval_{get_rank()}.jsonl"
+        self.tmp_file = log_dir / f".{get_rank()}.tmp"
 
         self.step = 0
         self.loss = 0
         self.scaling = 0
+        self.device = torch.device(get_local_rank()) if torch.cuda.is_available() else torch.device("cpu")
 
     def __enter__(self) -> "EntropyComputer":
         # logger.info("Evaluating model.")
@@ -113,9 +113,8 @@ class EntropyComputer:
     def __next__(self) -> None:
         try:
             batch, _ = next(self.loader)
-            device = torch.device(get_local_rank())
 
-            entropy = self.hmm.entropy_of_observations(batch.T, device=device).mean().item() / batch.size(1)
+            entropy = self.hmm.entropy_of_observations(batch.T, device=self.device).mean().item() / batch.size(1)
 
             # evaluate
             scaling = batch.size(0) / self.data_config.batch_size
@@ -152,7 +151,6 @@ class EntropyComputer:
 def eval(config: EntropyConfig) -> None:
     with ExitStack() as context_stack:
         preemption: PreemptionHandler = context_stack.enter_context(PreemptionHandler())
-        context_stack.enter_context(Logger(config.orchestration.logging))
         computer: EntropyComputer = context_stack.enter_context(EntropyComputer(config))
 
         while next(computer):
@@ -161,10 +159,6 @@ def eval(config: EntropyConfig) -> None:
                 break
 
             logger.debug(f"Evaluation. step: {computer.step} - loss: {round(computer.loss, 4):>7}")
-
-        # wandb logging
-        wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, config))
-        wandb({"test_loss": computer.loss})
 
     if is_master_process():
         logger.info(f"Test loss: {round(computer.loss, 4):>7}")
@@ -184,7 +178,8 @@ def main() -> None:
     import argparse
 
     logging.basicConfig(
-        level=logging.INFO,
+        # level=logging.INFO,
+        level=logging.DEBUG,
         format="[%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
         handlers=[logging.StreamHandler()],
     )
@@ -206,9 +201,8 @@ def main() -> None:
     if "orchestration" not in run_config:
         run_config["orchestration"] = {}
     if "launcher" in file_config:
-        for key in ["name", "log_dir"]:
-            if key in file_config["launcher"] and key not in run_config["orchestration"]:
-                run_config["orchestration"][key] = file_config["launcher"][key]
+        if "log_dir" in file_config["launcher"]:
+            run_config["log_dir"] = file_config["launcher"]["log_dir"]
 
     # initialize configuration
     config = initialize_nested_object(EntropyConfig, run_config)
