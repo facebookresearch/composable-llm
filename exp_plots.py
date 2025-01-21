@@ -10,7 +10,6 @@ Plot scaling laws.
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 from nanollama.visualization import get_processed_results, jsonl_to_numpy, process_results
@@ -88,6 +87,7 @@ for exp, data in enumerate(all_data):
     plt.xlabel(difficulty_key)
     plt.ylabel("test loss")
     plt.title(f"exp={exp + 1}")
+    # plt.loglog()
     # plt.legend()
 
 # %% show loss vs alpha in the first experiment
@@ -110,28 +110,6 @@ for index, name in zip([range(7), range(7, 13)], ["alpha_X", "alpha_Z"]):
 plt.xlabel(difficulty_key)
 plt.ylabel("test loss")
 plt.legend()
-
-# %% (DEPRECATED - TO BE CORRECTED) show loss vs graph type
-
-for exp in range(4):
-    # show loss vs nb of parameters
-    fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-    data = all_data[exp]
-    all_nodes = np.unique(data["node_id"])
-    all_params = np.unique(data["nb_params"])
-
-    for node in all_nodes:
-        data_node = data[data["node_id"] == node]
-        for nb_params in all_params[-1:]:
-            tmp = data_node[data_node["nb_params"] == nb_params]
-            ax.scatter(tmp[difficulty_key], tmp["loss_300"], label=f"graph {node}, {nb_params} params")
-
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_title(f"exp={exp}")
-    ax.set_xlabel(difficulty_key)
-    ax.set_ylabel("test loss")
-    ax.legend()
-    plt.show()
+# plt.loglog()
 
 # %%
