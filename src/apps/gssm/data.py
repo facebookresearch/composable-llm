@@ -14,6 +14,7 @@ located in the root directory of this repository.
 import logging
 import os
 from dataclasses import dataclass, field
+from itertools import product
 from pathlib import Path
 
 import h5py
@@ -141,7 +142,7 @@ def main() -> None:
     all_seeds = file_configs["seed"]
     all_nodes = file_configs["gssm"]["nodes"]
 
-    for i, (nodes, seed) in enumerate(zip(all_nodes, all_seeds)):
+    for i, (nodes, seed) in enumerate(product(all_nodes, all_seeds)):
         if i % nb_tasks != task_id - 1:
             continue
 

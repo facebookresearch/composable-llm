@@ -10,39 +10,16 @@ Is a transformer particularly good at leveraging latents mechanism?
 Many nodes mean many independent mechanisms.
 
 ## Experiment order
-Choose a emission concentration parameter `alpha_X`.
-
-#### Set difficulty level
-Then determine some equivalent `alpha_Z` for various graphs.
-
-Gzip compression should give us a idea of how hard a problem is.
-If the compression ratio is above 98%, we may consider it as an almost impossible problem, as their is not much structure to leverage for learning algorithms to show their strenght.
-I would assume that a compression ratio aroudnd 75% would be a good starting point for a hard problem that is still `learnable`, in the sense that various learning algorithm will perform differently.
-This 75% could change later if we realize that it was not a good target.
-
-The experiment can be launched locally with
+Start by defining some graphs, and generating data
 ```bash
-bash src/apps/gssm/configs/experiment2/difficulty.sh main
-bash src/apps/gssm/configs/experiment2/difficulty.sh entropy
+bash src/apps/gssm/configs/experiment2/data.sh
 ```
-Or on the cluster with
+You can also launch this job on the cluster
 ```bash
-sbatch src/apps/gssm/configs/experiment2/difficulty.sh main
-sbatch src/apps/gssm/configs/experiment2/difficulty.sh entropy
-```
-
-#### Run with infinite data
-After choosing pairs, you can generate a training run where you generate new data on the fly.
-You may run it on a cluster with
-```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment2/onfly.yaml
+sbatch src/apps/gssm/configs/experiment2/data.sh
 ```
 
 #### (TODO) Generate finite data
-You may equally fix the number of data in advance by running
-```bash
-python -m src.apps.gssm.data src/apps/gssm/configs/experiment2/data.yaml
-```
 Before running the training with these data
 ```bash
 python -m src.apps.gssm.train src/apps/gssm/configs/experiment2/four_nodes.yaml

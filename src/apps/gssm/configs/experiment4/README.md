@@ -4,16 +4,11 @@
 Does a transformer do better with slow evolving features, or with a dead mode?
 
 ## Experiment order
-Choose a graph. Set some nodes in various modes: slow evolution (`slow`), return to default state (`dead`), with transition matrix sample for each new sequences (`context`).
-
-Experiments can be launched with
+Start by defining some graphs, and generating data
 ```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/onfly.yaml
+bash src/apps/gssm/configs/experiment4/data.sh
 ```
-(TODO) As well as
+You can also launch this job on the cluster
 ```bash
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/base.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/slow.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/dead.yaml
-python -m src.nanollama.launcher src/apps/gssm/configs/experiment4/context.yaml
+sbatch src/apps/gssm/configs/experiment4/data.sh
 ```
