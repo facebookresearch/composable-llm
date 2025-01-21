@@ -25,7 +25,7 @@ from numpy.random import default_rng
 from ...nanollama.data.gssm import DataConfig as GSSMConfig
 from ...nanollama.data.gssm import build_gssm, init_dataloader_state
 from ...nanollama.data.hdf5 import DataConfig, FileEvaluator
-from ...nanollama.distributed import get_local_rank, get_rank, is_master_process
+from ...nanollama.distributed import ClusterConfig, ClusterManager, get_local_rank, get_rank, is_master_process
 from ...nanollama.monitor import (
     PreemptionHandler,
 )
@@ -152,6 +152,7 @@ class EntropyComputer:
 def eval(config: EntropyConfig) -> None:
     with ExitStack() as context_stack:
         preemption: PreemptionHandler = context_stack.enter_context(PreemptionHandler())
+        context_stack.enter_context(ClusterManager(ClusterConfig()))
         computer: EntropyComputer = context_stack.enter_context(EntropyComputer(config))
 
         while next(computer):
@@ -199,8 +200,6 @@ def main() -> None:
         run_config = file_config
 
     # casting logging directory to run_config
-    if "orchestration" not in run_config:
-        run_config["orchestration"] = {}
     if "launcher" in file_config:
         if "log_dir" in file_config["launcher"]:
             run_config["log_dir"] = file_config["launcher"]["log_dir"]

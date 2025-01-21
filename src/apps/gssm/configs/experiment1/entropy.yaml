@@ -1,8 +1,10 @@
 # Debugging configuration
 
+configs_path: /private/home/vivc/code/composable-llm/src/apps/gssm/configs/experiment1/data_gssm_map.jsonl
+
 launcher:
   name: debug_entropy
-  log_dir: $HOME/logs/exp1/0
+  log_dir: /checkpoint/vivc/icml/logs/exp1/entropy
   overwrite: false
   copy_code: false
 
@@ -18,16 +20,7 @@ launcher:
 
 run_config:
   data:
-    path: /checkpoint/vivc/datasets/icml/exp1/0/testset.h5
-    n_data: 1_000
+    path: placeholder
+    n_data: 10_000
     batch_size: 100
     asynchronous: false
-
-  gssm:
-    seed: 0
-    batch_size: FAKE
-    seq_len: FAKE
-    gssm:
-      nodes: 
-      - {name: Z1, state_dim: 64, alpha: 1e-3}
-      - {name: X, state_dim: 32, parents: [Z1], "alpha": 1e-3, "observed": true}
