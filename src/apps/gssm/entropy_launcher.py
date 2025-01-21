@@ -8,7 +8,7 @@ import yaml
 SBATCH = """#!/bin/bash
 
 # Logging configuration
-#SBATCH --job-name=entropy1
+#SBATCH --job-name=entropy{exp}
 #SBATCH --output=/private/home/%u/logs/exp{exp}/entropy/logs/%a.log
 #SBATCH --error=/private/home/%u/logs/exp{exp}/entropy/logs/%a.err
 #SBATCH --open-mode=append
@@ -58,6 +58,7 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
     for i, conf in enumerate(all_configs):
         config["run_config"]["data"] |= conf["data"]
         config["run_config"]["gssm"] = conf["gssm"]
+        config["launcher"]["log_dir"] = str(log_dir / str(i))
 
         config_path = log_dir / "tasks" / f"{i + 1}.yaml"
 

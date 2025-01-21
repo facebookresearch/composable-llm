@@ -1,6 +1,6 @@
 # Debugging configuration
 
-configs_path: /private/home/vivc/code/composable-llm/src/apps/gssm/configs/experiment1/data_gssm_map.jsonl
+configs_path: /private/home/vivc/code/composable-llm/src/apps/gssm/configs/experiment2/data_gssm_map.jsonl
 
 launcher:
   name: debug_entropy
