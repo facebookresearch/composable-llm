@@ -25,7 +25,7 @@ from numpy.random import default_rng
 from ...nanollama.data.gssm import DataConfig as GSSMConfig
 from ...nanollama.data.gssm import build_gssm, init_dataloader_state
 from ...nanollama.data.hdf5 import DataConfig, FileEvaluator
-from ...nanollama.distributed import get_rank, is_master_process
+from ...nanollama.distributed import get_local_rank, get_rank, is_master_process
 from ...nanollama.monitor import (
     PreemptionHandler,
 )
@@ -81,18 +81,13 @@ class EntropyComputer:
         self.hmm = config.hmm
         log_dir = Path(config.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
-        print(f"{log_dir=}")
         self.path = log_dir / f"eval_{get_rank()}.jsonl"
         self.tmp_file = log_dir / f".{get_rank()}.tmp"
-
-        print(self.tmp_file)
-        print(self.tmp_file.exists())
 
         self.step = 0
         self.loss = 0
         self.scaling = 0
-        # self.device = torch.device(get_local_rank()) if torch.cuda.is_available() else torch.device("cpu")
-        self.device = "cpu"
+        self.device = torch.device(get_local_rank()) if torch.cuda.is_available() else torch.device("cpu")
 
     def __enter__(self) -> "EntropyComputer":
         # logger.info("Evaluating model.")
