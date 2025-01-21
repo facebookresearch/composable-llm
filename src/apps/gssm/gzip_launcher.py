@@ -19,6 +19,8 @@ import yaml
 
 def gzip_estimate(exp: int, code_dir: str) -> None:
     save_path = f"/checkpoint/vivc/icml/logs/exp{exp}/gzip.jsonl"
+    with open(save_path, "w") as f:
+        pass
 
     path = f"{code_dir}src/apps/gssm/configs/experiment{exp}/entropy.yaml"
     with open(path) as f:
@@ -35,8 +37,8 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
             data = f["data"][:, 1:]
 
         entropy = len(zlib.compress(data.tobytes(), level=9)) / data.size
-        with open(save_path, "a'") as f:
-            print(json.dumps({"id": Path(path).parent.name, "entropy": entropy}), file=f, flush=True)
+        with open(save_path, "a") as f:
+            print(json.dumps({"id": int(Path(path).parent.name), "entropy": entropy}), file=f, flush=True)
 
 
 if __name__ == "__main__":
