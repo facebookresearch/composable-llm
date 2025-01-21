@@ -41,6 +41,8 @@ for exp in range(1, 5):
         data = data.merge(difficulty, left_on=["grid_id"], right_on=["grid_id"], how="left")
     all_data.append(data)
 
+# TODO map the data grid_id to the corresponding graph, and add this to the DataFrame (this corresponds to what was num:data.gssm.nodes before)
+
 # ------------------------------------------------------------------------------
 # Generate plots from the DataFrame
 # ------------------------------------------------------------------------------
