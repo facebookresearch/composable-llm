@@ -32,6 +32,7 @@ from ...nanollama.monitor import (
     OrchestratorConfig,
     PreemptionHandler,
     Profiler,
+    ProfilerConfig,
     UtilityConfig,
     UtilityManager,
     WandbConfig,
@@ -153,7 +154,7 @@ def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]
             (SlurmConfig, "slurm"),
             (ClusterConfig, "cluster"),
             (LoggerConfig, "orchestration.logging"),
-            (LoggerConfig, "orchestration.profiler"),
+            (ProfilerConfig, "orchestration.profiler"),
             (UtilityConfig, "orchestration.utils"),
             (WandbConfig, "orchestration.wandb"),
         ]
@@ -440,6 +441,11 @@ def main() -> None:
     run_config["slurm"] = launcher.pop("slurm", {})
     config_inheritance(run_config, eval_config)
     run_config.pop("slurm")
+
+    # grid id system to handle multiple datasets
+    grid_id = run_config.get("grid_id", 0)
+    run_config["data"]["path"] = run_config["data"]["path"].replace("$GRIDID", str(grid_id))
+    run_config["evaluation"]["data"]["path"] = run_config["evaluation"]["data"]["path"].replace("$GRIDID", str(grid_id))
 
     # initialize configuration
     implementation = run_config.get("model", {}).get("implementation", "").lower()
