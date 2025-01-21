@@ -2,13 +2,12 @@
 # The outer keys for the different entry could be anything
 # The inner keys should respect the same structure
 
-debug:
-  seq_len: 2048
-  seed: 42
-  chunk_size: 1_000
-  gssm:
-    nodes:
-    - name: Z1
+seq_len: 2048
+seed: [42]
+chunk_size: 1_000
+gssm:
+  nodes:
+  - - name: Z1
       state_dim: 256
       parents: []
       alpha: 1
@@ -21,8 +20,8 @@ debug:
       parents: [Z1, Z2]
       alpha: 1e-2
       observed: True
-  sets:
-  - n_data: 10_000
-    path: $HOME/data/composition/debug/trainset.h5
-  - n_data: 1_000
-    path: $HOME/data/composition/debug/testset.h5
+sets:
+- n_data: 10_000
+  path: $HOME/data/composition/debug/trainset.h5
+- n_data: 1_000
+  path: $HOME/data/composition/debug/testset.h5
