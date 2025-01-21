@@ -263,6 +263,46 @@ class HMM:
         H_T = H_t[-1]
         return H_T
 
+def entropy_of_observations_ICL(observations : np.ndarray, config = None, N2: int = 500) -> np.ndarray:
+    # First attempt
+    """ 
+        Entropy estimation in the In Context Learning case
+        The negloglikelihood of the observations (whose mean is an approximation of the entropy of the sequences of observables) is approximated as follows:
+        for each sequence of observations X_[t], N2 Hmms are randomly generated (each corresponding to a transition and an emission matrices)
+        Then  log(p(X_[t])) ~= log(1/N2 * sum_hmm p(X_[t]|hmm))
+        In line with the convention in the function entropy_of_observations, the output is an array whose entries are the negloglikelihood of the observed sequences (rather than the mean of such an array)
+        
+        Args:
+            observations : A set of observed sequences [seq_len, N1]
+        Returns:
+            H_T: the estimated entropies [B]
+    """
+    # WARNING: here we use distinct HMMs for each sequence of observables.
+    # It probably results in better convergence, but I think it keeps us from being cuda-compatible
+    T, N1 = observations.shape
+    # a list of the negloglikelihoods -log(p(X_[t])) of the N1 sequences X_[t] of observations
+    neglogliks_of_the_observations = []
+    random_seed = 0
+    hmm = HMM(config)
+    for i in range(N1):
+        # a list of length N2 of the negloglikelihood of observation observations[:,i] conditioned by the N2 random hmms sampled
+        conditional_neglogliks_of_the_observation = []
+        for j in range(N2):
+            hmm.top_node.initialize()
+            hmm.transitions = {node: hmm._format_transition(node) for _, node in hmm.topo_order}
+            # negloglik_of_single_observation is a scalar
+            conditional_neglogliks_of_the_observation.append(hmm.entropy_of_observations(observations[:,[i]])[0].item())
+        # estimate the likelihood of the sequence of observation observations[:,i] as the mean of the conditional likelihood P(observations[:,i] | hmm) over the N2 hmms
+        neglogliks_of_the_observations.append( np.logaddexp.reduce(np.array(conditional_neglogliks_of_the_observation)) - np.log(N2)) 
+
+    return np.array(neglogliks_of_the_observations)
+    
+
+        
+
+
+
+
 
 if __name__ == "__main__":
     gssm_config = {
