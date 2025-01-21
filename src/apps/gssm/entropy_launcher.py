@@ -19,6 +19,7 @@ SBATCH = """#!/bin/bash
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=10
+#SBATCH --mem=80G
 #SBATCH --time=1:00:00
 #SBATCH --array=1-{nb_tasks}
 
@@ -60,9 +61,7 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
         config["run_config"]["gssm"] = conf["gssm"]
         config["launcher"]["log_dir"] = str(log_dir / str(i))
 
-        config_path = log_dir / "tasks" / f"{i + 1}.yaml"
-
-        with open(config_path, "w") as f:
+        with open(log_dir / "tasks" / f"{i + 1}.yaml", "w") as f:
             yaml.dump(config, f)
 
         with open(run_file, "w") as f:
