@@ -43,8 +43,8 @@ python -m src.apps.gssm.launcher_gzip
 This file also compute an estimate of the entropy from the compression one can get with gzip.
 Feel free to command some part of the file to launch only the part you want.
 
-
 #### (TODO) Plots
+Preliminary plots can be generated with the `exp_plots` script.
 
 #### Note on setting the difficulty level
 How to determine fair `alpha` for various graphs?
