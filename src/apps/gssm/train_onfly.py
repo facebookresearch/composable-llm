@@ -319,6 +319,7 @@ def train(config: TrainingConfig) -> None:
             if log_period > 0 and step % log_period == 0:
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
+
                 metrics = {
                     "loss": loss.item(),
                     "step": step,
@@ -336,6 +337,18 @@ def train(config: TrainingConfig) -> None:
 
     _logger.info("Training done.")
 
+
+def train_config_from_run_config(run_config):
+  # initialize configuratiou
+  run_config = copy.deepcopy(run_config)
+  implementation = run_config.get("model", {}).get("implementation", "").lower()
+  if implementation == "mamba":
+      config_gen = mamba_config_gen()
+  elif implementation in ["hawk", "mingru", "minlstm"]:
+      config_gen = rnn_config_gen()
+  else:
+      config_gen = TransformerTrainingConfig
+  return initialize_nested_object(config_gen, run_config)
 
 def main() -> None:
     """
@@ -375,18 +388,8 @@ def main() -> None:
         if key in launcher and key not in run_config["orchestration"]:
             run_config["orchestration"][key] = launcher[key]
 
-    # initialize configuration
-    implementation = run_config.get("model", {}).get("implementation", "").lower()
-    if implementation == "mamba":
-        config_gen = mamba_config_gen()
-    elif implementation in ["hawk", "mingru", "minlstm"]:
-        config_gen = rnn_config_gen()
-    else:
-        config_gen = TransformerTrainingConfig
-    config = initialize_nested_object(config_gen, run_config)
-
     # Launch training with the config
-    train(config)
+    train(train_config_from_run_config(run_config))
 
 
 if __name__ == "__main__":
