@@ -14,22 +14,21 @@ import logging
 import os
 import zlib
 from dataclasses import dataclass, field
-from itertools import product
 from pathlib import Path
 from typing import Any
-import tqdm
 
 import numpy as np
 import torch
+import tqdm
 import yaml
 
 from nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from nanollama.launcher import get_configs_from_grid
 from nanollama.monitor.checkpoint import EvalCheckpointer
-from nanollama.utils import flatten_config, initialize_nested_object
-from .train_onfly import train_config_from_run_config, TrainingConfig
+from nanollama.utils import flatten_config
 
 from .hidden_markov_model import HMM
+from .train_onfly import TrainingConfig, train_config_from_run_config
 
 logger = logging.getLogger("nanollama")
 
@@ -86,18 +85,14 @@ def hmm_loss(config: DataConfig, n_batches: int) -> float:
     entropys = []
     for _ in range(n_batches):
         batch = next(gen)
-        entropys.append(
-            hmm.entropy_of_observations(batch.T, device=device).mean().item()
-        )
+        entropys.append(hmm.entropy_of_observations(batch.T, device=device).mean().item())
     return np.mean(entropys) / (config.seq_len - 1)
 
 
 def model_loss(config: TrainingConfig, ckpt_path: str, n_batches: int) -> float:
     def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         vocab_size = preds.size(-1)
-        return torch.nn.functional.cross_entropy(
-            preds.reshape(-1, vocab_size), targets.reshape(-1)
-        )
+        return torch.nn.functional.cross_entropy(preds.reshape(-1, vocab_size), targets.reshape(-1))
 
     model = config.model_gen(config.model)
     if config.cluster.compile_model:
@@ -115,11 +110,10 @@ def model_loss(config: TrainingConfig, ckpt_path: str, n_batches: int) -> float:
                 losses.append(loss_func(logits[:, :-1], batch[:, 1:]).item())
 
     except FileNotFoundError:
-        logger.info("No checkpoint found at {}".format(ckpt_path))
+        logger.info(f"No checkpoint found at {ckpt_path}")
         losses.append(np.nan)
 
     return np.mean(losses)
-
 
 # ------------------------------------------------------------------------------
 # Loop Over Configurations
@@ -136,9 +130,7 @@ class RangeValue:
     def __post_init__(self):
         if self.num == 1:
             self.values = [self.min]
-        self.values = np.logspace(
-            np.log10(self.min), np.log10(self.max), num=self.num
-        ).tolist()
+        self.values = np.logspace(np.log10(self.min), np.log10(self.max), num=self.num).tolist()
 
 
 @dataclass
@@ -166,9 +158,7 @@ class DifficultyEstimationConfig:
             self.path = os.path.expandvars(self.path)
 
 
-def estimate_entropy(
-    path: str, task_id: int, nb_tasks: int, bsz: int, n_batches: int
-) -> None:
+def estimate_entropy(path: str, task_id: int, nb_tasks: int, bsz: int, n_batches: int) -> None:
     """
     Launch a difficulty estimation job from training configuration file specified by cli argument.
 
@@ -230,15 +220,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Difficulty Estimation Tool")
     parser.add_argument("config", type=str, help="Path to configuration file")
-    parser.add_argument(
-        "--task-id", type=int, default=1, help="Task id in the job array."
-    )
-    parser.add_argument(
-        "--nb-tasks", type=int, default=1, help="Number of tasks in the job array."
-    )
-    parser.add_argument(
-        "--bsz", type=int, default=0, help="batch size to compute entropy estimate."
-    )
+    parser.add_argument("--task-id", type=int, default=1, help="Task id in the job array.")
+    parser.add_argument("--nb-tasks", type=int, default=1, help="Number of tasks in the job array.")
+    parser.add_argument("--bsz", type=int, default=0, help="batch size to compute entropy estimate.")
     parser.add_argument(
         "--n-batches",
         type=int,

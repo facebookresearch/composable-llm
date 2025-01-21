@@ -31,7 +31,6 @@ fi
 
 echo "Running task $SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
 
-export COMMAND=$1
 export FILENAME=onfly
 export BSZ=128
 export NBATCHES=50
