@@ -157,24 +157,28 @@ def main() -> None:
         create_dataset(config)
 
     if task_id == 1:
-        map_datasetid_gssm(path, Path(path).parent / "data_gssm_map.jsonl")
+        map_datasetid_gssm(path)
 
 
 # ------------------------------------------------------------------------------
-# Mapping from dataset to gssm configuration
+# Mappings from dataset to configuration
 # ------------------------------------------------------------------------------
 
 
-def map_datasetid_gssm(data_path: str, save_path: str) -> None:
+def map_datasetid_gssm(data_path: str) -> None:
     """
     Retrieve gssm configuration linked to datasets generated from the main function.
     """
+    save_path = Path(data_path).parent / "map_grid_id_gssm_config.jsonl"
+    id_path = Path(data_path).parent / "map_grid_id_gssm_id.jsonl"
+    node_path = Path(data_path).parent / "map_gssm_id_gssm_config.jsonl"
 
     with open(data_path) as f:
         file_configs = yaml.safe_load(f)
 
-    with open(save_path, "w") as f:
-        pass
+    for path in [save_path, id_path, node_path]:
+        with open(path, "w") as f:
+            pass
 
     all_seeds = file_configs["seed"]
     all_nodes = file_configs["gssm"]["nodes"]
@@ -197,6 +201,13 @@ def map_datasetid_gssm(data_path: str, save_path: str) -> None:
 
         with open(save_path, "a") as f:
             print(json.dumps({"data": data_config, "gssm": gssm_config}), file=f, flush=True)
+
+        with open(id_path, "a") as f:
+            print(json.dumps({"node_id": all_nodes.index(nodes), "seed": seed, "grid_id": i}), file=f, flush=True)
+
+    for nodes in all_nodes:
+        with open(node_path, "a") as f:
+            print(json.dumps({"node_id": all_nodes.index(nodes), "nodes": nodes}, indent=4), file=f, flush=True)
 
 
 if __name__ == "__main__":

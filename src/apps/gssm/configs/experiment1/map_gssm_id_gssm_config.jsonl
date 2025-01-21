@@ -1,0 +1,247 @@
+{
+    "node_id": 0,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 1,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "3e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 2,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-2",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 3,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "3e-2",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 4,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-1",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 5,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "3e-1",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 6,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-0",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 7,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 8,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-2"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 9,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "3e-2"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 10,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-1"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 11,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "3e-1"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 12,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 64,
+            "alpha": "1e-0"
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
