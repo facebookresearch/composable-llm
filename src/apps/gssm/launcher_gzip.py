@@ -38,7 +38,7 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 
         entropy = len(zlib.compress(data.tobytes(), level=9)) / data.size
         with open(save_path, "a") as f:
-            print(json.dumps({"id": int(Path(path).parent.name), "entropy": entropy}), file=f, flush=True)
+            print(json.dumps({"grid_id": int(Path(path).parent.name), "gzip_difficulty": entropy}), file=f, flush=True)
 
 
 if __name__ == "__main__":
@@ -46,3 +46,10 @@ if __name__ == "__main__":
     for exp in range(1, 5):
         print(f"Running experiment {exp}")
         gzip_estimate(exp, code_dir)
+
+    # merge the hmm estimate in the same format
+    from .launcher_entropy import merge_hmm_estimate
+
+    for exp in range(1, 5):
+        print(f"Merging hmm estimate for experiment {exp}")
+        merge_hmm_estimate(exp, code_dir)

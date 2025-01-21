@@ -90,6 +90,48 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
     os.system(f"sbatch {run_file}")
 
 
+def merge_hmm_estimate(exp: int, code_dir: str) -> None:
+    """
+    Merge files created by the entropy launcher into single jsonl files.
+
+    This is useful to homogenize the format of the entropy estimates.
+    """
+    save_path = f"/checkpoint/vivc/icml/logs/exp{exp}/hmm.jsonl"
+    with open(save_path, "w") as f:
+        pass
+
+    path = f"{code_dir}src/apps/gssm/configs/experiment{exp}/entropy.yaml"
+    with open(path) as f:
+        config = yaml.safe_load(f)
+
+    all_configs = []
+    with open(config.pop("configs_path")) as f:
+        for line in f:
+            all_configs.append(json.loads(line))
+
+    nb_tasks = len(all_configs)
+    log_dir = Path(os.path.expandvars(config["launcher"]["log_dir"]))
+
+    # for all data files
+    for i in range(nb_tasks):
+        # retrieve entropy estimates
+        metric_dir = log_dir / str(i)
+        loss = None
+        num = 0
+        for file in metric_dir.glob("eval_*.jsonl"):
+            with open(file) as f:
+                if loss is None:
+                    loss = json.load(f)["loss"]
+                else:
+                    loss += json.load(f)["loss"]
+                num += 1
+            loss /= num
+
+        # save it to a jsonl file
+        with open(save_path, "a") as f:
+            print(json.dumps({"grid_id": i, "hmm_difficulty": loss}), file=f, flush=True)
+
+
 if __name__ == "__main__":
     code_dir = "/private/home/vivc/code/composable-llm/"
     for exp in range(1, 5):

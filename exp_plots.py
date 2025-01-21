@@ -15,29 +15,31 @@ import pandas as pd
 
 from nanollama.visualization import get_processed_results, jsonl_to_numpy, process_results
 
-HOME_DIR = Path("/private/home/nolte/")
-name = "onfly"
+HOME_DIR = Path("/checkpoint/vivc/icml/")
+name = "data"
 
 # %% Process results
-keys = ["model.emb_dim", "data.seed"]
-num_keys = ["data.gssm.nodes"]
-steps = [30, 100, 300, 1000]
+keys = ["data.n_data", "grid_id"]
+num_keys = []
+steps = [100, 300, 1000, 3000]
 
-for exp in range(1,2):
+for exp in range(1, 5):
     log_dir = HOME_DIR / "logs" / f"exp{exp}" / name
-    process_results(log_dir, keys, num_keys, steps, eval=False, copy_num=True)
+    process_results(log_dir, keys, num_keys, steps, eval=True, copy_num=True)
 
 # %% Load processed results in a DataFrame
 all_data = []
-for exp in range(1, 2):
+for exp in range(1, 5):
     log_dir = HOME_DIR / "logs" / f"exp{exp}" / name
     data = get_processed_results(log_dir)
 
-    config_id = data.groupby("num:data.gssm.nodes")["data.gssm.nodes"].first()
-    data.drop(columns=["seed", "num:data.gssm.node", "data.gssm.nodes"], inplace=True)
-
+    # retrieve corresponding entropy esimates
+    for key in ["gzip", "hmm"]:
+        filepath = log_dir.parent / f"{key}.jsonl"
+        keys = [f"{key}_difficulty", "grid_id"]
+        difficulty = pd.DataFrame(jsonl_to_numpy(filepath, keys))
+        data = data.merge(difficulty, left_on=["grid_id"], right_on=["grid_id"], how="left")
     all_data.append(data)
-
 
 # ------------------------------------------------------------------------------
 # Generate plots from the DataFrame
@@ -45,8 +47,8 @@ for exp in range(1, 2):
 
 # %% show loss vs entropy
 
-difficulty_key = "difficulty_hmm"
-# difficulty_key = "difficulty_gzip"
+difficulty_key = "hmm_difficulty"
+# difficulty_key = "gzip_difficulty"
 
 for data in all_data:
     plt.figure()
@@ -54,12 +56,12 @@ for data in all_data:
     plt.plot([0, 3], [0, 3], color="black", ls=":")
     for nb_params in data["nb_params"].unique():
         tmp = data[data["nb_params"] == nb_params]
-        plt.scatter(tmp[difficulty_key], tmp["loss"], label=f"{nb_params} params")
+        plt.scatter(tmp[difficulty_key], tmp["best"], label=f"{nb_params} params")
     plt.xlabel(difficulty_key)
     plt.ylabel("test loss")
     plt.legend()
 
-# %% show loss vs alpha in the first experiment
+# %% (DEPRECATED - TO BE CORRECTED) show loss vs alpha in the first experiment
 
 plt.figure()
 data = all_data[0]
@@ -75,12 +77,12 @@ for index, name in zip([range(7), range(7, 13)], ["alpha_X", "alpha_Z"]):
 
     for nb_params in data["nb_params"].unique():
         _tmp = tmp[tmp["nb_params"] == nb_params]
-        plt.scatter(_tmp[difficulty_key], _tmp["loss"], label=f"{nb_params} params, varying {name}")
+        plt.scatter(_tmp[difficulty_key], _tmp["best"], label=f"{nb_params} params, varying {name}")
 plt.xlabel(difficulty_key)
 plt.ylabel("test loss")
 plt.legend()
 
-# %% show loss vs graph type
+# %% (DEPRECATED - TO BE CORRECTED) show loss vs graph type
 
 for exp in range(4):
     # show loss vs nb of parameters
