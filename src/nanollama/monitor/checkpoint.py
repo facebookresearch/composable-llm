@@ -96,7 +96,7 @@ class Checkpointer(Monitor):
         """
         Loading checkpoint if any
         """
-        path = self._get_last_checkpoint_path()
+        path = self.get_last_checkpoint_path(self.path)
         if not path:
             return self
 
@@ -159,13 +159,14 @@ class Checkpointer(Monitor):
 
         self.saved_step = self.step
 
-    def _get_last_checkpoint_path(self) -> str:
+    @classmethod
+    def get_last_checkpoint_path(cls, path) -> str:
         """
         Get last existing checkpoint
         """
-        folders = self._list_checkpoints()
+        folders = cls._list_checkpoints(path)
         if folders:
-            return max(folders, key=lambda p: self._get_key_step(p.name))
+            return max(folders, key=lambda p: cls._get_key_step(p.name))
         return ""
 
     def _cleaning(self) -> None:
@@ -181,11 +182,12 @@ class Checkpointer(Monitor):
                 logger.info(f"Removing: {str(prefix)}")
                 shutil.rmtree(prefix)
 
-    def _list_checkpoints(self) -> list[PosixPath]:
+    @classmethod
+    def _list_checkpoints(cls, path) -> list[PosixPath]:
         """
         List all existing checkpoints
         """
-        return [p for p in self.path.iterdir() if p.is_dir() and re.match(self.re_folder, p.name)]
+        return [p for p in path.iterdir() if p.is_dir() and re.match(cls.re_folder, p.name)]
 
     @classmethod
     def _get_key_step(cls, name: str) -> int:
@@ -204,9 +206,14 @@ class Checkpointer(Monitor):
 
 
 class EvalCheckpointer:
-    def __init__(self, model: nn.Module, path: str, train_step: int) -> None:
+    def __init__(self, model: nn.Module, path: str, train_step: int = None) -> None:
         self.model = model
-        self.save_dir = Path(path) / Checkpointer.folder_name.format(train_step)
+        if train_step is None:
+          path = Path(path)
+          self.save_dir = Path(Checkpointer.get_last_checkpoint_path(path))
+        else:
+          self.save_dir = Path(path) / Checkpointer.folder_name.format(train_step)
+
 
     def __enter__(self):
         logger.info(f"Loading model from: {str(self.save_dir)}")
