@@ -15,12 +15,12 @@ launcher:
     mem: 16G
     nodes: 1
     nb_gpus: 2        # use torchrun, or slurm, for multi-gpu runs
-    time: 10          # job time in minutes
+    time: 1440        # job time in minutes
     signal_time: 60   # alert time in seconds
 
 run_config:
   data:
     path: placeholder
     n_data: 10_000
-    batch_size: 100
+    batch_size: 1
     asynchronous: false

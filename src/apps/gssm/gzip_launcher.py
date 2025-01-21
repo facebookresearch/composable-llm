@@ -44,4 +44,5 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 if __name__ == "__main__":
     code_dir = "/private/home/vivc/code/composable-llm/"
     for exp in range(1, 5):
+        print(f"Running experiment {exp}")
         gzip_estimate(exp, code_dir)

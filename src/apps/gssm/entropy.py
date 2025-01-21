@@ -182,7 +182,7 @@ def main() -> None:
     logging.basicConfig(
         # level=logging.INFO,
         level=logging.DEBUG,
-        format="[%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
+        format="[%(levelname)s] %(asctime)s %(filename)s:%(lineno)d - %(message)s",
         handlers=[logging.StreamHandler()],
     )
 
