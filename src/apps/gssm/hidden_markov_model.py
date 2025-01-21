@@ -223,7 +223,6 @@ class HMM:
         Returns:
             forward_probs (torch.tensor): Forward probabilities [S, seq_len, B]
         """
-        logger.info("Starting forward algorithm")
         num_states = log_T.shape[0]
         T, B = obs.shape
         log_T = log_T.to(device).to(torch.float64)
@@ -241,7 +240,6 @@ class HMM:
         log_T = log_T[:, :, None]
 
         for t in range(1, T):
-            logger.info(f"Forward step {t}/{T}")
             forward_probs[:, t, :] = log_E[:, obs[t]] + torch.logsumexp(
                 forward_probs[:, None, t - 1, :] + log_T, dim=0
             )
