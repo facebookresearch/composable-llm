@@ -151,7 +151,7 @@ def get_losses(metric_path: PosixPath, steps: list, eval: bool = False) -> dict[
     # extract statistics
     step = data["step"]
     for snapshot in steps:
-        idx = (step == snapshot).argmax()
+        idx = step == snapshot
         res[f"loss_{snapshot}"] = loss[idx].item()
     res["best"] = loss.min().item()
     return res
