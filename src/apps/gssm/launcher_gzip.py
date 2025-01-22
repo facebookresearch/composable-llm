@@ -13,6 +13,7 @@ import json
 import zlib
 from pathlib import Path
 import getpass
+import os
 
 import h5py
 import yaml
@@ -28,7 +29,7 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
         config = yaml.safe_load(f)
 
     all_configs = []
-    with open(config.pop("configs_path")) as f:
+    with open(os.path.expandvars(config.pop("configs_path"))) as f:
         for line in f:
             all_configs.append(json.loads(line))
 
@@ -43,7 +44,7 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    code_dir = f"/private/home/{getpass.getuser()}/code/composable-llm/"
+    code_dir = f"/private/home/{getpass.getuser()}/projects/composable-llm/"
     for exp in range(1, 5):
         print(f"Running experiment {exp}")
         gzip_estimate(exp, code_dir)

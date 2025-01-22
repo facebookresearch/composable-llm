@@ -14,7 +14,7 @@ launcher:
     partition: scavenge
     mem: 16G
     nodes: 1
-    nb_gpus: 2        # use torchrun, or slurm, for multi-gpu runs
+    nb_gpus: 1        # use torchrun, or slurm, for multi-gpu runs
     time: 1440        # job time in minutes
     signal_time: 60   # alert time in seconds
 
