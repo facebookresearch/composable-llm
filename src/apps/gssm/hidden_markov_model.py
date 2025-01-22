@@ -135,7 +135,7 @@ class HMM:
         out_str = "".join(self._node_sym_out(n) for n in ordered_nodes)
         return in_str + out_str
 
-    @lru_cache(100)  # noqa: B019
+    #@lru_cache(100)  # noqa: B019
     def make_prod_transition(self, tgt_node):
         node_order = [node for _, node in self._dfs(tgt_node)]
 
@@ -168,7 +168,7 @@ class HMM:
         samples = torch.multinomial(torch.tensor(next_state), 1).numpy()[:,0]
         return self.individual_states(samples, self.topo_order)
 
-    @lru_cache(100)  # noqa: B019
+    #@lru_cache(100)  # noqa: B019
     def get_p_emission(self, tgt_node):
         # p_emission is a projection matrix from the product state
         # state @ p_emission = state_X
@@ -273,7 +273,7 @@ class HMM:
         else:
             return H_t
 
-    def forward_probs_ICL(self, observations : np.ndarray, N2: int = 500) -> np.ndarray:
+    def forward_probs_ICL(self, observations : np.ndarray, N2: int = 3) -> np.ndarray:
         # Second version
         # NOTE: probably pretty costly in terms of memory and compute
         # TODO: too much back and forth between lists, ndarrays and torch tensors
@@ -294,25 +294,28 @@ class HMM:
         # It probably results in better convergence, but I think it keeps us from being cuda-compatible
         T, B = observations.shape
         # a list of the loglikelihoods log(p(X_[l])) of the T increasing subsequences X_[l] of observations of the B complete sequences
-        # [T,B]
         logliks_of_the_observations = []
         random_hmm = HMM(config = self.graph_config, random_seed = self.random_seed)
         for i in range(B):
-            # a list of length N2 of the loglikelihood of observation observations[:,i] conditioned by the N2 random hmms sampled
+            # an array of length N2 of the loglikelihood of observation observations[:,i] conditioned by the N2 random hmms sampled
             conditional_logliks_of_the_observation = []
             for j in range(N2):
-                random_hmm.rng = np.random.default_rng(self.random_seed + 10 + i*N2 + j)
+                random_hmm.rng.bit_generator.state = np.random.default_rng(self.random_seed + 10 + i*N2 + j).bit_generator.state
                 random_hmm.top_node.initialize(B)
                 random_hmm.transitions = {node: random_hmm._format_transition(node) for _, node in random_hmm.topo_order}
                 # conditional_log_xst should be of shape [T,1]
                 _, conditional_log_xst = random_hmm.forward_probs(observations[:,[i]])
-                conditional_log_xst = conditional_log_xst[:,0].item() # Now conditional_log_xst ~= [log(P(X_[1] | hmm)),...,log(P(X_[T]| hmm))]
+                print(f"conditional_log_xst {conditional_log_xst}")
+                conditional_log_xst = conditional_log_xst[:,0].numpy() # Now conditional_log_xst ~= [log(P(X_[1] | hmm)),...,log(P(X_[T]| hmm))]
                 # [N2, T]
                 conditional_logliks_of_the_observation.append(conditional_log_xst)
                 # negloglik_of_single_observation is a scalar
             # estimate the likelihood of the sequence of the increasing subsequences of observations observations[:l,i] as the mean of the conditional likelihood P(observations[:l,i] | hmm) over the N2 hmms
-           
-            logliks_of_the_observations.append(np.logaddexp.reduce(np.array(conditional_logliks_of_the_observation), dim = 0) - np.log(N2)) 
-
+            logliks_of_the_observations.append(np.logaddexp.reduce(np.array(conditional_logliks_of_the_observation), axis = 0) - np.log(N2)) 
+            print(f"conditional_logliks_of_the_observation {np.array(conditional_logliks_of_the_observation)}")
+            print(f"shape of conditional_logliks_of_the_observation {np.array(conditional_logliks_of_the_observation).shape}")
+        print(f"logliks_of_the_observations {np.array(logliks_of_the_observations).T}")
+        print(f"logliks_of_the_observations {np.array(logliks_of_the_observations).T.shape}")
+        # [T,B]
         return np.array(logliks_of_the_observations).T
         
