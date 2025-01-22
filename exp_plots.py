@@ -20,9 +20,9 @@ name = "data"
 scaling_key = "data.n_data"
 keys = [scaling_key, "grid_id"]
 
-name = "params"
-scaling_key = "nb_params"
-keys = ["grid_id"]
+# name = "params"
+# scaling_key = "nb_params"
+# keys = ["grid_id"]
 
 # %% Process results
 num_keys = []
@@ -60,7 +60,7 @@ for exp in range(1, 5):
 
 # %% show loss vs entropy
 
-# difficulty_key = "hmm_difficulty"
+difficulty_key = "hmm_difficulty"
 difficulty_key = "gzip_difficulty"
 
 
@@ -68,7 +68,7 @@ for exp, data in enumerate(all_data):
     plt.figure()
     # make a line y = x
     # plt.plot([0, 3], [0, 3], color="black", ls=":")
-    all_scales = data[scaling_key].unique()
+    all_scales = data[scaling_key].unique()[-1:]
     nb_data = len(all_scales)
     all_graph = data["node_id"].unique()
     for i, grid_id in enumerate(all_graph):
@@ -104,9 +104,9 @@ for index, name in zip([range(7), range(7, 13)], ["alpha_X", "alpha_Z"]):
             mask |= all_data[0]["node_id"] == i
     tmp = data[mask]
 
-    for nb_params in data["nb_params"].unique()[7:8]:
-        _tmp = tmp[tmp["nb_params"] == nb_params]
-        plt.scatter(_tmp[difficulty_key], _tmp["best"], label=f"{nb_params} params, varying {name}")
+    for scale in data[scaling_key].unique()[7:8]:
+        _tmp = tmp[tmp[scaling_key] == scale]
+        plt.scatter(_tmp[difficulty_key], _tmp["best"], label=f"{scale} {scaling_key}, varying {name}")
 plt.xlabel(difficulty_key)
 plt.ylabel("test loss")
 plt.legend()

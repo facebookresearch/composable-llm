@@ -1,0 +1,142 @@
+{
+    "node_id": 0,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 256,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z1"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 1,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 16,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 16,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 2,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 4,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 4,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 4,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 4,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z1",
+                "Z2",
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}
+{
+    "node_id": 3,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 2,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 2,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 2,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 2,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z5",
+            "state_dim": 2,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z6",
+            "state_dim": 2,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z7",
+            "state_dim": 2,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "Z8",
+            "state_dim": 2,
+            "alpha": "3e-3"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z1",
+                "Z2",
+                "Z3",
+                "Z4",
+                "Z5",
+                "Z6",
+                "Z7",
+                "Z8"
+            ],
+            "alpha": "1e-3",
+            "observed": true
+        }
+    ]
+}

@@ -10,7 +10,7 @@ launcher:
     nb_gpus: 8
     mem: 16G
     partition: scavenge
-    time: 60          # job time in minutes
+    time: 180         # job time in minutes
     signal_time: 120  # alert time in seconds
 
   grid:
