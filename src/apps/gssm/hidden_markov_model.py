@@ -1,4 +1,4 @@
-# %%
+
 from functools import lru_cache
 from logging import getLogger
 import numpy as np
@@ -7,7 +7,6 @@ import torch
 # from omegaconf import OmegaConf
 from nanollama.utils import initialize_nested_object
 from nanollama.data import gssm
-# %%
 
 logger = getLogger("nanollama")
 
@@ -20,11 +19,14 @@ class HMM:
         """
         makes an HMM from a graph config via the product state
         """
+        self.graph_config = config
+        self.random_seed = random_seed
         if config is not None:
             assert top_node is None
             config = initialize_nested_object(gssm.GSSMConfig, config, inplace=False)
             self.rng = np.random.default_rng(random_seed)
             self.top_node = gssm.build_gssm(config, self.rng)
+            self.graph_config 
         else:
             assert top_node is not None
             self.top_node = top_node
@@ -247,6 +249,7 @@ class HMM:
     #     H_T = H_t[-1]
     #     return H_T
 
+
     def entropy_of_observations(self, observations: np.ndarray, final_entry_only : bool = True, device: str = "cuda"):
         """ 
             Computes the negloglikelihoods of the observations
@@ -298,8 +301,8 @@ class HMM:
             # a list of length N2 of the loglikelihood of observation observations[:,i] conditioned by the N2 random hmms sampled
             conditional_logliks_of_the_observation = []
             for j in range(N2):
-                random_hmm.np.random.default_rng(self.random_seed + 10 + i*N2 + j)
-                random_hmm.top_node.initialize()
+                random_hmm.rng = np.random.default_rng(self.random_seed + 10 + i*N2 + j)
+                random_hmm.top_node.initialize(B)
                 random_hmm.transitions = {node: random_hmm._format_transition(node) for _, node in random_hmm.topo_order}
                 # conditional_log_xst should be of shape [T,1]
                 _, conditional_log_xst = random_hmm.forward_probs(observations[:,[i]])
@@ -313,4 +316,3 @@ class HMM:
 
         return np.array(logliks_of_the_observations).T
         
-
