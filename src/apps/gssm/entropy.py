@@ -100,8 +100,6 @@ class EntropyComputer:
                 self.scaling: float = data["scaling"]
                 self.step: int = data["step"]
             # logger.info(f"Found previous evaluation at step {self.step}")
-        else:
-            self.tmp_file.touch()
 
         # skip batches that were already evaluated
         self.loader = FileEvaluator(self.data_config).__enter__()
