@@ -19,6 +19,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import yaml
+import copy
 
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
