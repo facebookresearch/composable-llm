@@ -113,7 +113,7 @@ class EntropyComputer:
         try:
             batch, _ = next(self.loader)
 
-            entropy = self.hmm.entropy_of_observations(batch.T, device=self.device).mean().item() / batch.size(1)
+            entropy = self.hmm.entropy_of_observations(batch.T, device=self.device).mean().item() / (batch.size(1) - 1)
 
             # evaluate
             scaling = batch.size(0) / self.data_config.batch_size
