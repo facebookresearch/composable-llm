@@ -273,7 +273,7 @@ class HMM:
         else:
             return H_t
 
-    def forward_probs_ICL(self, observations : np.ndarray, N2: int = 3) -> np.ndarray:
+    def forward_probs_ICL(self, observations : np.ndarray, N2: int = 300) -> np.ndarray:
         # Second version
         # NOTE: probably pretty costly in terms of memory and compute
         # TODO: too much back and forth between lists, ndarrays and torch tensors
@@ -305,17 +305,17 @@ class HMM:
                 random_hmm.transitions = {node: random_hmm._format_transition(node) for _, node in random_hmm.topo_order}
                 # conditional_log_xst should be of shape [T,1]
                 _, conditional_log_xst = random_hmm.forward_probs(observations[:,[i]])
-                print(f"conditional_log_xst {conditional_log_xst}")
+                # print(f"conditional_log_xst {conditional_log_xst}")
                 conditional_log_xst = conditional_log_xst[:,0].numpy() # Now conditional_log_xst ~= [log(P(X_[1] | hmm)),...,log(P(X_[T]| hmm))]
                 # [N2, T]
                 conditional_logliks_of_the_observation.append(conditional_log_xst)
                 # negloglik_of_single_observation is a scalar
             # estimate the likelihood of the sequence of the increasing subsequences of observations observations[:l,i] as the mean of the conditional likelihood P(observations[:l,i] | hmm) over the N2 hmms
             logliks_of_the_observations.append(np.logaddexp.reduce(np.array(conditional_logliks_of_the_observation), axis = 0) - np.log(N2)) 
-            print(f"conditional_logliks_of_the_observation {np.array(conditional_logliks_of_the_observation)}")
-            print(f"shape of conditional_logliks_of_the_observation {np.array(conditional_logliks_of_the_observation).shape}")
-        print(f"logliks_of_the_observations {np.array(logliks_of_the_observations).T}")
-        print(f"logliks_of_the_observations {np.array(logliks_of_the_observations).T.shape}")
+        #     print(f"conditional_logliks_of_the_observation {np.array(conditional_logliks_of_the_observation)}")
+        #     print(f"shape of conditional_logliks_of_the_observation {np.array(conditional_logliks_of_the_observation).shape}")
+        # print(f"logliks_of_the_observations {np.array(logliks_of_the_observations).T}")
+        # print(f"logliks_of_the_observations {np.array(logliks_of_the_observations).T.shape}")
         # [T,B]
         return np.array(logliks_of_the_observations).T
         

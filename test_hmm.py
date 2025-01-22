@@ -38,6 +38,43 @@ gssm_config = {
     ]
 }
 
+gssm_config_ICL = {
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 4,
+            "parents": [],
+            "alpha": .1,
+            "mode": "default",
+            "observed": False,
+        },
+        {
+            "name": "Z2",
+            "state_dim": 4,
+            "parents": ["Z1"],
+            "alpha": .1,
+            "mode": "default",
+            "observed": False,
+        },
+        {
+            "name": "Z3",
+            "state_dim": 4,
+            "parents": ["Z2"],
+            "alpha": 1,
+            "mode": "context",
+            "observed": False,
+        },
+        {
+            "name": "X",
+            "state_dim": 8,
+            "parents": ["Z1", "Z3"],
+            "alpha": .05,
+            "mode": "context",
+            "observed": True,
+        },
+    ]
+}
+
 # %%
 def make_data(hmm: HMM, batch_size):
     hmm._init_all_nodes(batch_size)
@@ -173,5 +210,31 @@ len(set(train).intersection(set(test)))
     # for seq_len in np.logspace(0,np.log10(100),10):
     #   seq_len = int(seq_len)
     #   print(seq_len, test_entropy(gssm_config, seq_len, 200))
+
+# %%
+def test_entropy(config, seq_len, batch_size, seed=3892493):
+    observations = np.zeros((seq_len, batch_size), dtype=int)
+    n_seeds = 1
+    entropys = []
+    for i_batch in range(n_seeds):
+        mini_batch = batch_size//n_seeds
+        batch_slice = slice(i_batch*mini_batch, (i_batch+1)*mini_batch)
+        hmm = HMM(config, random_seed=seed + i_batch*1942)
+        hmm._init_all_nodes(mini_batch)
+        for i in range(seq_len):
+            observations[i,batch_slice] = np.array(hmm.top_node.state)
+            hmm.evolve_classic(1)
+        entropys.append(hmm.entropy_of_observations(observations[:,batch_slice]).mean().item())
+    return np.mean(entropys) / seq_len, np.median(entropys) / seq_len
+
+for seq_len in [4]:# np.logspace(0,np.log10(100),10):
+    seq_len = int(seq_len)
+    print(seq_len, test_entropy(gssm_config_ICL, seq_len, 2))
+
+    
+# for seq_len in np.logspace(0,np.log10(100),10):
+#     seq_len = int(seq_len)
+#     print(seq_len, test_entropy(gssm_config, seq_len, 200))
+
 
 # %%
