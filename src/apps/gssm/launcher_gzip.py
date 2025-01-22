@@ -21,11 +21,11 @@ import yaml
 
 def gzip_estimate(exp: int, code_dir: str) -> None:
     save_path = f"/checkpoint/{getpass.getuser()}/icml/logs/exp{exp}/gzip.jsonl"
-    with open(save_path, "w") as f:
+    with open(os.path.expandvars(save_path), "w") as f:
         pass
 
-    path = f"{code_dir}src/apps/gssm/configs/experiment{exp}/entropy.yaml"
-    with open(path) as f:
+    path = f"{code_dir}/src/apps/gssm/configs/experiment{exp}/entropy.yaml"
+    with open(os.path.expandvars(path)) as f:
         config = yaml.safe_load(f)
 
     all_configs = []
@@ -39,12 +39,12 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
             data = f["data"][:, 1:]
 
         entropy = len(zlib.compress(data.tobytes(), level=9)) / data.size
-        with open(save_path, "a") as f:
+        with open(os.path.expandvars(save_path), "a") as f:
             print(json.dumps({"grid_id": int(Path(path).parent.name), "gzip_difficulty": entropy}), file=f, flush=True)
 
 
 if __name__ == "__main__":
-    code_dir = f"/private/home/{getpass.getuser()}/projects/composable-llm/"
+    code_dir = "$CODE_DIR"
     for exp in range(1, 5):
         print(f"Running experiment {exp}")
         gzip_estimate(exp, code_dir)

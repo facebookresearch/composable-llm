@@ -108,7 +108,7 @@ class WandbLogger:
             logger.info(f"Starting new run with ID: {self.run.id}")
 
             # Save run id to id file
-            with open(self.id_file, "w") as file:
+            with open(os.path.expandvars(self.id_file), "w") as file:
                 file.write(self.run.id)
 
         self.run_config = None

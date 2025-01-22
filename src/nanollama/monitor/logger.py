@@ -95,7 +95,7 @@ class Logger:
         """
         Open logging files.
         """
-        self.metric = open(self.metric, "a")
+        self.metric = open(os.path.expandvars(self.metric), "a")
         return self
 
     def __call__(self, metrics: dict[str, Any]) -> None:
@@ -111,7 +111,7 @@ class Logger:
         """
         if is_master_process():
             numel = sum([p.numel() for _, p in model.named_parameters()])
-            with open(self.path / "info_model.jsonl", "a") as f:
+            with open(os.path.expandvars(self.path / "info_model.jsonl"), "a") as f:
                 print(json.dumps({"model_params": numel}), file=f, flush=True)
             logger.info(f"Model has {numel} parameters.")
 

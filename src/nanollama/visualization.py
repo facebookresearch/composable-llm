@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import yaml
+import os
 
 from .utils import flatten_config
 
@@ -80,7 +81,7 @@ def jsonl_to_numpy(path: str, keys: list[str]) -> dict[str, np.ndarray]:
     A dictionnary of numpy array
     """
     data: dict[str, list] = {key: [] for key in keys}
-    with open(path) as f:
+    with open(os.path.expandvars(path)) as f:
         # read jsonl as a csv with missing values
         for line in f:
             values: dict[str, Any] = json.loads(line)
@@ -106,7 +107,7 @@ def get_keys(path: str, readall: bool = True) -> list[str]:
         List of keys in the jsonl file
     """
     keys = set()
-    with open(path) as f:
+    with open(os.path.expandvars(path)) as f:
         for line in f:
             keys |= json.loads(line).keys()
             if not readall:
@@ -216,7 +217,7 @@ def process_results(
             res |= get_losses(metric_path, steps, eval=eval)
             # res |= get_metrics(metric_path)
 
-            with open(metric_path / "process.json", "w") as f:
+            with open(os.path.expandvars(metric_path / "process.json"), "w") as f:
                 print(json.dumps(res, indent=4), file=f, flush=True)
         except Exception as e:
             print(log_dir / "metrics" / str(task_id))
@@ -242,7 +243,7 @@ def get_processed_results(log_dir: PosixPath) -> pd.DataFrame:
     data = []
     for file in log_dir.rglob("process.json"):
         try:
-            with open(file) as f:
+            with open(os.path.expandvars(file)) as f:
                 json_data = json.load(f)
             data.append(json_data)
         except Exception as e:

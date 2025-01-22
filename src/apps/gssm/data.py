@@ -93,7 +93,7 @@ def create_dataset(config: DataGenerationConfig) -> None:
             # saving in hdf5 format
             path = Path(set_config.path)
             path.parent.mkdir(parents=True, exist_ok=True)
-            with h5py.File(path, "w") as f:
+            with h5py.File(os.path.expandvars(path), "w") as f:
                 dset = f.create_dataset("data", shape=(n_data, seq_len), dtype=int, chunks=(chunk_size, seq_len))
 
                 for i in range(nb_chunks):
@@ -137,7 +137,7 @@ def main() -> None:
     task_id = parser.parse_args().task_id
     nb_tasks = parser.parse_args().nb_tasks
 
-    with open(path) as f:
+    with open(os.path.expandvars(path)) as f:
         file_configs = yaml.safe_load(f)
 
     all_seeds = file_configs["seed"]
@@ -173,11 +173,11 @@ def map_datasetid_gssm(data_path: str) -> None:
     id_path = Path(data_path).parent / "map_grid_id_gssm_id.jsonl"
     node_path = Path(data_path).parent / "map_gssm_id_gssm_config.jsonl"
 
-    with open(data_path) as f:
+    with open(os.path.expandvars(data_path)) as f:
         file_configs = yaml.safe_load(f)
 
     for path in [save_path, id_path, node_path]:
-        with open(path, "w") as f:
+        with open(os.path.expandvars(path), "w") as f:
             pass
 
     all_seeds = file_configs["seed"]
@@ -199,14 +199,14 @@ def map_datasetid_gssm(data_path: str) -> None:
         # retrieve where the generated testset is stored.
         data_config |= {"path": testset_path.replace("$GRIDID", str(i))}
 
-        with open(save_path, "a") as f:
+        with open(os.path.expandvars(save_path), "a") as f:
             print(json.dumps({"data": data_config, "gssm": gssm_config}), file=f, flush=True)
 
-        with open(id_path, "a") as f:
+        with open(os.path.expandvars(id_path), "a") as f:
             print(json.dumps({"node_id": all_nodes.index(nodes), "seed": seed, "grid_id": i}), file=f, flush=True)
 
     for nodes in all_nodes:
-        with open(node_path, "a") as f:
+        with open(os.path.expandvars(node_path), "a") as f:
             print(json.dumps({"node_id": all_nodes.index(nodes), "nodes": nodes}, indent=4), file=f, flush=True)
 
 

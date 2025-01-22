@@ -1,6 +1,7 @@
 # %%
 import matplotlib.pyplot as plt
 import yaml
+import os
 
 from apps.gssm.difficulty import DifficultyEstimationConfig, read_results
 from nanollama.utils import initialize_nested_object
@@ -26,7 +27,7 @@ def main() -> None:
     path = args.config
 
     # load configuration from file
-    with open(path) as f:
+    with open(os.path.expandvars(path)) as f:
         all_configs = yaml.safe_load(f)
 
     plt.figure(figsize=(15, 15))

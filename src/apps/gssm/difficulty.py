@@ -129,7 +129,7 @@ def estimate_entropy(path: str, task_id: int, nb_tasks: int, bsz: int, n_batches
     python -m apps.my_app.difficulty --task-id 1 --nb-tasks 4 entropy src/apps/my_app/my_config.yaml
     ```
     """
-    with open(path) as f:
+    with open(os.path.expandvars(path)) as f:
         file_config = yaml.safe_load(f)
 
     # initialize configuration
@@ -165,7 +165,7 @@ def estimate_entropy(path: str, task_id: int, nb_tasks: int, bsz: int, n_batches
 
         write_dir = log_dir / "metrics" / str(i + 1)
         os.makedirs(write_dir, exist_ok=True)
-        with open(write_dir / "metrics.json", "w") as f:
+        with open(os.path.expandvars(write_dir / "metrics.json"), "w") as f:
             print(json.dumps(difficulty), file=f, flush=True)
 
 
@@ -260,13 +260,13 @@ def estimate_alphas_entropy(config: DifficultyEstimationConfig, task_id: int = 1
             "alpha_Z": alpha_Z,
         }
         logger.info(f"Difficulty: {difficulty['difficulty_hmm']:.2f}, {difficulty['difficulty_gzip']:.2f}")
-        with open(config.path, "a") as f:
+        with open(os.path.expandvars(config.path), "a") as f:
             print(json.dumps(difficulty), file=f, flush=True)
 
 
 def read_results(path: str) -> dict[str, float]:
     alpha_X, alpha_Z, difficulty_gzip = [], [], []
-    with open(path) as f:
+    with open(os.path.expandvars(path)) as f:
         for line in f:
             try:
                 res = json.loads(line)
