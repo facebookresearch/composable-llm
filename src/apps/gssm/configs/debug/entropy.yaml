@@ -18,7 +18,7 @@ launcher:
 
 run_config:
   data:
-    path: /checkpoint/vivc/datasets/icml/exp1/0/testset.h5
+    path: /checkpoint/$USER/datasets/icml/exp1/0/testset.h5
     n_data: 1_000
     batch_size: 100
     asynchronous: false

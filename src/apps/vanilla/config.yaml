@@ -18,7 +18,7 @@ run_config:
     compile_model: false
 
   data:
-    root_dir: /checkpoint/vivc/datasets/smollm
+    root_dir: /checkpoint/$USER/datasets/smollm
     sources:
       smollm_python_edu: 12
       smollm_cosmopedia_v2: 15
@@ -30,7 +30,7 @@ run_config:
     load_async: false
     tokenizer:
       name: tiktoken
-      path: /checkpoint/vivc/tokenizer/llama3/tokenizer.model
+      path: /checkpoint/$USER/tokenizer/llama3/tokenizer.model
 
   model:
     vocab_size: 32
@@ -69,7 +69,7 @@ run_config:
 
   eval:
     period: 0
-    dataset_dir: /checkpoint/vivc/datasets/eval
+    dataset_dir: /checkpoint/$USER/datasets/eval
     tasks: piqa
     generator:
       max_tokens: 2048

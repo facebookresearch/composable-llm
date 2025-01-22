@@ -12,13 +12,14 @@ located in the root directory of this repository.
 import json
 import zlib
 from pathlib import Path
+import getpass
 
 import h5py
 import yaml
 
 
 def gzip_estimate(exp: int, code_dir: str) -> None:
-    save_path = f"/checkpoint/vivc/icml/logs/exp{exp}/gzip.jsonl"
+    save_path = f"/checkpoint/{getpass.getuser()}/icml/logs/exp{exp}/gzip.jsonl"
     with open(save_path, "w") as f:
         pass
 
@@ -42,7 +43,7 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    code_dir = "/private/home/vivc/code/composable-llm/"
+    code_dir = f"/private/home/{getpass.getuser()}/code/composable-llm/"
     for exp in range(1, 5):
         print(f"Running experiment {exp}")
         gzip_estimate(exp, code_dir)

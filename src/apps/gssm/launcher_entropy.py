@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+import getpass
 
 import yaml
 
@@ -96,7 +97,7 @@ def merge_hmm_estimate(exp: int, code_dir: str) -> None:
 
     This is useful to homogenize the format of the entropy estimates.
     """
-    save_path = f"/checkpoint/vivc/icml/logs/exp{exp}/hmm.jsonl"
+    save_path = f"/checkpoint/{getpass.getuser()}/icml/logs/exp{exp}/hmm.jsonl"
     with open(save_path, "w") as f:
         pass
 
@@ -133,6 +134,6 @@ def merge_hmm_estimate(exp: int, code_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    code_dir = "/private/home/vivc/code/composable-llm/"
+    code_dir = f"/private/home/{getpass.getuser()}/code/composable-llm/"
     for exp in range(1, 5):
         launch_entropy_estimate(exp, code_dir)

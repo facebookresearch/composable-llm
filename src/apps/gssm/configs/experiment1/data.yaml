@@ -18,6 +18,6 @@ gssm:
   - [{name: Z1, state_dim: 64, alpha: 1e-0}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
 sets:
 - n_data: 1_000_000
-  path: /checkpoint/vivc/datasets/icml/exp1/$GRIDID/trainset.h5
+  path: /checkpoint/$USER/datasets/icml/exp1/$GRIDID/trainset.h5
 - n_data: 10_000
-  path: /checkpoint/vivc/datasets/icml/exp1/$GRIDID/testset.h5
+  path: /checkpoint/$USER/datasets/icml/exp1/$GRIDID/testset.h5

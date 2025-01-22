@@ -1,10 +1,10 @@
 # Debugging configuration
 
-configs_path: /private/home/vivc/code/composable-llm/src/apps/gssm/configs/experiment4/map_grid_id_gssm_config.jsonl
+configs_path: /private/home/$USER/code/composable-llm/src/apps/gssm/configs/experiment4/map_grid_id_gssm_config.jsonl
 
 launcher:
   name: debug_entropy
-  log_dir: /checkpoint/vivc/icml/logs/exp4/entropy
+  log_dir: /checkpoint/$USER/icml/logs/exp4/entropy
   overwrite: false
   copy_code: false
 

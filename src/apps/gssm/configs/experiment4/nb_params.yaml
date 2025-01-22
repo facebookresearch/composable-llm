@@ -1,7 +1,7 @@
 launcher:
   name: exp4params
   overwrite: true
-  log_dir: /checkpoint/vivc/icml/logs/exp4/params
+  log_dir: /checkpoint/$USER/icml/logs/exp4/params
 
   script: src.apps.gssm.train
 
@@ -26,7 +26,7 @@ run_config:
 
   data:
     n_data: 1_000_000
-    path: /checkpoint/vivc/datasets/icml/exp4/$GRIDID/trainset.h5
+    path: /checkpoint/$USER/datasets/icml/exp4/$GRIDID/trainset.h5
     batch_size: 16
     asynchronous: false
     seed: 0  # seed for data shuffling
@@ -66,5 +66,5 @@ run_config:
     period: 100
     asynchronous: false
     data:
-      path: /checkpoint/vivc/datasets/icml/exp4/$GRIDID/testset.h5
+      path: /checkpoint/$USER/datasets/icml/exp4/$GRIDID/testset.h5
       n_data: 10_000

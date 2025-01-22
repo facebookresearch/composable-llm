@@ -16,11 +16,11 @@
 #SBATCH --time=10:00:00
 
 # activate conda environment
-eval "$(/private/home/vivc/miniconda/bin/conda shell.bash hook)"
-conda activate /private/home/vivc/miniconda/envs/slm
+eval "$(/private/home/$USER/miniconda/bin/conda shell.bash hook)"
+conda activate /private/home/$USER/miniconda/envs/slm
 
 # go to code directory
-export PATH_TO_CODE_DIR=/private/home/vivc/code/composable-llm
+export PATH_TO_CODE_DIR=/private/home/$USER/code/composable-llm
 cd $PATH_TO_CODE_DIR
 
 # handle missing slurm variables

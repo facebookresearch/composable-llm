@@ -1,7 +1,7 @@
 launcher:
   name: exp2data
   overwrite: true
-  log_dir: /checkpoint/vivc/icml/logs/exp2/data
+  log_dir: /checkpoint/$USER/icml/logs/exp2/data
 
   script: src.apps.gssm.train
 
@@ -26,7 +26,7 @@ run_config:
 
   data:
     n_data: 10_000
-    path: /checkpoint/vivc/datasets/icml/exp2/$GRIDID/trainset.h5
+    path: /checkpoint/$USER/datasets/icml/exp2/$GRIDID/trainset.h5
     batch_size: 16
     asynchronous: false
     seed: 0  # seed for data shuffling
@@ -66,5 +66,5 @@ run_config:
     period: 100
     asynchronous: false
     data:
-      path: /checkpoint/vivc/datasets/icml/exp2/$GRIDID/testset.h5
+      path: /checkpoint/$USER/datasets/icml/exp2/$GRIDID/testset.h5
       n_data: 10_000
