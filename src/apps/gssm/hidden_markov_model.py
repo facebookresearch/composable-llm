@@ -6,7 +6,7 @@ import torch
 
 # from omegaconf import OmegaConf
 from nanollama.utils import initialize_nested_object
-from src.nanollama.data import gssm
+from nanollama.data import gssm
 # %%
 
 logger = getLogger("nanollama")
@@ -241,9 +241,76 @@ class HMM:
         emission = torch.tensor(self.get_p_emission(self.top_node))
         return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log(), device=device)
 
-    def entropy_of_observations(self, observations: np.ndarray, device: str = "cuda"):
-        _, log_xst = self.forward_probs(observations, device=device)
+    # def entropy_of_observations(self, observations: np.ndarray, device: str = "cuda"):
+    #     _, log_xst = self.forward_probs(observations, device=device)
+    #     H_t = -log_xst
+    #     H_T = H_t[-1]
+    #     return H_T
+
+    def entropy_of_observations(self, observations: np.ndarray, final_entry_only : bool = True, device: str = "cuda"):
+        """ 
+            Computes the negloglikelihoods of the observations
+            The function should be called as a method of an HMM instance that has the same configuration and random seed as the one used to generate the observations
+            (this is important in the ICL case, where the fixed parts of the graph and distributions must be the same as for the generating HMM)
+            The function automatically detects whether we are in the ICL or non-ICL case
+            Args:
+                observations : A set of observed sequences [seq_len, B]
+                final_entry_only : A boolean. If true, returns the negloglikelihoods of the sequences X_[T], if false, the sequence of intermediate negloglikelihoods P(X_[1]), P(X_[2]), ...
+            Returns:
+            H_T: the estimated entropies [B] or [T,B] if final_entry_only == False
+        """
+        # Test whether we are in the ICL case
+        if len([node for _, node in self.topo_order if node.mode == "context"]) != 0:
+            log_xst = self.forward_probs_ICL(observations)
+        else:
+            _, log_xst = self.forward_probs(observations, device=device)
         H_t = -log_xst
-        H_T = H_t[-1]
-        return H_T
+        if final_entry_only:
+            return H_t[-1]
+        else:
+            return H_t
+
+    def forward_probs_ICL(self, observations : np.ndarray, N2: int = 500) -> np.ndarray:
+        # Second version
+        # NOTE: probably pretty costly in terms of memory and compute
+        # TODO: too much back and forth between lists, ndarrays and torch tensors
+        """ 
+            loglikelihood estimations in the In Context Learning case
+            The loglikelihood of the observations (whose mean is an approximation of the entropy of the sequences of observables) is approximated as follows:
+            for each sequence of observations X_[t], N2 Hmms are randomly generated (each corresponding to a transition and an emission matrices).
+            Those share the same fixed components as the self HMM instance, while the changing parts are independently generated
+            Then log(p(X_[t])) ~= log(1/N2 * sum_hmm p(X_[t]|hmm))
+            In line with the convention in the function forward_probs, the output is an array whose entries are the loglikelihoods of the increasing observed sequences
+
+            Args:
+                observations : A set of observed sequences [seq_len, B]
+            Returns:
+                log_xst: the estimated loglikelihoods log(P(X_[l]) of the increasing sequences X_[l] (for l=1,...,T) [T,B]
+        """
+        # WARNING: here we use distinct HMMs for each sequence of observables.
+        # It probably results in better convergence, but I think it keeps us from being cuda-compatible
+        T, B = observations.shape
+        # a list of the loglikelihoods log(p(X_[l])) of the T increasing subsequences X_[l] of observations of the B complete sequences
+        # [T,B]
+        logliks_of_the_observations = []
+        random_hmm = HMM(config = self.graph_config, random_seed = self.random_seed)
+        for i in range(B):
+            # a list of length N2 of the loglikelihood of observation observations[:,i] conditioned by the N2 random hmms sampled
+            conditional_logliks_of_the_observation = []
+            for j in range(N2):
+                random_hmm.np.random.default_rng(self.random_seed + 10 + i*N2 + j)
+                random_hmm.top_node.initialize()
+                random_hmm.transitions = {node: random_hmm._format_transition(node) for _, node in random_hmm.topo_order}
+                # conditional_log_xst should be of shape [T,1]
+                _, conditional_log_xst = random_hmm.forward_probs(observations[:,[i]])
+                conditional_log_xst = conditional_log_xst[:,0].item() # Now conditional_log_xst ~= [log(P(X_[1] | hmm)),...,log(P(X_[T]| hmm))]
+                # [N2, T]
+                conditional_logliks_of_the_observation.append(conditional_log_xst)
+                # negloglik_of_single_observation is a scalar
+            # estimate the likelihood of the sequence of the increasing subsequences of observations observations[:l,i] as the mean of the conditional likelihood P(observations[:l,i] | hmm) over the N2 hmms
+           
+            logliks_of_the_observations.append(np.logaddexp.reduce(np.array(conditional_logliks_of_the_observation), dim = 0) - np.log(N2)) 
+
+        return np.array(logliks_of_the_observations).T
+        
 

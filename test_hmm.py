@@ -1,5 +1,5 @@
 # %%
-from src.apps.gssm.hidden_markov_model import *
+from apps.gssm.hidden_markov_model import *
 
 gssm_config = {
     "nodes": [
