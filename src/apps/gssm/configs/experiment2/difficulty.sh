@@ -10,18 +10,17 @@
 #SBATCH --partition=scavenge
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:0
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=16G
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=10
 #SBATCH --array=1-100
 #SBATCH --time=1:00:00
 
 # activate conda environment
-eval "$(/private/home/vivc/miniconda/bin/conda shell.bash hook)"
-conda activate /private/home/vivc/miniconda/envs/slm
+eval "$(/private/home/nolte/miniconda3/bin/conda shell.bash hook)"
+conda activate /private/home/nolte/miniconda3/envs/llm
 
 # go to code directory
-export PATH_TO_CODE_DIR=/private/home/vivc/code/composable-llm
+export PATH_TO_CODE_DIR=/private/home/nolte/projects/composable-llm
 cd $PATH_TO_CODE_DIR
 
 # handle missing slurm variables
@@ -32,15 +31,8 @@ fi
 
 echo "Running task $SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
 
-export COMMAND=$1
+export FILENAME=onfly
+export BSZ=128
+export NBATCHES=50
 
-if [ "$COMMAND" == "main" ]; then
-    export FILENAME=difficulty
-elif [ "$COMMAND" == "entropy" ]; then
-    export FILENAME=onfly
-else
-    echo "Invalid command"
-    exit 1
-fi
-
-python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT --bsz 1024 $COMMAND $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment2/$FILENAME.yaml 
+python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT --bsz $BSZ --n-batches $NBATCHES $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment2/$FILENAME.yaml 

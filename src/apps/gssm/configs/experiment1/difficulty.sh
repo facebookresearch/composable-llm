@@ -12,7 +12,7 @@
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=10
-#SBATCH --array=1-100
+#SBATCH --array=1-79
 #SBATCH --time=1:00:00
 
 # activate conda environment
