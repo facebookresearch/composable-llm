@@ -1,0 +1,46 @@
+seq_len: 2049
+seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+chunk_size: 10_000
+gssm:
+  nodes:
+  - - {name: Z1, state_dim: 8, alpha: 5e-2}
+    - {name: Z2, state_dim: 8, alpha: 5e-2}
+    - {name: Z3, state_dim: 8, alpha: 5e-2}
+    - {name: Z4, state_dim: 8, alpha: 5e-2}
+    - {name: Z5, state_dim: 8, alpha: 5e-2}
+    - {name: Z6, state_dim: 8, alpha: 5e-2}
+    - {name: Z7, state_dim: 8, alpha: 5e-2}
+    - {name: Z8, state_dim: 8, alpha: 5e-2}
+    - {name: X, state_dim: 64, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+  - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: slow}
+    - {name: Z2, state_dim: 8, alpha: 5e-2, mode: slow}
+    - {name: Z3, state_dim: 8, alpha: 5e-2, mode: slow}
+    - {name: Z4, state_dim: 8, alpha: 5e-2, mode: slow}
+    - {name: Z5, state_dim: 8, alpha: 5e-2, mode: slow}
+    - {name: Z6, state_dim: 8, alpha: 5e-2, mode: slow}
+    - {name: Z7, state_dim: 8, alpha: 5e-2, mode: slow}
+    - {name: Z8, state_dim: 8, alpha: 5e-2, mode: slow}
+    - {name: X, state_dim: 64, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+  - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: dead}
+    - {name: Z2, state_dim: 8, alpha: 5e-2, mode: dead}
+    - {name: Z3, state_dim: 8, alpha: 5e-2, mode: dead}
+    - {name: Z4, state_dim: 8, alpha: 5e-2, mode: dead}
+    - {name: Z5, state_dim: 8, alpha: 5e-2, mode: dead}
+    - {name: Z6, state_dim: 8, alpha: 5e-2, mode: dead}
+    - {name: Z7, state_dim: 8, alpha: 5e-2, mode: dead}
+    - {name: Z8, state_dim: 8, alpha: 5e-2, mode: dead}
+    - {name: X, state_dim: 64, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+  - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: context}
+    - {name: Z2, state_dim: 8, alpha: 5e-2, mode: context}
+    - {name: Z3, state_dim: 8, alpha: 5e-2}
+    - {name: Z4, state_dim: 8, alpha: 5e-2}
+    - {name: Z5, state_dim: 8, alpha: 5e-2}
+    - {name: Z6, state_dim: 8, alpha: 5e-2}
+    - {name: Z7, state_dim: 8, alpha: 5e-2}
+    - {name: Z8, state_dim: 8, alpha: 5e-2}
+    - {name: X, state_dim: 64, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+sets:
+- n_data: 1_000_000
+  path: /checkpoint/vivc/datasets/icml/exp8/$GRIDID/trainset.h5
+- n_data: 10_000
+  path: /checkpoint/vivc/datasets/icml/exp8/$GRIDID/testset.h5

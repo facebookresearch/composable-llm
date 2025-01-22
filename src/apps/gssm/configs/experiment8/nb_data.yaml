@@ -1,0 +1,70 @@
+launcher:
+  name: exp8data
+  overwrite: true
+  log_dir: /checkpoint/vivc/icml/logs/exp8/data
+
+  script: src.apps.gssm.train
+
+  slurm:
+    nodes: 1
+    nb_gpus: 8
+    mem: 16G
+    partition: scavenge
+    time: 180         # job time in minutes
+    signal_time: 120  # alert time in seconds
+
+  grid:
+    data:
+      n_data: [30, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000]
+    grid_id: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
+
+run_config:
+  grid_id: 0
+
+  cluster:
+    compile_model: true
+
+  data:
+    n_data: 10_000
+    path: /checkpoint/vivc/datasets/icml/exp8/$GRIDID/trainset.h5
+    batch_size: 16
+    asynchronous: false
+    seed: 0  # seed for data shuffling
+
+  model:
+    vocab_size: 64
+    emb_dim: 128
+    nb_layers: 4
+    block:
+      seq_len: 2048
+      nb_heads: 4
+
+  optim:
+    steps: 3000
+    lr: 1e-3
+    weight_decay: 0
+    scheduler: constant
+
+  orchestration:
+    utils:
+      seed: 100  # seed for model initialization
+
+    logging:
+      period: 1
+      level: info
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1
+
+    wandb:
+      active: true
+      project: exp8
+
+  evaluation:
+    period: 100
+    asynchronous: false
+    data:
+      path: /checkpoint/vivc/datasets/icml/exp8/$GRIDID/testset.h5
+      n_data: 10_000

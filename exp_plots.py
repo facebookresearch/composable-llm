@@ -20,9 +20,9 @@ name = "data"
 scaling_key = "data.n_data"
 keys = [scaling_key, "grid_id"]
 
-# name = "params"
-# scaling_key = "nb_params"
-# keys = ["grid_id"]
+name = "params"
+scaling_key = "nb_params"
+keys = ["grid_id"]
 
 # %% Process results
 num_keys = []
