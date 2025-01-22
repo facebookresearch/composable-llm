@@ -7,6 +7,7 @@ import torch
 # from omegaconf import OmegaConf
 from nanollama.utils import initialize_nested_object
 from src.nanollama.data import gssm
+# %%
 
 logger = getLogger("nanollama")
 
@@ -38,11 +39,11 @@ class HMM:
             self.top_node.evolve()
         return {name: node.state for name, node in self.topo_order}
 
-    def _node_init(self, node: gssm.Node, bsz, i=0):
+    def _node_init(self, node: gssm.Node, bsz):
         node.time = 0
         for parent in node.parents:
-            if parent.time != 0 and not parent.observed:
-                self._node_init(parent, bsz, i + 1)
+            self._node_init(parent, bsz)
+        # node.state = self.rng.integers(node.state_dim, size=bsz, dtype=int)
         node.state = np.zeros(bsz, dtype=int)
         assert (node.state == 0).all()  # this is assumed in self.forward_probs
 
@@ -76,9 +77,12 @@ class HMM:
         parents = node.parents
         parent_state_dims = tuple([p.state_dim for p in parents])
         trans = HMM._join_parent_kernels(node)
-        target_shape = tuple() if node.observed else (node.state_dim,)
+        target_shape = (1,) if node.observed else (node.state_dim,)
         target_shape += parent_state_dims + (node.state_dim,)
-        return trans.reshape(target_shape)
+        trans = trans.reshape(target_shape)
+        if trans.shape[0] == 1:
+          trans = np.broadcast_to(trans, (node.state_dim,) + target_shape[1:])
+        return trans
 
     def _node_sym_in(self, node):
         return HMM.SYM_IN[self.indexs[node]]
@@ -115,7 +119,7 @@ class HMM:
         """
         Constructs the einsum string for the target node transition matrix when used as input
         """
-        einsum_str = self._node_sym_in(tgt_node) if not tgt_node.observed else ""
+        einsum_str = self._node_sym_in(tgt_node)
         einsum_str += "".join(self._node_sym_out(p) for p in tgt_node.parents)
         einsum_str += self._node_sym_out(tgt_node)
         return einsum_str
@@ -132,57 +136,37 @@ class HMM:
     @lru_cache(100)  # noqa: B019
     def make_prod_transition(self, tgt_node):
         node_order = [node for _, node in self._dfs(tgt_node)]
-        state_dims = [node.state_dim for node in node_order]
-        prod_input_str = HMM.SYM_IN[: len(node_order)]
-
-        def prod_str(node):
-            return f"{prod_input_str}{self._node_sym_out(node)}"
 
         einsum_input_strs = {node: self.einsum_input_str(node) for node in node_order}
-        einsum_prod_strs = {node: prod_str(node) for node in node_order}
-        einsum_prod_strs[None] = prod_input_str
         # a collection of einsum_str -> array to use for the actual einsum
         # we build the logic only with the strings and fetch the matrices from here
-        einsum_str_to_arr = {prod_input_str: np.ones(state_dims)}  # this is the root (for convenience)
-        einsum_str_to_arr |= {s: self.transitions[node] for node, s in einsum_input_strs.items()}
-        # step 1 : fill the abcxX matrices
-        for node in node_order:
-            parents = node.parents or [None]
-            # this is good for Tabcx_A
-            input_strs = [
-                einsum_input_strs[node],
-                *[einsum_prod_strs[p] for p in parents],
-            ]
-            output_str = einsum_prod_strs[node]
-            einsum_str = ",".join(input_strs) + "->" + output_str
-            input_tensors = [einsum_str_to_arr[s] for s in input_strs]
-            einsum_str_to_arr[output_str] = np.einsum(einsum_str, *input_tensors)
-
-        # step 2 : get final product transition
-        input_strs = [einsum_prod_strs[node] for node in node_order]
+        einsum_str_to_arr = {s: self.transitions[node] for node, s in einsum_input_strs.items()}
+        input_strs = [einsum_input_strs[node] for node in node_order]
         input_tensors = [einsum_str_to_arr[s] for s in input_strs]
         output_str = self.einsum_full_prod_str(tgt_node)
         einsum_str = ",".join(input_strs) + "->" + output_str
-
-        return self.square_matrix(np.einsum(einsum_str, *input_tensors))
+        ret = self.square_matrix(np.einsum(einsum_str, *input_tensors))
+        return ret
 
     def fwd_product_state(self, prod_transition):
-        raise NotImplementedError()
-        p_transition = self.square_matrix(prod_transition)
-        kernel = gssm.TransitionKernel(*p_transition.shape, 1)
-        kernel.p_transition = p_transition
-        kernel._cumulative = np.cumsum(kernel.p_transition, axis=1)
-        next_state = kernel(self.product_state(self.top_node))
+        state = self.product_state(self.top_node)
+        proba : np.ndarray = prod_transition[state]
+
+        random_values = self.rng.random(state.shape)
+        proba.cumsum(axis=-1, out=proba)
+        proba /= proba[..., -1:]
+
+        next_state = (random_values[:,None] < proba).argmax(axis=1)
         return self.individual_states(next_state, self.topo_order)
 
     def fwd_via_matmul(self, prod_transition):
         state = self.one_hot_product_state(self.top_node)
         next_state = state @ prod_transition
         # sampling
-        samples = torch.multinomial(torch.tensor(next_state), 1).numpy()
+        samples = torch.multinomial(torch.tensor(next_state), 1).numpy()[:,0]
         return self.individual_states(samples, self.topo_order)
 
-    @lru_cache  # noqa: B019
+    @lru_cache(100)  # noqa: B019
     def get_p_emission(self, tgt_node):
         # p_emission is a projection matrix from the product state
         # state @ p_emission = state_X
@@ -263,135 +247,3 @@ class HMM:
         H_T = H_t[-1]
         return H_T
 
-def entropy_of_observations_ICL(observations : np.ndarray, config = None, N2: int = 500) -> np.ndarray:
-    # First attempt
-    """ 
-        Entropy estimation in the In Context Learning case
-        The negloglikelihood of the observations (whose mean is an approximation of the entropy of the sequences of observables) is approximated as follows:
-        for each sequence of observations X_[t], N2 Hmms are randomly generated (each corresponding to a transition and an emission matrices)
-        Then  log(p(X_[t])) ~= log(1/N2 * sum_hmm p(X_[t]|hmm))
-        In line with the convention in the function entropy_of_observations, the output is an array whose entries are the negloglikelihood of the observed sequences (rather than the mean of such an array)
-        
-        Args:
-            observations : A set of observed sequences [seq_len, N1]
-        Returns:
-            H_T: the estimated entropies [B]
-    """
-    # WARNING: here we use distinct HMMs for each sequence of observables.
-    # It probably results in better convergence, but I think it keeps us from being cuda-compatible
-    T, N1 = observations.shape
-    # a list of the negloglikelihoods -log(p(X_[t])) of the N1 sequences X_[t] of observations
-    neglogliks_of_the_observations = []
-    random_seed = 0
-    hmm = HMM(config)
-    for i in range(N1):
-        # a list of length N2 of the negloglikelihood of observation observations[:,i] conditioned by the N2 random hmms sampled
-        conditional_neglogliks_of_the_observation = []
-        for j in range(N2):
-            hmm.top_node.initialize()
-            hmm.transitions = {node: hmm._format_transition(node) for _, node in hmm.topo_order}
-            # negloglik_of_single_observation is a scalar
-            conditional_neglogliks_of_the_observation.append(hmm.entropy_of_observations(observations[:,[i]])[0].item())
-        # estimate the likelihood of the sequence of observation observations[:,i] as the mean of the conditional likelihood P(observations[:,i] | hmm) over the N2 hmms
-        neglogliks_of_the_observations.append( np.logaddexp.reduce(np.array(conditional_neglogliks_of_the_observation)) - np.log(N2)) 
-
-    return np.array(neglogliks_of_the_observations)
-    
-
-        
-
-
-
-
-
-if __name__ == "__main__":
-    gssm_config = {
-        "nodes": [
-            {
-                "name": "Z1",
-                "state_dim": 2,
-                "parents": [],
-                "alpha": 0.05,
-                "mode": "default",
-                "observed": False,
-            },
-            {
-                "name": "Z2",
-                "state_dim": 3,
-                "parents": ["Z1"],
-                "alpha": 0.05,
-                "mode": "default",
-                "observed": False,
-            },
-            {
-                "name": "Z3",
-                "state_dim": 4,
-                "parents": ["Z2"],
-                "alpha": 0.05,
-                "mode": "default",
-                "observed": False,
-            },
-            {
-                "name": "X",
-                "state_dim": 5,
-                "parents": ["Z1", "Z3"],
-                "alpha": 0.05,
-                "mode": "default",
-                "observed": True,
-            },
-        ]
-    }
-
-    def test_prod_transition(config):
-        hmm = HMM(config, random_seed=42)
-        hmm._init_all_nodes(1000)
-        prod_transition = hmm.make_prod_transition(hmm.top_node)
-        # data_prod = hmm.fwd_product_state(prod_transition)
-        # data_prod = {name: data_prod[i] for i, name in enumerate(hmm.topo_order)}
-        data_prod_mm = hmm.fwd_via_matmul(prod_transition)
-        data_prod_mm = {name: data_prod_mm[i] for i, (name, _) in enumerate(hmm.topo_order)}
-        data_classic = hmm.evolve_classic(1)
-        import matplotlib.pyplot as plt
-
-        for name in data_classic:
-            plt.title(name)
-            # plt.hist(data_prod[name], label="prod", alpha=0.5)
-            plt.hist(data_prod_mm[name], label="prod_mm", alpha=0.5)
-            plt.hist(data_classic[name], label="classic", alpha=0.5)
-            plt.legend()
-            plt.show()
-
-    test_prod_transition(gssm_config)
-
-    def test_forward_probs(config):
-        hmm = HMM(config)
-        batch_size = 2
-        seq_len = 2
-        hmm._init_all_nodes(batch_size)
-        observations = np.zeros((seq_len, batch_size), dtype=int)
-        for i in range(seq_len):
-            observations[i] = np.array(hmm.top_node.state)
-            hmm.evolve_classic(1)
-        #sanity check
-        print(hmm.forward_probs(observations)[0].exp().sum(0))
-
-    test_forward_probs(gssm_config)
-
-    def test_entropy(config, seq_len, batch_size, seed=3892493):
-        observations = np.zeros((seq_len, batch_size), dtype=int)
-        n_seeds = 10
-        entropys = []
-        for i_batch in range(n_seeds):
-          mini_batch = batch_size//n_seeds
-          batch_slice = slice(i_batch*mini_batch, (i_batch+1)*mini_batch)
-          hmm = HMM(config, random_seed=seed + i_batch*1942)
-          hmm._init_all_nodes(mini_batch)
-          for i in range(seq_len):
-              observations[i,batch_slice] = np.array(hmm.top_node.state)
-              hmm.evolve_classic(1)
-          entropys.append(hmm.entropy_of_observations(observations[:,batch_slice]).mean().item())
-        return np.mean(entropys) / seq_len, np.median(entropys) / seq_len
-    
-    for seq_len in np.logspace(0,np.log10(100),10):
-      seq_len = int(seq_len)
-      print(seq_len, test_entropy(gssm_config, seq_len, 200))
