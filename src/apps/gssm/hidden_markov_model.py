@@ -195,6 +195,7 @@ class HMM:
         log_E: torch.tensor,
         log_pi: torch.tensor,
         device="cuda",
+        one_shot=False,
     ):
         """
         Perform the forward-backward algorithm to compute the forward and backward probabilities.
@@ -211,37 +212,39 @@ class HMM:
         """
         num_states = log_T.shape[0]
         T, B = obs.shape
-        log_T = log_T.to(device).to(torch.float64)
-        log_E = log_E.to(device).to(torch.float64)
-        log_pi = log_pi.to(device).to(torch.float64)
-        obs = obs.to(device)
 
-
-        forward_probs = torch.zeros((num_states, T, B), device=device)
+        forward_probs = torch.zeros((num_states, T, B), device=device, dtype=torch.float32)
 
         forward_probs[:, 0, :] = log_pi[:, None] + log_E[:, obs[0]]
         #forward_probs[:,t,:] = p(Z_t, X_[t])
         
-
-        log_T = log_T[:, :, None]
-
-        for t in range(1, T):
+        if one_shot:
+          log_T = log_T[:, :, None]
+          for t in range(1, T):
+            big_matrix = forward_probs[:, None, t - 1, :] + log_T
             forward_probs[:, t, :] = log_E[:, obs[t]] + torch.logsumexp(
-                forward_probs[:, None, t - 1, :] + log_T, dim=0
+                big_matrix, dim=0
             )
+        else:
+          for t in range(1, T):
+            for b in range(B):
+              big_matrix = forward_probs[:, None, t - 1, b] + log_T
+              forward_probs[:, t, b] = log_E[:, obs[t,b]] + torch.logsumexp(
+                  big_matrix, dim=0
+              )
 
         log_p_seq = torch.logsumexp(forward_probs, dim=0)
 
         return forward_probs.cpu(), log_p_seq.cpu()
 
-    def forward_probs(self, observations: np.ndarray, device: str = "cuda"):
+    def forward_probs(self, observations: np.ndarray, device: str = "cuda", one_shot=False):
         T, B = observations.shape
-        observations = torch.as_tensor(observations)
+        observations = torch.as_tensor(observations, dtype=torch.int32, device=device)
         self._init_all_nodes(B)
-        prior = torch.tensor(self.current_one_hot_product_state()[0])
-        transition = torch.tensor(self.make_prod_transition(self.top_node))
-        emission = torch.tensor(self.get_p_emission(self.top_node))
-        return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log(), device=device)
+        prior = torch.tensor(self.current_one_hot_product_state()[0], device=device, dtype=torch.float32)
+        transition = torch.tensor(self.make_prod_transition(self.top_node), device=device, dtype=torch.float32)
+        emission = torch.tensor(self.get_p_emission(self.top_node), device=device, dtype=torch.float32)
+        return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log(), device=device, one_shot=one_shot)
 
     # def entropy_of_observations(self, observations: np.ndarray, device: str = "cuda"):
     #     _, log_xst = self.forward_probs(observations, device=device)
@@ -250,7 +253,7 @@ class HMM:
     #     return H_T
 
 
-    def entropy_of_observations(self, observations: np.ndarray, final_entry_only : bool = True, device: str = "cuda"):
+    def entropy_of_observations(self, observations: np.ndarray, final_entry_only : bool = True, device: str = "cuda", one_shot=False):
         """ 
             Computes the negloglikelihoods of the observations
             The function should be called as a method of an HMM instance that has the same configuration and random seed as the one used to generate the observations
@@ -266,7 +269,7 @@ class HMM:
         if len([node for _, node in self.topo_order if node.mode == "context"]) != 0:
             log_xst = self.forward_probs_ICL(observations)
         else:
-            _, log_xst = self.forward_probs(observations, device=device)
+            _, log_xst = self.forward_probs(observations, device=device, one_shot=one_shot)
         H_t = -log_xst
         if final_entry_only:
             return H_t[-1]
