@@ -8,7 +8,7 @@ gssm_config = {
             "state_dim": 4,
             "parents": [],
             "alpha": .1,
-            "mode": "default",
+            "mode": "slow",
             "observed": False,
         },
         {
@@ -22,16 +22,24 @@ gssm_config = {
         {
             "name": "Z3",
             "state_dim": 4,
-            "parents": ["Z2"],
+            "parents": ["Z1","Z2"],
+            "alpha": 1,
+            "mode": "default",
+            "observed": False,
+        },
+        {
+            "name": "Z4",
+            "state_dim": 4,
+            "parents": ["Z1","Z2"],
             "alpha": 1,
             "mode": "default",
             "observed": False,
         },
         {
             "name": "X",
-            "state_dim": 8,
-            "parents": ["Z1", "Z3"],
-            "alpha": .05,
+            "state_dim": 32,
+            "parents": ["Z1","Z3","Z4"],
+            "alpha": .1,
             "mode": "default",
             "observed": True,
         },
@@ -75,8 +83,37 @@ gssm_config_ICL = {
     ]
 }
 
+small_gssm_config = {
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 4,
+            "parents": [],
+            "alpha": .1,
+            "mode": "slow",
+            "observed": False,
+        },
+        {
+            "name": "Z2",
+            "state_dim": 4,
+            "parents": ["Z1"],
+            "alpha": .1,
+            "mode": "default",
+            "observed": False,
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": ["Z1","Z2"],
+            "alpha": .1,
+            "mode": "default",
+            "observed": True,
+        },
+    ]
+}
+
 # %%
-def make_data(hmm: HMM, batch_size):
+def make_data(hmm: HMM, batch_size, seq_len):
     hmm._init_all_nodes(batch_size)
     observations = np.zeros((seq_len, batch_size), dtype=int)
     for i in range(seq_len):
@@ -84,10 +121,10 @@ def make_data(hmm: HMM, batch_size):
         hmm.evolve_classic(1)
     return observations
 
-def make_data2(hmm: HMM, batch_size):
+def make_data2(hmm: HMM, batch_size, seq_len):
     hmm._init_all_nodes(batch_size)
     observations = np.zeros((seq_len, batch_size), dtype=int)
-    prod_trans = hmm.make_prod_transition(hmm.top_node)
+    prod_trans = hmm.make_prod_transition()
     for i in range(seq_len):
         observations[i] = np.array(hmm.top_node.state)
         data = hmm.fwd_via_matmul(prod_trans)
@@ -95,39 +132,49 @@ def make_data2(hmm: HMM, batch_size):
           node.state = st
     return observations
 
+def test_entropys():
+  hmm = HMM(gssm_config, random_seed=np.random.randint(29042))
+  data1 = make_data(hmm, batch_size=20, seq_len=20)
+  entropys1 = hmm.entropy_of_observations(data1, small_mem=False, fast=False) # the old but gold
+  entropys2 = hmm.entropy_of_observations(data1, small_mem=True, fast=False)
+  entropys3 = hmm.entropy_of_observations(data1, small_mem=False, fast=True)
+  entropys4 = hmm.entropy_of_observations(data1, small_mem=True, fast=True)
+  print(((entropys1 - entropys2)).abs().mean())
+  print(((entropys1 - entropys3)).abs().mean())
+  print(((entropys1 - entropys4)).abs().mean())
+
+def test_generation(bsz=100):
+  hmm = HMM(small_gssm_config, random_seed=seed)
+  data1 = make_data(hmm, bsz, 50)
+  data2 = make_data2(hmm, bsz, 50)
+  entropys1 = hmm.entropy_of_observations(data1)
+  entropys2 = hmm.entropy_of_observations(data2)
+  hmm_mean1 = (entropys2 / (seq_len - 1)).mean().item()
+  hmm_mean2 = (entropys2 / (seq_len - 1)).mean().item()
+  print("entropy means", hmm_mean1, hmm_mean2)
+  import matplotlib.pyplot as plt
+  for i in range(5, 10):
+    plt.hist(data1[i], alpha=.5, range=(0, hmm.top_node.state_dim), label="true evolve")
+    plt.hist(data2[i], alpha=.5, range=(0, hmm.top_node.state_dim), label="hmm evolve")
+    plt.legend()
+    plt.show()
+
+test_entropys()
+test_generation()
+
+# %%
 emb_dim = 128
-nb_heads = 2
+nb_heads = 4
 seq_len = 50
-nb_layers = 2
-n_train = 10000
+nb_layers = 4
+n_train = 100000
 n_test = 1000
 seed = np.random.randint(29042)
 
-hmm = HMM(gssm_config, random_seed=seed)
-data1 = make_data(hmm, n_test)
-entropys1 = hmm.entropy_of_observations(data1)
-hmm_mean1 = (entropys1 / (seq_len - 1)).mean().item()
-
-hmm = HMM(gssm_config, random_seed=seed)
-data2 = make_data2(hmm, n_test)
-entropys2 = hmm.entropy_of_observations(data2)
-hmm_mean2 = (entropys2 / (seq_len - 1)).mean().item()
-hmm_mean1, hmm_mean2
-# %%
-import matplotlib.pyplot as plt
-for i in range(5, 10):
-  plt.hist(data1[i], alpha=.5, range=(0, hmm.top_node.state_dim), label="true evolve")
-  plt.hist(data2[i], alpha=.5, range=(0, hmm.top_node.state_dim), label="hmm evolve")
-  plt.legend()
-  plt.show()
-
-
-# %%
-
 hmm = HMM(gssm_config, random_seed=2489)
-train_data = make_data(hmm, n_train).T
-test_data = make_data(hmm, n_test).T
-hmm_estimate = hmm.entropy_of_observations(test_data.T)
+train_data = make_data(hmm, n_train, seq_len).T
+test_data = make_data(hmm, n_test, seq_len).T
+hmm_estimate = hmm.entropy_of_observations(test_data.T, fast=True, small_mem=False)
 hmm_mean = (hmm_estimate / (seq_len - 1)).mean().item()
 train_data.shape, test_data.shape, hmm_estimate.shape
 hmm_mean

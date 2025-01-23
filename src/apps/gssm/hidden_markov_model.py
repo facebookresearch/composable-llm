@@ -1,4 +1,7 @@
 
+# %%
+# import sys
+# sys.path.append("../../../")
 from functools import lru_cache
 from logging import getLogger
 import numpy as np
@@ -10,10 +13,11 @@ from nanollama.data import gssm
 
 logger = getLogger("nanollama")
 
+# %%
 
 class HMM:
-    SYM_IN = "abcxdefghijklmnopqrstuvwxyz"
-    SYM_OUT = "ABCXDEFGHIJKLMNOPQRSTUVWXYZ"
+    SYM_IN = "abcdefghijklmnopqrstuvwxyz"
+    SYM_OUT = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
     def __init__(self, config=None, top_node=None, random_seed=100):
         """
@@ -99,14 +103,20 @@ class HMM:
         res = np.eye(nb_classes)[np.array(targets).reshape(-1)]
         return res.reshape(list(targets.shape) + [nb_classes])
 
-    def one_hot_product_state(self, node):
-        node_order = self._dfs(node)
+    def one_hot_product_state(self):
+        node_order = self.topo_order
         einsum_str = "B" + ",B".join(HMM.SYM_IN[: len(node_order)]) + "->B" + HMM.SYM_IN[: len(node_order)]
         product_state = np.einsum(einsum_str, *[self._one_hot_state(node) for _, node in node_order])
         return product_state.reshape(product_state.shape[0], -1)
 
-    def product_state(self, tgt_node):
-        return self.one_hot_product_state(tgt_node).argmax(-1)
+    def one_hot_product_state_fast(self):
+        node_order = [(name, node) for name, node in self.topo_order if not node.observed]
+        einsum_str = "B" + ",B".join(HMM.SYM_IN[: len(node_order)]) + "->B" + HMM.SYM_IN[: len(node_order)]
+        product_state = np.einsum(einsum_str, *[self._one_hot_state(node) for _, node in node_order])
+        return product_state.reshape(product_state.shape[0], -1)
+
+    def product_state(self):
+        return self.one_hot_product_state().argmax(-1)
 
     def individual_states(self, prod_state, node_order):
         state_dims = [node.state_dim for _, node in node_order]
@@ -126,18 +136,16 @@ class HMM:
         einsum_str += self._node_sym_out(tgt_node)
         return einsum_str
 
-    def einsum_full_prod_str(self, tgt_node):
+    def einsum_full_prod_str_fast(self):
         """
         Constructs the einsum string for the target node transition matrix in the product state form
         """
-        ordered_nodes = [node for _, node in self._dfs(tgt_node)]
-        in_str = "".join(self._node_sym_in(n) for n in ordered_nodes)
-        out_str = "".join(self._node_sym_out(n) for n in ordered_nodes)
+        in_str = "".join(self._node_sym_in(n) for _,n in self.topo_order if not n.observed)
+        out_str = "".join(self._node_sym_out(n) for _,n in self.topo_order if not n.observed)
         return in_str + out_str
 
-    #@lru_cache(100)  # noqa: B019
-    def make_prod_transition(self, tgt_node):
-        node_order = [node for _, node in self._dfs(tgt_node)]
+    def make_prod_transition_fast(self):
+        node_order = [node for _, node in self.topo_order if not node.observed]
 
         einsum_input_strs = {node: self.einsum_input_str(node) for node in node_order}
         # a collection of einsum_str -> array to use for the actual einsum
@@ -145,7 +153,30 @@ class HMM:
         einsum_str_to_arr = {s: self.transitions[node] for node, s in einsum_input_strs.items()}
         input_strs = [einsum_input_strs[node] for node in node_order]
         input_tensors = [einsum_str_to_arr[s] for s in input_strs]
-        output_str = self.einsum_full_prod_str(tgt_node)
+        output_str = self.einsum_full_prod_str_fast()
+        einsum_str = ",".join(input_strs) + "->" + output_str
+        ret = self.square_matrix(np.einsum(einsum_str, *input_tensors))
+        return ret
+
+    def einsum_full_prod_str(self):
+        """
+        Constructs the einsum string for the target node transition matrix in the product state form
+        """
+        in_str = "".join(self._node_sym_in(n) for _,n in self.topo_order)
+        out_str = "".join(self._node_sym_out(n) for _,n in self.topo_order)
+        return in_str + out_str
+
+    #@lru_cache(100)  # noqa: B019
+    def make_prod_transition(self):
+        node_order = [node for _,node in self.topo_order]
+
+        einsum_input_strs = {node: self.einsum_input_str(node) for node in node_order}
+        # a collection of einsum_str -> array to use for the actual einsum
+        # we build the logic only with the strings and fetch the matrices from here
+        einsum_str_to_arr = {s: self.transitions[node] for node, s in einsum_input_strs.items()}
+        input_strs = [einsum_input_strs[node] for node in node_order]
+        input_tensors = [einsum_str_to_arr[s] for s in input_strs]
+        output_str = self.einsum_full_prod_str()
         einsum_str = ",".join(input_strs) + "->" + output_str
         ret = self.square_matrix(np.einsum(einsum_str, *input_tensors))
         return ret
@@ -162,20 +193,19 @@ class HMM:
         return self.individual_states(next_state, self.topo_order)
 
     def fwd_via_matmul(self, prod_transition):
-        state = self.one_hot_product_state(self.top_node)
+        state = self.one_hot_product_state()
         next_state = state @ prod_transition
         # sampling
         samples = torch.multinomial(torch.tensor(next_state), 1).numpy()[:,0]
         return self.individual_states(samples, self.topo_order)
 
     #@lru_cache(100)  # noqa: B019
-    def get_p_emission(self, tgt_node):
+    def get_p_emission(self):
         # p_emission is a projection matrix from the product state
         # state @ p_emission = state_X
-        assert tgt_node.observed
-        idx = self.indexs[tgt_node]
+        idx = self.indexs[self.top_node]
         shape = [1] * (len(self.topo_order) + 1)
-        dim = tgt_node.state_dim
+        dim = self.top_node.state_dim
         shape[idx] = dim
         shape[-1] = dim
         p_emission = np.eye(dim).reshape(shape)
@@ -185,8 +215,27 @@ class HMM:
         p_emission = p_emission.reshape(-1, dim)
         return p_emission
 
-    def current_one_hot_product_state(self):
-        return self.one_hot_product_state(self.top_node)
+    def get_p_emission_fast(self):
+        # p_emission is a projection matrix from the product state
+        # state @ p_emission = state_X
+        # p_emission signature = ACDX->ABCDX
+        idx = self.indexs[self.top_node]
+        reshape = [1] * (len(self.topo_order))
+        broadshape = [1] * (len(self.topo_order))
+        tgt_dim = self.top_node.state_dim
+        reshape[-1] = tgt_dim
+        broadshape[-1] = tgt_dim
+
+        for i, (_, node) in enumerate(self.topo_order):
+            broadshape[i] = node.state_dim
+            if node in self.top_node.parents:
+              reshape[i] = node.state_dim
+        
+        # print(reshape, broadshape, self.transitions[self.top_node][0].shape)
+        p_emission = self.transitions[self.top_node][0].reshape(reshape)
+        p_emission = np.broadcast_to(p_emission, broadshape)
+        p_emission = p_emission.reshape(-1, tgt_dim)
+        return p_emission
 
     @staticmethod
     def forward_algorithm(
@@ -195,7 +244,7 @@ class HMM:
         log_E: torch.tensor,
         log_pi: torch.tensor,
         device="cuda",
-        one_shot=False,
+        small_mem=False,
     ):
         """
         Perform the forward-backward algorithm to compute the forward and backward probabilities.
@@ -215,36 +264,48 @@ class HMM:
 
         forward_probs = torch.zeros((num_states, T, B), device=device, dtype=torch.float32)
 
-        forward_probs[:, 0, :] = log_pi[:, None] + log_E[:, obs[0]]
+        forward_probs[:, 0, :] = log_pi[:, None]# + log_E[:, obs[0]] <- don't need this because we start the emission with the prior
         #forward_probs[:,t,:] = p(Z_t, X_[t])
         
-        if one_shot:
+        if small_mem:
+          import tqdm
+          for t in tqdm.trange(1, T):
+            for b in range(B):
+              big_matrix = forward_probs[:, None, t - 1, b] + log_T
+              forward_probs[:, t, b] = log_E[:, obs[t,b]] + torch.logsumexp(
+                  big_matrix, dim=0
+              )
+        else:
           log_T = log_T[:, :, None]
           for t in range(1, T):
             big_matrix = forward_probs[:, None, t - 1, :] + log_T
             forward_probs[:, t, :] = log_E[:, obs[t]] + torch.logsumexp(
                 big_matrix, dim=0
             )
-        else:
-          for t in range(1, T):
-            for b in range(B):
-              big_matrix = forward_probs[:, None, t - 1, b] + log_T
-              forward_probs[:, t, b] = log_E[:, obs[t,b]] + torch.logsumexp(
-                  big_matrix, dim=0
-              )
 
         log_p_seq = torch.logsumexp(forward_probs, dim=0)
 
         return forward_probs.cpu(), log_p_seq.cpu()
 
-    def forward_probs(self, observations: np.ndarray, device: str = "cuda", one_shot=False):
+    def forward_probs(self, observations: np.ndarray, device: str = "cuda", small_mem=False):
         T, B = observations.shape
         observations = torch.as_tensor(observations, dtype=torch.int32, device=device)
         self._init_all_nodes(B)
-        prior = torch.tensor(self.current_one_hot_product_state()[0], device=device, dtype=torch.float32)
-        transition = torch.tensor(self.make_prod_transition(self.top_node), device=device, dtype=torch.float32)
-        emission = torch.tensor(self.get_p_emission(self.top_node), device=device, dtype=torch.float32)
-        return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log(), device=device, one_shot=one_shot)
+        prior = torch.tensor(self.one_hot_product_state()[0], device=device, dtype=torch.float32)
+        transition = torch.tensor(self.make_prod_transition(), device=device, dtype=torch.float32)
+        emission = torch.tensor(self.get_p_emission(), device=device, dtype=torch.float32)
+        # print("from fwd probs", transition.shape, emission.shape, prior.shape)
+        return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log(), device=device, small_mem=small_mem)
+
+    def forward_probs_fast(self, observations: np.ndarray, device: str = "cuda", small_mem=False):
+        T, B = observations.shape
+        observations = torch.as_tensor(observations, dtype=torch.int32, device=device)
+        self._init_all_nodes(B)
+        prior = torch.tensor(self.one_hot_product_state_fast()[0], device=device, dtype=torch.float32)
+        transition = torch.tensor(self.make_prod_transition_fast(), device=device, dtype=torch.float32)
+        emission = torch.tensor(self.get_p_emission_fast(), device=device, dtype=torch.float32)
+        # print("from fwd probs fast", transition.shape, emission.shape, prior.shape)
+        return self.forward_algorithm(observations, transition.log(), emission.log(), prior.log(), device=device, small_mem=small_mem)
 
     # def entropy_of_observations(self, observations: np.ndarray, device: str = "cuda"):
     #     _, log_xst = self.forward_probs(observations, device=device)
@@ -253,7 +314,7 @@ class HMM:
     #     return H_T
 
 
-    def entropy_of_observations(self, observations: np.ndarray, final_entry_only : bool = True, device: str = "cuda", one_shot=False):
+    def entropy_of_observations(self, observations: np.ndarray, final_entry_only : bool = True, device: str = "cuda", small_mem=False, fast=False):
         """ 
             Computes the negloglikelihoods of the observations
             The function should be called as a method of an HMM instance that has the same configuration and random seed as the one used to generate the observations
@@ -269,7 +330,10 @@ class HMM:
         if len([node for _, node in self.topo_order if node.mode == "context"]) != 0:
             log_xst = self.forward_probs_ICL(observations)
         else:
-            _, log_xst = self.forward_probs(observations, device=device, one_shot=one_shot)
+            if fast:
+              _, log_xst = self.forward_probs_fast(observations, device=device, small_mem=small_mem)
+            else:
+              _, log_xst = self.forward_probs(observations, device=device, small_mem=small_mem)
         H_t = -log_xst
         if final_entry_only:
             return H_t[-1]
@@ -322,3 +386,76 @@ class HMM:
         # [T,B]
         return np.array(logliks_of_the_observations).T
         
+# %%
+
+gssm_config = {
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 4,
+            "parents": [],
+            "alpha": .5,
+            "mode": "slow",
+            "observed": False,
+        },
+        {
+            "name": "Z2",
+            "state_dim": 4,
+            "parents": ["Z1"],
+            "alpha": .1,
+            "mode": "default",
+            "observed": False,
+        },
+        {
+            "name": "Z3",
+            "state_dim": 4,
+            "parents": ["Z1","Z2"],
+            "alpha": 1,
+            "mode": "default",
+            "observed": False,
+        },
+        {
+            "name": "Z4",
+            "state_dim": 4,
+            "parents": ["Z1","Z3"],
+            "alpha": 1,
+            "mode": "default",
+            "observed": False,
+        },
+        {
+            "name": "X",
+            "state_dim": 32,
+            "parents": ["Z1","Z2","Z4"],
+            "alpha": .5,
+            "mode": "default",
+            "observed": True,
+        },
+    ]
+}
+
+if __name__ == "__main__":
+    hmm = HMM(gssm_config)
+
+    prod_trans = hmm.make_prod_transition()
+    p_emission = hmm.get_p_emission()
+    other_prod_trans = hmm.make_prod_transition_fast()
+    other_p_emission = hmm.get_p_emission_fast()
+
+    seq_len = 10
+
+    def make_data(hmm: HMM, batch_size):
+        hmm._init_all_nodes(batch_size)
+        observations = np.zeros((seq_len, batch_size), dtype=int)
+        for i in range(seq_len):
+            observations[i] = np.array(hmm.top_node.state)
+            hmm.evolve_classic(1)
+        return observations
+
+    data1 = make_data(hmm, 10)
+    entropys1 = hmm.entropy_of_observations(data1, small_mem=False, final_entry_only=False)
+    entropys2 = hmm.entropy_of_observations(data1, small_mem=False, fast=True, final_entry_only=False)
+    print(entropys1, entropys2)
+    # print(((entropys1 - entropys2)))
+    # print(np.allclose(prod_trans, other_prod_trans))
+
+# %%
