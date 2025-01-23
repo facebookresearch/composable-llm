@@ -22,5 +22,5 @@ run_config:
   data:
     path: placeholder
     n_data: 10_000
-    batch_size: 1
+    batch_size: 1_000
     asynchronous: false
