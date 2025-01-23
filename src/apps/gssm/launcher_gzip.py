@@ -9,11 +9,11 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
+import getpass
 import json
+import os
 import zlib
 from pathlib import Path
-import getpass
-import os
 
 import h5py
 import yaml

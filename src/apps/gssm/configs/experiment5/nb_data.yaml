@@ -10,7 +10,7 @@ launcher:
     nb_gpus: 1
     mem: 16G
     partition: scavenge
-    time: 180         # job time in minutes
+    time: 60          # job time in minutes
     signal_time: 120  # alert time in seconds
 
   grid:
@@ -36,7 +36,7 @@ run_config:
     emb_dim: 128
     nb_layers: 4
     block:
-      seq_len: 2048
+      seq_len: 256
       nb_heads: 4
 
   optim:
