@@ -15,13 +15,9 @@
 #SBATCH --array=1-79
 #SBATCH --time=1:00:00
 
-# activate conda environment
-eval "$(/private/home/nolte/miniconda3/bin/conda shell.bash hook)"
-conda activate /private/home/nolte/miniconda3/envs/llm
 
 # go to code directory
-export PATH_TO_CODE_DIR=/private/home/nolte/projects/composable-llm
-cd $PATH_TO_CODE_DIR
+cd $CODE_DIR
 
 # handle missing slurm variables
 if [ -z "$SLURM_ARRAY_TASK_ID" ]; then
@@ -35,4 +31,4 @@ export FILENAME=onfly
 export BSZ=128
 export NBATCHES=50
 
-python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT --bsz $BSZ --n-batches $NBATCHES $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment1/$FILENAME.yaml 
+python -m src.apps.gssm.difficulty --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT --bsz $BSZ --n-batches $NBATCHES $CODE_DIR/src/apps/gssm/configs/experiment1/$FILENAME.yaml 

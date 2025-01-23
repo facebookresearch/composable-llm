@@ -2,8 +2,8 @@
 
 # Logging configuration
 #SBATCH --job-name=data1
-#SBATCH --output=/private/home/%u/logs/exp1/difficulty/logs/%a.log
-#SBATCH --error=/private/home/%u/logs/exp1/difficulty/logs/%a.err
+#SBATCH --output=/private/home/%u/logs/exp1/data/logs/%a.log
+#SBATCH --error=/private/home/%u/logs/exp1/data/logs/%a.err
 #SBATCH --open-mode=append
 
 # Job specification
@@ -16,8 +16,7 @@
 #SBATCH --time=1:00:00
 
 # go to code directory
-export PATH_TO_CODE_DIR=/private/home/$USER/code/composable-llm
-cd $PATH_TO_CODE_DIR
+cd $CODE_DIR
 
 # handle missing slurm variables
 if [ -z "$SLURM_ARRAY_TASK_ID" ]; then
@@ -27,4 +26,4 @@ fi
 
 echo "Running task $SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
 
-python -m src.apps.gssm.data --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $PATH_TO_CODE_DIR/src/apps/gssm/configs/experiment1/data.yaml 
+python -m src.apps.gssm.data --task-id $SLURM_ARRAY_TASK_ID --nb-tasks $SLURM_ARRAY_TASK_COUNT $CODE_DIR/src/apps/gssm/configs/experiment1/data.yaml 

@@ -1,9 +1,9 @@
 # Debugging configuration
 
-configs_path: /private/home/$USER/code/composable-llm/src/apps/gssm/configs/experiment8/map_grid_id_gssm_config.jsonl
+configs_path: $CODE_DIR/src/apps/gssm/configs/experiment8/map_grid_id_gssm_config.jsonl
 
 launcher:
-  name: debug_entropy
+  name: entropy
   log_dir: /checkpoint/$USER/icml/logs/exp8/entropy
   overwrite: false
   copy_code: false

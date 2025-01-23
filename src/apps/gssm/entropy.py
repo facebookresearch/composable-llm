@@ -126,7 +126,7 @@ class EntropyComputer:
         except StopIteration:
             # rescale loss and save it
             self.loss /= self.scaling
-            with open(self.path, "a") as f:
+            with open(os.path.expandvars(self.path), "a") as f:
                 print(json.dumps({"loss": self.loss}), file=f, flush=True)
 
             # remove temporary file
@@ -136,7 +136,7 @@ class EntropyComputer:
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         # if the evaluation was interrupted, save the current state
         if self.tmp_file.exists():
-            with open(self.tmp_file, "w") as f:
+            with open(os.path.expandvars(self.tmp_file), "w") as f:
                 print(
                     json.dumps({"loss": self.loss, "scaling": self.scaling, "step": self.step}),
                     file=f,
