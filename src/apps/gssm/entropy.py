@@ -45,6 +45,8 @@ class EntropyConfig:
     data: DataConfig = field(default_factory=DataConfig)
     gssm: GSSMConfig = field(default_factory=GSSMConfig)
     hmm: HMM = field(init=False)
+    fast_calculation: bool = True
+    low_memory: bool = False
 
     def __post_init__(self) -> None:
         """Check validity of arguments"""
@@ -79,6 +81,8 @@ class EntropyComputer:
     def __init__(self, config: EntropyConfig) -> None:
         self.data_config = config.data
         self.hmm = config.hmm
+        self.fast = config.fast_calculation
+        self.low_mem = config.low_memory
         log_dir = Path(os.path.expandvars(config.log_dir))
         log_dir.mkdir(parents=True, exist_ok=True)
         self.path = log_dir / f"eval_{get_rank()}.jsonl"
@@ -114,7 +118,7 @@ class EntropyComputer:
         try:
             batch, _ = next(self.loader)
 
-            entropy = self.hmm.entropy_of_observations(batch.T, device=self.device).mean().item() / (batch.size(1) - 1)
+            entropy = self.hmm.entropy_of_observations(batch.T, device=self.device, small_mem=self.low_mem, fast=self.fast).mean().item() / (batch.size(1) - 1)
 
             # evaluate
             scaling = batch.size(0) / self.data_config.batch_size
