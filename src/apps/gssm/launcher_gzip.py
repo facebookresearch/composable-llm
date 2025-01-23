@@ -44,14 +44,15 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    code_dir = "$CODE_DIR"
-    for exp in range(1, 5):
-        print(f"Running experiment {exp}")
-        gzip_estimate(exp, code_dir)
-
-    # merge the hmm estimate in the same format
     from .launcher_entropy import merge_hmm_estimate
 
-    for exp in range(1, 5):
-        print(f"Merging hmm estimate for experiment {exp}")
-        merge_hmm_estimate(exp, code_dir)
+    code_dir = "$CODE_DIR"
+    exp = int(input("Which experiment? "))
+
+    print(f"Running experiment {exp}")
+    gzip_estimate(exp, code_dir)
+
+    # merge the hmm estimate in the same format
+
+    print(f"Merging hmm estimate for experiment {exp}")
+    merge_hmm_estimate(exp, code_dir)

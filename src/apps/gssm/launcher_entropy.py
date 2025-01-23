@@ -27,12 +27,13 @@ SBATCH = """#!/bin/bash
 
 # Job specification
 #SBATCH --partition=scavenge
+#SBATCH --constraint=volta32gb
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=80G
-#SBATCH --time=1:00:00
+#SBATCH --time=10:00:00
 #SBATCH --array=1-{nb_tasks}
 
 # activate conda environment
@@ -134,5 +135,5 @@ def merge_hmm_estimate(exp: int, code_dir: str) -> None:
 
 if __name__ == "__main__":
     code_dir = "$CODE_DIR"
-    exp = 3
+    exp = int(input("which experiment? "))
     launch_entropy_estimate(exp, code_dir)

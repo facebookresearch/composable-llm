@@ -67,7 +67,8 @@ class EvalArgs:
     global_step: Optional[int] = None  # for in-training evaluation
 
     def __post_init__(self) -> None:
-        self.metric_log_dir = self.metric_log_dir or self.dump_dir
+        self.metric_log_dir = os.path.expand(self.metric_log_dir or self.dump_dir)
+        self.dump_dir = os.path.expand(self.dump_dir)
 
 
 def batched(iterable, n=1):

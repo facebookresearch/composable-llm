@@ -79,7 +79,7 @@ class EntropyComputer:
     def __init__(self, config: EntropyConfig) -> None:
         self.data_config = config.data
         self.hmm = config.hmm
-        log_dir = Path(config.log_dir)
+        log_dir = Path(os.path.expandvars(config.log_dir))
         log_dir.mkdir(parents=True, exist_ok=True)
         self.path = log_dir / f"eval_{get_rank()}.jsonl"
         self.tmp_file = log_dir / f".{get_rank()}.tmp"

@@ -35,6 +35,8 @@ class LoggerConfig:
     metric_path: str = field(init=False, default="")
 
     def __post_init__(self):
+        self.stdout_path = os.path.expandvars(self.stdout_path)
+        self.metric_path = os.path.expandvars(self.metric_path)
         self.level = self.level.upper()
         assert self.level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
