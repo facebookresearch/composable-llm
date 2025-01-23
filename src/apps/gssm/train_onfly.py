@@ -20,6 +20,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import yaml
 import copy
+from .hidden_markov_model import HMM
 
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
@@ -222,6 +223,7 @@ def train(config: TrainingConfig) -> None:
                 state=state.data,
             )
         )
+        hmm = HMM(top_node=dataloader.node)
 
         # ---------------------------------------------------------------------
         # Global information
@@ -321,8 +323,12 @@ def train(config: TrainingConfig) -> None:
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
 
+                entropy = hmm.entropy_of_observations(batch.T, fast=True) / y_batch.shape[1]
+
                 metrics = {
                     "loss": loss.item(),
+                    "entropy": entropy.mean().item(),
+                    "loss-entropy": loss.item() - entropy.mean().item(),
                     "step": step,
                     "acc_step": state.optim.acc_step,
                     "deterministic_test": batch[0, 1].item(),
@@ -332,7 +338,7 @@ def train(config: TrainingConfig) -> None:
 
                 # log to console
                 if is_master_process():
-                    _logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
+                    _logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}, entropy: {round(metrics['entropy'], 4):>7}, loss-entropy: {round(metrics['loss-entropy'], 4):>7}")
 
             profiler.end_timer("log_time")
 
