@@ -16,3 +16,4 @@ MYTODO.md
 *.ipynb
 tmp_*
 tests/
+*DS_Store
