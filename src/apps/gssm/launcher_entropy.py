@@ -100,7 +100,7 @@ def merge_hmm_estimate(exp: int, code_dir: str) -> None:
     with open(os.path.expandvars(save_path), "w") as f:
         pass
 
-    path = f"{code_dir}src/apps/gssm/configs/experiment{exp}/entropy.yaml"
+    path = f"{code_dir}/src/apps/gssm/configs/experiment{exp}/entropy.yaml"
     with open(os.path.expandvars(path)) as f:
         config = yaml.safe_load(f)
 
