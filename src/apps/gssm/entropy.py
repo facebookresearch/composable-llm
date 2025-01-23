@@ -87,6 +87,7 @@ class EntropyComputer:
         self.step = 0
         self.loss = 0
         self.scaling = 0
+        self.wip = True  # work in progress flag
         self.device = torch.device(get_local_rank()) if torch.cuda.is_available() else torch.device("cpu")
 
     def __enter__(self) -> "EntropyComputer":
@@ -129,14 +130,13 @@ class EntropyComputer:
             with open(os.path.expandvars(self.path), "a") as f:
                 print(json.dumps({"loss": self.loss}), file=f, flush=True)
 
-            # remove temporary file
-            self.tmp_file.unlink()
-            return False
+            # work is done
+            self.wip = False
 
     def __exit__(self, exc: type[BaseException], value: BaseException, tb: TracebackType):
         # if the evaluation was interrupted, save the current state
-        if self.tmp_file.exists():
-            with open(os.path.expandvars(self.tmp_file), "w") as f:
+        if self.wip:
+            with open(self.tmp_file, "w") as f:
                 print(
                     json.dumps({"loss": self.loss, "scaling": self.scaling, "step": self.step}),
                     file=f,
