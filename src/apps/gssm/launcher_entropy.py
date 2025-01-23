@@ -9,11 +9,11 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
+import getpass
 import json
 import os
 import subprocess
 from pathlib import Path
-import getpass
 
 import yaml
 
@@ -57,7 +57,7 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
         config = yaml.safe_load(f)
 
     all_configs = []
-    with open(os.path.expandvars(config.pop("configs_path"))) as f:
+    with open(Path(code_dir) / f"src/apps/gssm/configs/experiment{exp}/map_grid_id_gssm_config.jsonl") as f:
         for line in f:
             all_configs.append(json.loads(line))
 

@@ -16,7 +16,6 @@ import zlib
 from pathlib import Path
 
 import h5py
-import yaml
 
 
 def gzip_estimate(exp: int, code_dir: str) -> None:
@@ -25,11 +24,9 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
         pass
 
     path = f"{code_dir}/src/apps/gssm/configs/experiment{exp}/entropy.yaml"
-    with open(os.path.expandvars(path)) as f:
-        config = yaml.safe_load(f)
 
     all_configs = []
-    with open(os.path.expandvars(config.pop("configs_path"))) as f:
+    with open(Path(code_dir) / f"src/apps/gssm/configs/experiment{exp}/map_grid_id_gssm_config.jsonl") as f:
         for line in f:
             all_configs.append(json.loads(line))
 
