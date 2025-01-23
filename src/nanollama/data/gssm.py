@@ -95,10 +95,20 @@ class Node:
         self.rng = rng
         self.observed = observed
 
+        self.consistency_checks()
+
         self.kernels = self.sample_transitions(alpha)
 
         self.state = None
         self.time = None
+
+    
+    def consistency_checks(self):
+        """Check that the node is defined correctly"""
+        assert not (self.mode == "slow" and self.observed), "Observed nodes cannot have slow transitions"
+        assert not (self.mode == "dead" and self.observed), "Observed nodes cannot have dead transitions"
+        assert not (self.mode == "slow" and len(self.parents) > 0), "Slow nodes cannot have parents"
+
 
     def sample_transitions(self, alpha: float) -> list[np.ndarray[float]]:
         """Initialize transition kernels"""
@@ -118,12 +128,16 @@ class Node:
         transition = self.rng.dirichlet(alphas, size=fan_in)
 
         # in the `dead` mode, argmax p(state[t+1] | ...) = 0
-        if self.mode == "dead":
+        if self.mode in ["dead", "slow"]:
             index = np.arange(fan_in)
             argmax = transition.argmax(axis=1)
             max_val = transition[index, argmax]
-            transition[index, argmax] = transition[:, 0]
-            transition[:, 0] = max_val
+            if self.mode == "dead":
+              transition[index, argmax] = transition[:, 0]
+              transition[:, 0] = max_val
+            else:
+              transition[index, argmax] = transition[index, index]
+              transition[index, index] = max_val
 
         np.clip(transition, a_min=1e-10, a_max=None, out=transition)  # avoid underflow
         return transition
@@ -170,14 +184,6 @@ class Node:
 
         all_states += [parent.state for parent in self.parents]
         proba = np.prod([kernel[state] for kernel, state in zip(self.kernels, all_states)], axis=0)
-
-        # in the `slow` mode, argmax p(state[t+1] | state[t]=z) = z
-        if self.mode == "slow" and self.time != 0:
-            index = np.arange(len(self.state))
-            argmax = proba.argmax(axis=1)
-            max_val = proba[index, argmax]
-            proba[index, argmax] = proba[index, self.state]
-            proba[index, self.state] = max_val
 
         # Vectorized sampling
         random_values = self.rng.random(self.state.shape)
