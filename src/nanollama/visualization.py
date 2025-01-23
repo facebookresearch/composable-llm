@@ -41,7 +41,7 @@ def extract_config_info(
 
     # configuration information
     config_path = log_dir / "tasks" / f"{task_id}.yaml"
-    with open(config_path) as f:
+    with open(os.path.expandvars(config_path)) as f:
         config = flatten_config(yaml.safe_load(f))
     for key in keys:
         res[key] = config[f"run_config.{key}"]
@@ -55,7 +55,7 @@ def extract_config_info(
     # number of parameters
     metric_path = log_dir / "metrics" / str(task_id)
     filepath = metric_path / "info_model.jsonl"
-    with open(filepath) as f:
+    with open(os.path.expandvars(filepath)) as f:
         res["nb_params"] = json.loads(f.readline())["model_params"]
     return res
 
@@ -157,11 +157,6 @@ def get_losses(metric_path: PosixPath, steps: list, eval: bool = False) -> dict[
     res["best"] = loss.min().item()
     return res
 
-
-# def get_metrics(metric_path: PosixPath) -> dict[str, float]:
-#     with open(metric_path / "metrics.json") as f:
-#         metrics = json.load(f)
-#     return metrics
 
 
 # ------------------------------------------------------------------------------

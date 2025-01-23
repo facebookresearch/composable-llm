@@ -74,9 +74,9 @@ class WandbLogger:
             return self
 
         # Read run id from id file if it exists
-        if os.path.exists(self.id_file):
+        if os.path.exists(os.path.expandvars(self.id_file)):
             resuming = True
-            with open(self.id_file) as file:
+            with open(os.path.expandvars(self.id_file)) as file:
                 run_id = file.read().strip()
         else:
             resuming = False
@@ -153,7 +153,7 @@ def jsonl_to_wandb(
         entity=entity,
         config=config,
     )
-    with open(path) as f:
+    with open(os.path.expandvars(path)) as f:
         for line in f:
             data = json.loads(line)
             wandb.log(data, step=data["step"])

@@ -107,7 +107,7 @@ class EvalComputer:
 
         # retrieve previous computations
         if self.tmp_file.exists():
-            with open(self.tmp_file) as f:
+            with open(os.path.expandvars(self.tmp_file)) as f:
                 data = json.loads(f)
                 self.loss: float = data["loss"]
                 self.scaling: float = data["scaling"]

@@ -180,7 +180,7 @@ def eval_model(cfg: EvalArgs, generator: PackedCausalTransformerGenerator) -> No
         logger.info(f"Running evaluation on task {name}")
         if cfg.dump_dir is not None:
             result_file = os.path.join(cfg.dump_dir, "results", f"{name}.json")
-            if not cfg.no_resume and os.path.exists(result_file):
+            if not cfg.no_resume and os.path.exists(os.path.expandvars(result_file)):
                 logger.info(f"Loading cached evaluation results from {result_file}")
                 with open(os.path.expandvars(result_file)) as f:
                     metrics[name] = json.load(f)["results"]
