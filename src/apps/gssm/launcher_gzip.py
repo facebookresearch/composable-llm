@@ -35,7 +35,7 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 
     for conf in all_configs:
         path = conf["data"]["path"]
-        with h5py.File(path) as f:
+        with h5py.File(os.path.expandvars(path)) as f:
             data = f["data"][:, 1:]
 
         entropy = len(zlib.compress(data.tobytes(), level=9)) / data.size
