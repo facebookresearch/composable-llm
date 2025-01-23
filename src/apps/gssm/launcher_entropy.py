@@ -134,6 +134,6 @@ def merge_hmm_estimate(exp: int, code_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    code_dir = "$CODE_DIR"
+    code_dir = os.path.expandvars("$CODE_DIR")
     exp = int(input("which experiment? "))
     launch_entropy_estimate(exp, code_dir)

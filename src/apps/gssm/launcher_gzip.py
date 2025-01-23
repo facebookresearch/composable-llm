@@ -43,7 +43,7 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 if __name__ == "__main__":
     from .launcher_entropy import merge_hmm_estimate
 
-    code_dir = "$CODE_DIR"
+    code_dir = os.path.expandvars("$CODE_DIR")
     exp = int(input("Which experiment? "))
 
     print(f"Running experiment {exp}")
