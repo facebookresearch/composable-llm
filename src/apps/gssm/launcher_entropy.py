@@ -211,23 +211,17 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    # code_dir = os.path.expandvars("$CODE_DIR")
-    code_dir = "/private/home/vivc/code/composable-llm"
-    # exp = int(input("which experiment? "))
-    exp = 5
-    # gzip_estimate(exp, code_dir)
+    code_dir = os.path.expandvars("$CODE_DIR")
+
+    exp = int(input("Entropy calculation. Which experiment? "))
+    print(f"Entropy calculation launch for experiment {exp}")
     launch_entropy_estimate(exp, code_dir)
 
+    exp = int(input("Gzip calculation. Which experiment? "))
+    print(f"Running experiment {exp}")
+    gzip_estimate(exp, code_dir)
 
-# if __name__ == "__main__":
-
-#     code_dir = os.path.expandvars("$CODE_DIR")
-#     exp = int(input("Which experiment? "))
-
-#     print(f"Running experiment {exp}")
-#     gzip_estimate(exp, code_dir)
-
-#     # merge the hmm estimate in the same format
-
-#     print(f"Merging hmm estimate for experiment {exp}")
-#     merge_hmm_estimate(exp, code_dir)
+    # merge the hmm estimate in the same format
+    exp = int(input("Merging hmm estimate. Which experiment? "))
+    print(f"Merging hmm estimate for experiment {exp}")
+    merge_hmm_estimate(exp, code_dir)
