@@ -99,7 +99,7 @@ class EntropyComputer:
 
         # retrieve previous computations
         if self.tmp_file.exists():
-            with open(os.path.expandvars(self.tmp_file)) as f:
+            with open(self.tmp_file) as f:
                 data = json.loads(f)
                 self.loss: float = data["loss"]
                 self.scaling: float = data["scaling"]
@@ -118,7 +118,9 @@ class EntropyComputer:
         try:
             batch, _ = next(self.loader)
 
-            entropy = self.hmm.entropy_of_observations(batch.T, device=self.device, small_mem=self.low_mem, fast=self.fast).mean().item() / (batch.size(1) - 1)
+            entropy = self.hmm.entropy_of_observations(
+                batch.T, device=self.device, small_mem=self.low_mem, fast=self.fast
+            ).mean().item() / (batch.size(1) - 1)
 
             # evaluate
             scaling = batch.size(0) / self.data_config.batch_size
@@ -131,7 +133,7 @@ class EntropyComputer:
         except StopIteration:
             # rescale loss and save it
             self.loss /= self.scaling
-            with open(os.path.expandvars(self.path), "a") as f:
+            with open(self.path, "a") as f:
                 print(json.dumps({"loss": self.loss}), file=f, flush=True)
 
             # work is done
