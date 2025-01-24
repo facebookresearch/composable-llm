@@ -98,9 +98,10 @@ class WandbLogger:
             logger.info(f"Resuming run with ID: {run_id}")
 
         else:
+            run_config = make_nodes_nice(self.run_config)
             # Starting a new run
             self.run = wandb.init(
-                config=flatten_config(asdict(self.run_config), flatten_list=True),
+                config=flatten_config(run_config, flatten_list=True),
                 project=self.project,
                 entity=self.entity,
                 name=self.name,
@@ -136,6 +137,18 @@ class WandbLogger:
         except Exception as e:
             logger.warning(e)
 
+def make_nodes_nice(config):
+    config = asdict(config)
+    if "data" not in config:
+        return
+    if "gssm" not in config["data"]:
+        return
+    if "nodes" not in config["data"]["gssm"]:
+      return
+    nodes = config["data"]["gssm"]["nodes"]
+    nodes = {n["name"]: n for n in nodes}
+    config["data"]["gssm"]["nodes"] = nodes
+    return config
 
 def jsonl_to_wandb(
     path: str,

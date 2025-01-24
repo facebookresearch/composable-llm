@@ -10,17 +10,15 @@ launcher:
     nb_gpus: 1
     mem: 16G
     partition: learnfair
-    time: 120          # job time in minutes
+    time: 240          # job time in minutes
     signal_time: 120  # alert time in seconds
 
   grid:
-    wandb:
-      active: [true]
     model:
       emb_dim: [128, 256, 512]
     data:
       seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-      seq_len: [256]
+      seq_len: [256, 512]
       gssm:
         nodes:
         # standard (entropy 1.2)
@@ -91,6 +89,40 @@ launcher:
           - {name: Z3, state_dim: 8, alpha: 1e-2}
           - {name: Z4, state_dim: 8, alpha: 1e-2}
           - {name: X, state_dim: 64, parents: [Z1,Z2,Z3,Z4], alpha: 2.5e-2, observed: true}
+        # even more X state dim (entropy 1.2)
+        - - {name: Z1, state_dim: 4096, alpha: 1.7e-4}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2.5e-3, observed: true}
+        - - {name: Z1, state_dim: 1024, alpha: 7e-4}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2.5e-3, observed: true}
+        - - {name: Z1, state_dim: 512, alpha: 1.5e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2.5e-3, observed: true}
+        - - {name: Z1, state_dim: 256, alpha: 3e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2.5e-3, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 6e-3}
+          - {name: Z2, state_dim: 64, alpha: 6e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 2.5e-3, observed: true}
+        - - {name: Z1, state_dim: 8, alpha: 1e-2}
+          - {name: Z2, state_dim: 8, alpha: 1e-2}
+          - {name: Z3, state_dim: 8, alpha: 1e-2}
+          - {name: Z4, state_dim: 8, alpha: 1e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2.5e-3, observed: true}
+        # even more X state dim and more alpha (entropy 2.05)
+        - - {name: Z1, state_dim: 4096, alpha: 1.7e-4}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1.2e-2, observed: true}
+        - - {name: Z1, state_dim: 1024, alpha: 7e-4}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1.2e-2, observed: true}
+        - - {name: Z1, state_dim: 512, alpha: 1.5e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1.2e-2, observed: true}
+        - - {name: Z1, state_dim: 256, alpha: 3e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1.2e-2, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 6e-3}
+          - {name: Z2, state_dim: 64, alpha: 6e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1.2e-2, observed: true}
+        - - {name: Z1, state_dim: 8, alpha: 1e-2}
+          - {name: Z2, state_dim: 8, alpha: 1e-2}
+          - {name: Z3, state_dim: 8, alpha: 1e-2}
+          - {name: Z4, state_dim: 8, alpha: 1e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1.2e-2, observed: true}
           
 
 run_config:
@@ -106,7 +138,7 @@ run_config:
     gssm:
       nodes:
       - {name: Z1, state_dim: 512, alpha: 1.5e-3}
-      - {name: X, state_dim: 32, parents: [Z1], alpha: 5e-2, observed: true}
+      - {name: X, state_dim: 128, parents: [Z1], alpha: 1.25e-2, observed: true}
 
   model:
     emb_dim: 128
@@ -134,5 +166,5 @@ run_config:
       steps: -1
 
     wandb:
-      active: false
+      active: true
       project: exp10_onfly
