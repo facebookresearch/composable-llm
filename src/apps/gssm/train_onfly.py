@@ -364,7 +364,7 @@ def train(config: TrainingConfig) -> None:
                         f"Step: {metrics['step']}, "
                         f"Loss: {round(metrics['loss'], 4):>7}, "
                         f"entropy: {round(metrics['entropy'], 4):>7}, "
-                        f"loss-entropy: {round(metrics['loss-entropy'], 4):>7}"
+                        f"KL-divergence: {round(metrics['loss-entropy'], 4):>7}"
                     )
 
             profiler.end_timer("log_time")
