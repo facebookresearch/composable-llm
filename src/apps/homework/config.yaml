@@ -1,0 +1,74 @@
+launcher:
+  name: homework
+  overwrite: true
+  log_dir: $HOME/homework
+
+  script: src.apps.homework.train
+
+  slurm:
+    partition: scavenge
+    mem: 16G
+    nodes: 1
+    nb_gpus: 1        # use torchrun, or slurm, for multi-gpu runs
+    time: 10          # job time in minutes
+    signal_time: 60   # alert time in seconds
+
+run_config:
+  cluster:
+    compile_model: false
+
+  data:
+    batch_size: 128
+    seq_len: 2048
+
+  model:
+    vocab_size: 32
+    emb_dim: 64
+    nb_layers: 2
+    block:
+      seq_len: 2048
+      nb_heads: 2
+      hidden_dim: 256
+
+  optim:
+    steps: 100
+    lr: 1e-2
+    weight_decay: 0.1
+    warmup: 15
+    lr_min_ratio: 0
+
+  orchestration:
+    utils:
+      seed: 100
+
+    checkpoint:
+      period: 20
+      keep_only: 3
+
+    logging:
+      period: 1
+      level: debug
+    wandb:
+      active: false
+
+    profiler:
+      active: true
+      heavy: true
+      wait: 1
+      steps: 20
+
+  eval:
+    period: 0
+    dataset_dir: /checkpoint/$USER/datasets/eval
+    tasks: piqa
+    generator:
+      max_tokens: 2048
+      # dtype: fp32
+
+  # evaluation:
+  #   period: 15
+  #   asynchronous: false
+  #   data:
+  #     path: $HOME/data/composition/base/testset.h5
+  #     n_data: 1_000
+  #     batch_size: 16
