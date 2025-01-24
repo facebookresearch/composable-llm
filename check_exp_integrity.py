@@ -15,13 +15,20 @@ data_path = Path(f"/checkpoint/nolte/datasets/icml/exp{exp_id}")
 logs_path = Path(f"/checkpoint/nolte/icml/logs/exp{exp_id}/")
 entropy_path = logs_path / "entropy"
 
+#data exps
 nb_data_path = logs_path / "data"
 nb_data_logs_path = nb_data_path / "logs"
 nb_data_tasks_path = nb_data_path / "tasks"
 
+#param exps
 nb_params_path = logs_path / "params"
 nb_params_logs_path = nb_params_path / "logs"
 nb_params_tasks_path = nb_params_path / "tasks"
+
+#gzip and hmm summary
+hmm_summary_path = logs_path / "hmm.jsonl"
+gzip_summary_path = logs_path / "gzip.jsonl"
+
 
 n_data_exps_expected = len(tuple(nb_data_tasks_path.iterdir()))
 n_params_exps_expected = len(tuple(nb_params_tasks_path.iterdir()))
@@ -69,8 +76,12 @@ def check_entropy():
     print(f"missing entropy folder {count} vs {n_data_expected}")
     good=False
 
+  if not (gzip_summary_path.exists() and hmm_summary_path.exists()):
+    print("missing gzip / hmm summary, run launcher_gzip")
+    good = False
+
   if good:
-    print("all entropys there")
+    print("all entropys / gzip there")
   return good
 
 def check_exps():
