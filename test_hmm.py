@@ -285,3 +285,372 @@ for seq_len in [4]:# np.logspace(0,np.log10(100),10):
 
 
 # %%
+# %%
+import numpy as np
+from src.apps.gssm.hidden_markov_model import HMM
+import os
+import tqdm
+import matplotlib.pyplot as plt
+import zlib
+
+def make_data(hmm, bsz, seq_len):
+    hmm._init_all_nodes(bsz)
+    data = np.zeros((seq_len, bsz), int)
+
+    for i in range(seq_len):
+        data[i] = hmm.top_node.state
+        hmm.evolve_classic(1)
+    return data.T
+    
+def get_entropy_estimate_from_hmm(hmm : HMM, data, n_estimates=5, verbose = False):
+    B, T = data.shape
+    assert B//n_estimates == B/n_estimates
+    bsz = B//n_estimates
+    entropys = []
+    stds = []
+    for lo,hi in zip(range(0, B, bsz), range(bsz, B+bsz, bsz)):
+      all = hmm.entropy_of_observations(data[lo:hi].T, verbose = verbose)
+      entropys.append(all.mean())
+      stds.append(all.std())
+    return np.array(entropys), np.array(stds)
+
+
+
+# %%
+## Trivial case of random sequences
+bszs = [100, 1000, 2000] 
+seq_len = 256
+n_estimates = 5
+alpha = 10000
+
+k = 16
+
+random_config = {"nodes": [
+          {
+              "name": "Z1",
+              "state_dim": k,
+              "parents": [],
+              "alpha": alpha,
+              "mode": "default",
+              "observed": False,
+          },
+          {
+              "name": "X",
+              "state_dim": k,
+              "parents": ["Z1"],
+              "alpha": alpha,
+              "mode": "default",
+              "observed": True,
+          },
+      ]}
+
+mean_means = []
+mean_stds = []
+for bsz in tqdm.tqdm(bszs):
+  config = random_config
+  data = np.random.randint(0, k, size=(bsz*n_estimates, seq_len-1))
+  data = np.concatenate((np.zeros((bsz*n_estimates,1), dtype = int), data), axis = 1)
+  hmm = HMM(config, random_seed = 1)
+  estimate_means, estimate_stds = get_entropy_estimate_from_hmm(hmm, data, n_estimates=n_estimates)
+  mean_means += [estimate_means.mean()]
+  mean_stds += [estimate_means.std()]
+  
+
+def plot(means,  stds, title_prefix):
+  means = np.array(means)
+  stds = np.array(stds)
+  plt.fill_between(bszs, means - stds, means + stds, alpha=0.2)
+  plt.plot(bszs, means, 'g', label = "hmm")
+  plt.xscale('log')
+  plt.xlabel('# data')
+  plt.ylabel('hmm estimate')
+  plt.title(f'{title_prefix}, experiment = random, alpha={alpha}, T={seq_len}, n_estimates={n_estimates}')
+  plt.show()
+print("Results")
+print(f"Expected value {np.log(k)*seq_len}")
+print(f"HMM estimates {mean_means}")
+plot(mean_means, mean_stds, "Entropy")
+
+# %%
+## Plot entropy estimates with stds for various batch sizes and various experiments, compare with gzip, record time
+
+
+
+def get_various_configs(alpha, difficulty):
+  if difficulty == "easy":
+    return {
+        "nodes": [
+            {
+                "name": "Z1",
+                "state_dim": 4,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 4,
+                "parents": ["Z1"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": True,
+            },
+        ]
+    }
+  elif difficulty == "medium":
+    return {
+        "nodes": [
+            {
+                "name": "Z1",
+                "state_dim": 4,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "Z2",
+                "state_dim": 4,
+                "parents": ["Z1"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 16,
+                "parents": ["Z1", "Z2"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": True,
+            },
+        ]
+    }
+  elif difficulty == "medium_2":
+    return {
+        "nodes": [
+            {
+                "name": "Z1",
+                "state_dim": 16,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 16,
+                "parents": ["Z1"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": True,
+            },
+        ]
+    }
+  elif difficulty == "hard":
+    return {
+        "nodes": [
+            {
+                "name": "Z1",
+                "state_dim": 4,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "Z2",
+                "state_dim": 4,
+                "parents": ["Z1"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "Z3",
+                "state_dim": 4,
+                "parents": ["Z1", "Z2"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "Z4",
+                "state_dim": 4,
+                "parents": ["Z1", "Z2", "Z3"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 256,
+                "parents": ["Z1", "Z2", "Z3", "Z4"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": True,
+            },
+        ]
+    }
+  elif difficulty == "hard2":
+    return {
+        "nodes": [
+            {
+                "name": "Z1",
+                "state_dim": 256,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 256,
+                "parents": ["Z1"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": True,
+            },
+        ]
+    }
+  elif difficulty == "ICL_easy":
+    return {
+        "nodes": [
+            {
+                "name": "Z1",
+                "state_dim": 2,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "context",
+                "observed": False,
+            },
+            {
+                "name": "Z2",
+                "state_dim": 2,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 4,
+                "parents": ["Z1", "Z2"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": True,
+            },
+        ]
+    }
+  elif difficulty == "ICL_medium":
+    return {
+        "nodes": [
+            {
+                "name": "Z1",
+                "state_dim": 4,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "context",
+                "observed": False,
+            },
+            {
+                "name": "Z2",
+                "state_dim": 4,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "context",
+                "observed": False,
+            },
+            {
+                "name": "Z1",
+                "state_dim": 4,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "Z2",
+                "state_dim": 4,
+                "parents": [],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 64,
+                "parents": ["Z1", "Z2", "Z3", "Z4"],
+                "alpha": alpha,
+                "mode": "default",
+                "observed": True,
+            },
+        ]
+    }
+  
+
+# # %%
+# def get_entropy_estimate_from_gzip(data):
+#   entropy = len(zlib.compress(data.tobytes(), level=9)) / data.size
+#   return entropy
+
+# def get_reverse_entropy_estimate_from_gzip(data):
+#   entropy = len(zlib.compress(data.T.tobytes(), level=9)) / data.size
+#   return entropy
+
+
+# # %%
+# config = get_various_configs(0.1, "easy")
+# hmm = HMM(config, random_seed = 1)
+# data = make_data(hmm, bsz=4, seq_len=1000)
+# estimate_means, _ = get_entropy_estimate_from_hmm(hmm, data, n_estimates=4)
+# print(f"estimate_means {estimate_means}")
+# gzip_estimate = get_entropy_estimate_from_gzip(data)
+# print(f"gzip_estimate {gzip_estimate}")
+# gzip_reverse_estimate = get_reverse_entropy_estimate_from_gzip(data)
+# print(f"gzip_reverse_estimate {gzip_reverse_estimate}")
+
+
+
+# %%
+
+# TODO: get it to run on cluster
+# TODO: check if HMMs are correctly generated
+
+import tqdm
+seq_len = 40
+n_estimates = 2
+bszs = [10, 20, 50] # [100, 1000, 2500, 5000]
+difficulties = ["ICL_easy"]# ["easy", "medium"]#, "hard", "ICL_easy", "ICL_medium"]
+
+
+
+
+for difficulty in difficulties:
+  for alpha in [1] : # [.001, .1, 1]:
+    mean_means = []
+    mean_stds = []
+    gzip_estimates = [] 
+    gzip_reverse_estimates = []
+    for bsz in tqdm.tqdm(bszs):
+      config = get_various_configs(alpha, difficulty)
+      hmm = HMM(config, random_seed = 1)
+      data = make_data(hmm, bsz=n_estimates*bsz, seq_len=seq_len)
+      estimate_means, estimate_stds = get_entropy_estimate_from_hmm(hmm, data, n_estimates=n_estimates, verbose = True)
+      mean_means += [estimate_means.mean()]
+      mean_stds += [estimate_means.std()]
+     
+  def plot(means, stds, title_prefix):
+    means = np.array(means)
+    stds = np.array(stds)
+    plt.fill_between(bszs, means - stds, means + stds, alpha=0.2)
+    plt.plot(bszs, means, 'g', label = "hmm")
+    plt.xscale('log')
+    plt.xlabel('# data')
+    plt.ylabel('hmm estimate')
+    plt.title(f'{title_prefix}, experiment = {difficulty}, alpha={alpha}, T={seq_len}, n_estimates={n_estimates}')
+    plt.show()
+  plot(mean_means, mean_stds, "Entropy")
+# %%
+

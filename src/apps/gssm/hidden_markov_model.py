@@ -314,7 +314,7 @@ class HMM:
     #     return H_T
 
 
-    def entropy_of_observations(self, observations: np.ndarray, final_entry_only : bool = True, device: str = "cuda", small_mem=False, fast=False):
+    def entropy_of_observations(self, observations: np.ndarray, final_entry_only : bool = True, device: str = "cuda", small_mem=False, fast=False, N2 = 300, verbose = False):
         """ 
             Computes the negloglikelihoods of the observations
             The function should be called as a method of an HMM instance that has the same configuration and random seed as the one used to generate the observations
@@ -328,7 +328,9 @@ class HMM:
         """
         # Test whether we are in the ICL case
         if len([node for _, node in self.topo_order if node.mode == "context"]) != 0:
-            log_xst = self.forward_probs_ICL(observations)
+            if verbose:
+                print("ICL detected")
+            log_xst = self.forward_probs_ICL(observations, N2 = N2, verbose = verbose)
         else:
             if fast:
               _, log_xst = self.forward_probs_fast(observations, device=device, small_mem=small_mem)
@@ -340,7 +342,7 @@ class HMM:
         else:
             return H_t
 
-    def forward_probs_ICL(self, observations : np.ndarray, N2: int = 300) -> np.ndarray:
+    def forward_probs_ICL(self, observations : np.ndarray, N2: int = 300, verbose = False) -> np.ndarray:
         # Second version
         # NOTE: probably pretty costly in terms of memory and compute
         # TODO: too much back and forth between lists, ndarrays and torch tensors
@@ -364,12 +366,21 @@ class HMM:
         logliks_of_the_observations = []
         random_hmm = HMM(config = self.graph_config, random_seed = self.random_seed)
         for i in range(B):
+            if verbose and B % 10 == 0:
+                print(f"Estimaging loglikelihood of sequence {B}")
             # an array of length N2 of the loglikelihood of observation observations[:,i] conditioned by the N2 random hmms sampled
             conditional_logliks_of_the_observation = []
             for j in range(N2):
                 random_hmm.rng.bit_generator.state = np.random.default_rng(self.random_seed + 10 + i*N2 + j).bit_generator.state
                 random_hmm.top_node.initialize(B)
                 random_hmm.transitions = {node: random_hmm._format_transition(node) for _, node in random_hmm.topo_order}
+                if verbose and  B % 10 == 0 and j % 100 == 0:
+                    print(f"Generating HMM number {j}")
+                    for node in [random_hmm.top_node] + random_hmm.top_node.parents:
+                        print(f"Node {node.name}, mode {node.mode}, time {node.time}")
+                        print(node.kernels)
+
+                
                 # conditional_log_xst should be of shape [T,1]
                 _, conditional_log_xst = random_hmm.forward_probs(observations[:,[i]])
                 # print(f"conditional_log_xst {conditional_log_xst}")
