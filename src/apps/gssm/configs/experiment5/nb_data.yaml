@@ -33,14 +33,14 @@ run_config:
 
   model:
     vocab_size: 128
-    emb_dim: 128
-    nb_layers: 4
+    emb_dim: 64
+    nb_layers: 2
     block:
       seq_len: 256
       nb_heads: 4
 
   optim:
-    steps: 3000
+    steps: 10_000
     lr: 1e-3
     weight_decay: 0
     scheduler: constant

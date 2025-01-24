@@ -34,8 +34,8 @@ run_config:
   model:
     implementation: minlstm
     vocab_size: 32
-    emb_dim: 132
-    nb_layers: 4
+    emb_dim: 32
+    nb_layers: 2
     block:
       seq_len: 256
       nb_heads: 4

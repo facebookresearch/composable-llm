@@ -9,13 +9,47 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
-import getpass
 import json
 import os
 import subprocess
+import zlib
 from pathlib import Path
+from typing import Any
 
+import h5py
 import yaml
+
+# ------------------------------------------------------------------------------
+# Utils
+# ------------------------------------------------------------------------------
+
+
+def read_indented_jsonl(filepath: str) -> list[dict[str, Any]]:
+    data = []
+    with open(filepath) as file:
+        content = file.read()
+
+    # split the content into individual JSON objects
+    json_objects = content.split("}\n{")
+
+    # adjust format
+    if json_objects:
+        json_objects[0] = json_objects[0] + "}"
+        json_objects[-1] = "{" + json_objects[-1]
+        for i in range(1, len(json_objects) - 1):
+            json_objects[i] = "{" + json_objects[i] + "}"
+
+    # parse each JSON object
+    for json_str in json_objects:
+        json_object = json.loads(json_str)
+        data.append(json_object)
+    return data
+
+
+# ------------------------------------------------------------------------------
+# Slurm launcher
+# ------------------------------------------------------------------------------
+
 
 SBATCH = """#!/bin/bash
 
@@ -52,14 +86,18 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
     python_env = subprocess.check_output("which python", shell=True).decode("ascii").strip()
     conda_env = str(Path(python_env).parent.parent)
 
-    path = f"{code_dir}/src/apps/gssm/configs/experiment{exp}/entropy.yaml"
+    code_dir = Path(code_dir)
+
+    path = code_dir / f"src/apps/gssm/configs/experiment{exp}/entropy.yaml"
     with open(os.path.expandvars(path)) as f:
         config = yaml.safe_load(f)
 
     all_configs = []
-    with open(Path(code_dir) / f"src/apps/gssm/configs/experiment{exp}/map_grid_id_gssm_config.jsonl") as f:
+    with open(code_dir / f"src/apps/gssm/configs/experiment{exp}/.gssm_id_path.jsonl") as f:
         for line in f:
             all_configs.append(json.loads(line))
+
+    all_gssm = read_indented_jsonl(code_dir / f"src/apps/gssm/configs/experiment{exp}/.gssm_id_config.jsonl")
 
     nb_tasks = len(all_configs)
     log_dir = Path(os.path.expandvars(config["launcher"]["log_dir"]))
@@ -69,18 +107,25 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
     (log_dir / "tasks").mkdir(parents=True, exist_ok=True)
 
     for i, conf in enumerate(all_configs):
-        config["run_config"]["data"] |= conf["data"]
-        config["run_config"]["gssm"] = conf["gssm"]
+        config["run_config"]["data"]["path"] = conf["path"]
+
+        gssm_config = all_gssm[conf["gssm_id"]]
+        assert gssm_config["gssm_id"] == conf["gssm_id"]
+        gssm_config["batch_size"] = "FAKE"
+        gssm_config["seq_len"] = "FAKE"
+        gssm_config["seed"] = conf["seed"]
+
+        config["run_config"]["gssm"] = gssm_config
         config["launcher"]["log_dir"] = str(log_dir / str(i))
 
-        with open(os.path.expandvars(log_dir / "tasks" / f"{i + 1}.yaml"), "w") as f:
+        with open(log_dir / "tasks" / f"{i + 1}.yaml", "w") as f:
             yaml.dump(config, f)
 
-        with open(os.path.expandvars(run_file), "w") as f:
+        with open(run_file, "w") as f:
             f.write(
                 SBATCH.format(
                     exp=exp,
-                    code_dir=code_dir,
+                    code_dir=str(code_dir),
                     nb_tasks=nb_tasks,
                     conda_exe=conda_exe,
                     conda_env_path=conda_env,
@@ -91,32 +136,37 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
     os.system(f"sbatch {run_file}")
 
 
+# ------------------------------------------------------------------------------
+# Merging estimates
+# ------------------------------------------------------------------------------
+
+
 def merge_hmm_estimate(exp: int, code_dir: str) -> None:
     """
     Merge files created by the entropy launcher into single jsonl files.
 
     This is useful to homogenize the format of the entropy estimates.
     """
-    save_path = f"/checkpoint/{getpass.getuser()}/icml/logs/exp{exp}/hmm.jsonl"
-    with open(os.path.expandvars(save_path), "w") as f:
+    save_path = os.path.expandvars(f"/checkpoint/$USER/icml/logs/exp{exp}/hmm.jsonl")
+    with open(save_path, "w") as f:
         pass
 
-    path = f"{code_dir}/src/apps/gssm/configs/experiment{exp}/entropy.yaml"
-    with open(os.path.expandvars(path)) as f:
+    code_dir = Path(os.path.expandvars(code_dir))
+    path = code_dir / f"src/apps/gssm/configs/experiment{exp}/entropy.yaml"
+    with open(path) as f:
         config = yaml.safe_load(f)
 
     all_configs = []
-    with open(os.path.expandvars(config.pop("configs_path"))) as f:
+    with open(code_dir / f"src/apps/gssm/configs/experiment{exp}/.gssm_id_path.jsonl") as f:
         for line in f:
             all_configs.append(json.loads(line))
 
-    nb_tasks = len(all_configs)
     log_dir = Path(os.path.expandvars(config["launcher"]["log_dir"]))
 
     # for all data files
-    for i in range(nb_tasks):
+    for conf in all_configs:
         # retrieve entropy estimates
-        metric_dir = log_dir / str(i)
+        metric_dir = log_dir / str(conf["grid_id"])
         loss = None
         num = 0
         for file in metric_dir.glob("eval_*.jsonl"):
@@ -130,10 +180,54 @@ def merge_hmm_estimate(exp: int, code_dir: str) -> None:
 
         # save it to a jsonl file
         with open(os.path.expandvars(save_path), "a") as f:
-            print(json.dumps({"grid_id": i, "hmm_difficulty": loss}), file=f, flush=True)
+            print(json.dumps({"grid_id": conf["grid_id"], "hmm_difficulty": loss}), file=f, flush=True)
+
+
+# ------------------------------------------------------------------------------
+# Gzip estimate
+# ------------------------------------------------------------------------------
+
+
+def gzip_estimate(exp: int, code_dir: str) -> None:
+    code_dir = Path(os.path.expandvars(code_dir))
+
+    save_path = os.path.expandvars(f"/checkpoint/$USER/icml/logs/exp{exp}/gzip.jsonl")
+    with open(os.path.expandvars(save_path), "w") as f:
+        pass
+
+    all_configs = []
+    with open(code_dir / f"src/apps/gssm/configs/experiment{exp}/.gssm_id_path.jsonl") as f:
+        for line in f:
+            all_configs.append(json.loads(line))
+
+    for conf in all_configs:
+        path = os.path.expandvars(conf["path"])
+        with h5py.File(path) as f:
+            data = f["data"][:, 1:]
+
+        entropy = len(zlib.compress(data.tobytes(), level=9)) / data.size
+        with open(os.path.expandvars(save_path), "a") as f:
+            print(json.dumps({"grid_id": conf["grid_id"], "gzip_difficulty": entropy}), file=f, flush=True)
 
 
 if __name__ == "__main__":
-    code_dir = os.path.expandvars("$CODE_DIR")
-    exp = int(input("which experiment? "))
+    # code_dir = os.path.expandvars("$CODE_DIR")
+    code_dir = "/private/home/vivc/code/composable-llm"
+    # exp = int(input("which experiment? "))
+    exp = 5
+    # gzip_estimate(exp, code_dir)
     launch_entropy_estimate(exp, code_dir)
+
+
+# if __name__ == "__main__":
+
+#     code_dir = os.path.expandvars("$CODE_DIR")
+#     exp = int(input("Which experiment? "))
+
+#     print(f"Running experiment {exp}")
+#     gzip_estimate(exp, code_dir)
+
+#     # merge the hmm estimate in the same format
+
+#     print(f"Merging hmm estimate for experiment {exp}")
+#     merge_hmm_estimate(exp, code_dir)

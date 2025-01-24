@@ -133,11 +133,11 @@ def main() -> None:
     parser.add_argument("config", type=str, help="Path to configuration file")
     parser.add_argument("--task-id", type=int, default=1, help="Task id in the job array.")
     parser.add_argument("--nb-tasks", type=int, default=1, help="Number of tasks in the job array.")
-    path = parser.parse_args().config
+    path = os.path.expandvars(parser.parse_args().config)
     task_id = parser.parse_args().task_id
     nb_tasks = parser.parse_args().nb_tasks
 
-    with open(os.path.expandvars(path)) as f:
+    with open(path) as f:
         file_configs = yaml.safe_load(f)
 
     all_seeds = file_configs["seed"]
@@ -169,45 +169,31 @@ def map_datasetid_gssm(data_path: str) -> None:
     """
     Retrieve gssm configuration linked to datasets generated from the main function.
     """
-    save_path = Path(data_path).parent / "map_grid_id_gssm_config.jsonl"
-    id_path = Path(data_path).parent / "map_grid_id_gssm_id.jsonl"
-    node_path = Path(data_path).parent / "map_gssm_id_gssm_config.jsonl"
+    id_path = Path(data_path).parent / ".gssm_id_path.jsonl"
+    node_path = Path(data_path).parent / ".gssm_id_config.jsonl"
 
     with open(os.path.expandvars(data_path)) as f:
         file_configs = yaml.safe_load(f)
-
-    for path in [save_path, id_path, node_path]:
-        with open(os.path.expandvars(path), "w") as f:
-            pass
 
     all_seeds = file_configs["seed"]
     all_nodes = file_configs["gssm"]["nodes"]
     testset_path: str = file_configs.pop("sets")[1]["path"]
     file_configs.pop("chunk_size")
 
-    data_config = {}
-
     for i, (nodes, seed) in enumerate(product(all_nodes, all_seeds)):
-        # specify gssm config
-        gssm_config = {}
-        gssm_config["gssm"] = file_configs["gssm"]
-        gssm_config["gssm"]["nodes"] = nodes
-        gssm_config["seed"] = seed
-        gssm_config["batch_size"] = "FAKE"
-        gssm_config["seq_len"] = "FAKE"
-
         # retrieve where the generated testset is stored.
-        data_config |= {"path": testset_path.replace("$GRIDID", str(i))}
+        path = testset_path.replace("$GRIDID", str(i))
 
-        with open(os.path.expandvars(save_path), "a") as f:
-            print(json.dumps({"data": data_config, "gssm": gssm_config}), file=f, flush=True)
-
-        with open(os.path.expandvars(id_path), "a") as f:
-            print(json.dumps({"node_id": all_nodes.index(nodes), "seed": seed, "grid_id": i}), file=f, flush=True)
+        with open(id_path, "a") as f:
+            print(
+                json.dumps({"grid_id": i, "gssm_id": all_nodes.index(nodes), "seed": seed, "path": path}),
+                file=f,
+                flush=True,
+            )
 
     for nodes in all_nodes:
-        with open(os.path.expandvars(node_path), "a") as f:
-            print(json.dumps({"node_id": all_nodes.index(nodes), "nodes": nodes}, indent=4), file=f, flush=True)
+        with open(node_path, "a") as f:
+            print(json.dumps({"gssm_id": all_nodes.index(nodes), "nodes": nodes}, indent=4), file=f, flush=True)
 
 
 if __name__ == "__main__":
