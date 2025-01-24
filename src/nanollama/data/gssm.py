@@ -47,10 +47,6 @@ class NodeConfig:
         assert self.alpha, f"`alpha` must be specified. {self}"
         assert self.mode.lower() in ["default", "slow", "dead", "context"], f"Invalid mode: {self.mode}"
 
-        assert not (self.mode == "slow" and self.observed), "Observed nodes cannot have slow transitions"
-        assert not (self.mode == "dead" and self.observed), "Observed nodes cannot have dead transitions"
-        assert not (self.mode == "slow" and len(self.parents) > 0), "Slow nodes cannot have parents"
-
 
 class Node:
     """
@@ -99,10 +95,20 @@ class Node:
         self.rng = rng
         self.observed = observed
 
+        self.consistency_checks()
+
         self.kernels = self.sample_transitions(alpha)
 
         self.state = None
         self.time = None
+
+    
+    def consistency_checks(self):
+        """Check that the node is defined correctly"""
+        assert not (self.mode == "slow" and self.observed), "Observed nodes cannot have slow transitions"
+        assert not (self.mode == "dead" and self.observed), "Observed nodes cannot have dead transitions"
+        assert not (self.mode == "slow" and len(self.parents) > 0), "Slow nodes cannot have parents"
+
 
     def sample_transitions(self, alpha: float) -> list[np.ndarray[float]]:
         """Initialize transition kernels"""
@@ -127,11 +133,11 @@ class Node:
             argmax = transition.argmax(axis=1)
             max_val = transition[index, argmax]
             if self.mode == "dead":
-                transition[index, argmax] = transition[:, 0]
-                transition[:, 0] = max_val
+              transition[index, argmax] = transition[:, 0]
+              transition[:, 0] = max_val
             else:
-                transition[index, argmax] = transition[index, index]
-                transition[index, index] = max_val
+              transition[index, argmax] = transition[index, index]
+              transition[index, index] = max_val
 
         np.clip(transition, a_min=1e-10, a_max=None, out=transition)  # avoid underflow
         return transition
@@ -146,7 +152,7 @@ class Node:
             Batch size
         """
         for parent in self.parents:
-            if parent.time != 0:
+            if True: # parent.time != 0:
                 parent.initialize(bsz)
         self.state = np.zeros(bsz, dtype=int)
         self.time = 0

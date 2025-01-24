@@ -159,8 +159,8 @@ def test_generation(bsz=100):
     plt.legend()
     plt.show()
 
-test_entropys()
-test_generation()
+# test_entropys()
+# test_generation()
 
 # %%
 emb_dim = 128
@@ -284,7 +284,9 @@ for seq_len in [4]:# np.logspace(0,np.log10(100),10):
 #     print(seq_len, test_entropy(gssm_config, seq_len, 200))
 
 
-# %%
+
+###########################
+
 # %%
 import numpy as np
 from src.apps.gssm.hidden_markov_model import HMM
@@ -619,16 +621,16 @@ def get_various_configs(alpha, difficulty):
 # TODO: check if HMMs are correctly generated
 
 import tqdm
-seq_len = 40
+seq_len = 100
 n_estimates = 2
-bszs = [10, 20, 50] # [100, 1000, 2500, 5000]
+bszs = [2, 20] # [100, 1000, 2500, 5000]
 difficulties = ["ICL_easy"]# ["easy", "medium"]#, "hard", "ICL_easy", "ICL_medium"]
 
 
 
 
 for difficulty in difficulties:
-  for alpha in [1] : # [.001, .1, 1]:
+  for alpha in [10000] : # [.001, .1, 1]:
     mean_means = []
     mean_stds = []
     gzip_estimates = [] 
@@ -654,3 +656,5 @@ for difficulty in difficulties:
   plot(mean_means, mean_stds, "Entropy")
 # %%
 
+print(np.log(4)*seq_len)
+# %%

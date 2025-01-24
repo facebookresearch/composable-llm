@@ -366,19 +366,19 @@ class HMM:
         logliks_of_the_observations = []
         random_hmm = HMM(config = self.graph_config, random_seed = self.random_seed)
         for i in range(B):
-            if verbose and B % 10 == 0:
-                print(f"Estimaging loglikelihood of sequence {B}")
+            if verbose and i % 10 == 0:
+                print(f"Estimaging loglikelihood of sequence {i}")
             # an array of length N2 of the loglikelihood of observation observations[:,i] conditioned by the N2 random hmms sampled
             conditional_logliks_of_the_observation = []
             for j in range(N2):
                 random_hmm.rng.bit_generator.state = np.random.default_rng(self.random_seed + 10 + i*N2 + j).bit_generator.state
                 random_hmm.top_node.initialize(B)
                 random_hmm.transitions = {node: random_hmm._format_transition(node) for _, node in random_hmm.topo_order}
-                if verbose and  B % 10 == 0 and j % 100 == 0:
-                    print(f"Generating HMM number {j}")
-                    for node in [random_hmm.top_node] + random_hmm.top_node.parents:
-                        print(f"Node {node.name}, mode {node.mode}, time {node.time}")
-                        print(node.kernels)
+                # if verbose and  i % 10 == 0 and j % 100 == 0:
+                #     print(f"Generating HMM number {j}")
+                    # for node in [random_hmm.top_node] + random_hmm.top_node.parents:
+                    #     print(f"Node {node.name}, mode {node.mode}, time {node.time}")
+                    #     print(node.kernels)
 
                 
                 # conditional_log_xst should be of shape [T,1]
