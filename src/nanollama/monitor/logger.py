@@ -35,8 +35,8 @@ class LoggerConfig:
     metric_path: str = field(init=False, default="")
 
     def __post_init__(self):
-        self.stdout_path = os.path.expandvars(self.stdout_path)
-        self.metric_path = os.path.expandvars(self.metric_path)
+        self.stdout_path = self.stdout_path
+        self.metric_path = self.metric_path
         self.level = self.level.upper()
         assert self.level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
@@ -97,7 +97,7 @@ class Logger:
         """
         Open logging files.
         """
-        self.metric = open(os.path.expandvars(self.metric), "a")
+        self.metric = open(self.metric, "a")
         return self
 
     def __call__(self, metrics: dict[str, Any]) -> None:
@@ -113,7 +113,7 @@ class Logger:
         """
         if is_master_process():
             numel = sum([p.numel() for _, p in model.named_parameters()])
-            with open(os.path.expandvars(self.path / "info_model.jsonl"), "a") as f:
+            with open(self.path / "info_model.jsonl", "a") as f:
                 print(json.dumps({"model_params": numel}), file=f, flush=True)
             logger.info(f"Model has {numel} parameters.")
 

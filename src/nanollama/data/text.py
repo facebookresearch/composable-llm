@@ -178,7 +178,7 @@ def read_jsonl(
         offset=offset,
         current_iter=current_iter,
     )
-    with open(os.path.expand(file_path)) as file:
+    with open(file_path) as file:
         file.seek(position)
         while line := file.readline():
             current_line += 1

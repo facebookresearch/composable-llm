@@ -1,4 +1,5 @@
 import json
+import os
 from logging import getLogger
 from pathlib import PosixPath
 from typing import Any
@@ -6,7 +7,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import yaml
-import os
 
 from .utils import flatten_config
 
@@ -158,7 +158,6 @@ def get_losses(metric_path: PosixPath, steps: list, eval: bool = False) -> dict[
     return res
 
 
-
 # ------------------------------------------------------------------------------
 # Postprocessing Utilities
 # ------------------------------------------------------------------------------
@@ -210,7 +209,6 @@ def process_results(
             metric_path = log_dir / "metrics" / str(task_id)
             res = extract_config_info(log_dir, task_id, keys, num_keys, copy_num=copy_num)
             res |= get_losses(metric_path, steps, eval=eval)
-            # res |= get_metrics(metric_path)
 
             with open(os.path.expandvars(metric_path / "process.json"), "w") as f:
                 print(json.dumps(res, indent=4), file=f, flush=True)

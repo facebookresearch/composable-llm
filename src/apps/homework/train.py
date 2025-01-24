@@ -12,8 +12,7 @@ located in the root directory of this repository.
 import logging
 import os
 from contextlib import ExitStack
-from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from dataclasses import dataclass, field
 from typing import Any
 
 import torch
@@ -21,22 +20,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import yaml
 
-from ...nanollama.data.hdf5 import DataConfig, FileDataLoader, init_dataloader_state
-from ...nanollama.distributed import ClusterConfig, ClusterManager, clean_environment, is_master_process
-from ...nanollama.launcher import LauncherConfig, SlurmConfig, launch_job
+from ...nanollama.distributed import ClusterConfig, ClusterManager
 from ...nanollama.model import Transformer, TransformerConfig
 from ...nanollama.monitor import (
-    Checkpointer,
-    Logger,
-    LoggerConfig,
     OrchestratorConfig,
     PreemptionHandler,
     Profiler,
-    ProfilerConfig,
-    UtilityConfig,
-    UtilityManager,
-    WandbConfig,
-    WandbLogger,
 )
 from ...nanollama.optim import (
     OptimizerConfig,
@@ -44,8 +33,7 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.utils import TrainState, flatten_config, initialize_nested_object, unflatten_config
-from .evaluation import EvaluationConfig, EvaluationRunConfig, run_evaluation
+from ...nanollama.utils import TrainState, initialize_nested_object
 
 _logger = logging.getLogger("nanollama")
 
@@ -56,13 +44,18 @@ _logger = logging.getLogger("nanollama")
 
 
 @dataclass
+class DataConfig:
+    batch_size: int = 2048
+    seq_len: int = 128
+
+
+@dataclass
 class TrainingConfig:
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     orchestration: OrchestratorConfig = field(default_factory=OrchestratorConfig)
 
     data: DataConfig = field(default_factory=DataConfig)
     optim: OptimizerConfig = field(default_factory=OptimizerConfig)
-    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 
     model: TransformerConfig = field(default_factory=None)
     model_gen: callable = field(init=False, default=None)
@@ -75,9 +68,6 @@ class TrainingConfig:
         if self.cluster.device.type == "cpu":
             assert self.optim.fused is False, "Fused Adam is not supported on CPU"
             assert self.orchestration.profiler.active is False, "Profiler is not supported on CPU"
-
-        # evaluation paths
-        self.evaluation.path = self.orchestration.logging.metric_path
 
         # manual post initialization of all modules
         for module in self.__dict__.values():
@@ -124,69 +114,9 @@ def rnn_config_gen() -> Any:
     return FastRNNTrainingConfig
 
 
-def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]) -> None:
-    """
-    Cast training configuration arguments into evaluation configuration.
-    """
-    if eval_config.get("period", 0) <= 0:
-        train_config["evaluation"] = eval_config
-        return
-
-    # flatten configurations for easier access
-    flat_config = flatten_config(train_config)
-    eval_config = flatten_config(eval_config)
-
-    # special inheritance
-    # orchestration
-    eval_config["orchestration.name"] = flat_config["orchestration.name"] + "_eval"
-    eval_config["orchestration.parent_dir"] = flat_config["orchestration.log_dir"]
-    task_id = os.environ.get("SLURM_ARRAY_TASK_ID", "0")
-    eval_config["orchestration.log_dir"] = str(Path(flat_config["orchestration.log_dir"]) / "evals" / task_id)
-    eval_config["orchestration.task_id"] = int(task_id)
-
-    # generic inheritance
-    configs_keys = [
-        (DataConfig, "data"),
-    ]
-
-    if eval_config.get("asynchronous"):
-        configs_keys += [
-            (SlurmConfig, "slurm"),
-            (ClusterConfig, "cluster"),
-            (LoggerConfig, "orchestration.logging"),
-            (ProfilerConfig, "orchestration.profiler"),
-            (UtilityConfig, "orchestration.utils"),
-            (WandbConfig, "orchestration.wandb"),
-        ]
-
-    for config_cls, cls_key in configs_keys:
-        for key, finfo in config_cls.__dataclass_fields__.items():
-            if not finfo.init:
-                continue
-            flat_key = f"{cls_key}.{key}"
-            if flat_key not in eval_config and flat_key in flat_config:
-                eval_config[flat_key] = flat_config[flat_key]
-
-    # merge configuration
-    train_config["evaluation"] = unflatten_config(eval_config)
-
-
 # ------------------------------------------------------------------------------
 # Training loop
 # ------------------------------------------------------------------------------
-
-
-def make_nodes_nice(config: dict[str, Any]) -> dict[str, Any]:
-    if "data" not in config:
-        return
-    if "gssm" not in config["data"]:
-        return
-    if "nodes" not in config["data"]["gssm"]:
-        return
-    nodes = config["data"]["gssm"]["nodes"]
-    nodes = {n["name"]: n for n in nodes}
-    config["data"]["gssm"]["nodes"] = nodes
-    return config
 
 
 def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
@@ -202,14 +132,9 @@ def train(config: TrainingConfig) -> None:
 
         preemption: PreemptionHandler = context_stack.enter_context(PreemptionHandler())
         cluster: ClusterManager = context_stack.enter_context(ClusterManager(config.cluster))
-        logger: Logger = context_stack.enter_context(Logger(config.orchestration.logging))
-        utils: UtilityManager = context_stack.enter_context(UtilityManager(config.orchestration.utils))
-        wandb: WandbLogger = context_stack.enter_context(
-            WandbLogger(
-                config.orchestration.wandb,
-                run_config=flatten_config(make_nodes_nice(asdict(config)), flatten_list=True),
-            )
-        )
+        # logger: Logger = context_stack.enter_context(Logger(config.orchestration.logging))
+        # utils: UtilityManager = context_stack.enter_context(UtilityManager(config.orchestration.utils))
+        # wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, run_config=config))
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model, optimizer, scheduler
@@ -229,37 +154,32 @@ def train(config: TrainingConfig) -> None:
         # ---------------------------------------------------------------------
 
         state = TrainState(
-            data=init_dataloader_state(config.data),
+            data=(config.data),
             optim=init_optimizer_state(),
         )
 
-        checkpoint: Checkpointer = context_stack.enter_context(
-            Checkpointer(
-                config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
-            )
-        )
+        # checkpoint: Checkpointer = context_stack.enter_context(
+        #     Checkpointer(
+        #         config.orchestration.checkpoint, model=model, optimizer=optimizer, scheduler=scheduler, state=state
+        #     )
+        # )
 
         # ---------------------------------------------------------------------
         # DataLoader
         # ---------------------------------------------------------------------
 
-        dataloader: FileDataLoader = context_stack.enter_context(
-            FileDataLoader(
-                config=config.data,
-                state=state.data,
-            )
-        )
+        # dataloader = FileDataLoader = context_stack.enter_context(
+        #     FileDataLoader(
+        #         config=config.data,
+        #         state=state.data,
+        #     )
+        # )
 
         # ---------------------------------------------------------------------
         # Global information
         # ---------------------------------------------------------------------
 
         profiler: Profiler = context_stack.enter_context(Profiler(config.orchestration.profiler, state=state))
-
-        logger.report_statistics(model)
-        seq_len = 0  # config.model.block.seq_len
-        token_per_step = seq_len * config.data.batch_size * config.optim.grad_acc_steps
-        profiler.report_statistics(model, token_per_step=token_per_step, seq_len=seq_len)
 
         # ---------------------------------------------------------------------
         # Training loop
@@ -268,8 +188,7 @@ def train(config: TrainingConfig) -> None:
         model.train()
 
         # aliases
-        log_period = config.orchestration.logging.period
-        eval_period = config.evaluation.period
+        # eval_period = config.evaluation.period
 
         while state.optim.step < config.optim.steps:
             # handle preemption
@@ -285,23 +204,21 @@ def train(config: TrainingConfig) -> None:
             # Batch of data (with reproducibility information)
             # -----------------------------------------------------------------
 
-            profiler.start_timer()
-            batch, restart_info = next(dataloader)
+            # profiler.start_timer()
+            batch = torch.ones((config.data.batch_size, config.data.seq_len), dtype=torch.long)
+            restart_info = None
+
+            # batch, restart_info = next(dataloader)
             if cluster.device.type != "cpu":
                 batch = batch.pin_memory()
-            profiler.end_timer("data_cpu_time")
 
-            profiler.start_timer()
             batch = batch.to(device=cluster.device, non_blocking=True)
             X_batch = batch[:, :-1]
             y_batch = batch[:, 1:]
-            profiler.end_timer("data_io_time")
 
             # -----------------------------------------------------------------
             # Forward and backward pass
             # -----------------------------------------------------------------
-
-            profiler.start_timer()
 
             # forward propagation
             preds = model(X_batch)
@@ -321,97 +238,12 @@ def train(config: TrainingConfig) -> None:
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
-            state.data.report_restart_info(*restart_info)
+            # state.data.report_restart_info(*restart_info)
             state.optim.step += 1
 
-            profiler.end_timer("model_time", sync=True)
-
-            # -----------------------------------------------------------------
-            # Call monitors for garbage collection, checkpointing...
-            # -----------------------------------------------------------------
-
-            # alias
-            step = state.optim.step
-
-            profiler.start_timer()
-            checkpoint()
             profiler()
-            utils()
-            profiler.end_timer("monitor_time")
 
-            # -----------------------------------------------------------------
-            # Log metrics
-            # -----------------------------------------------------------------
-
-            profiler.start_timer()
-
-            if log_period > 0 and step % log_period == 0:
-                # For logging we undo gradient accumulation scaling
-                loss = loss.detach() * config.optim.grad_acc_steps
-                metrics = {
-                    "loss": loss.item(),
-                    "step": step,
-                    "acc_step": state.optim.acc_step,
-                    "deterministic_test": batch[0, 1].item(),
-                }
-                logger(metrics)
-                wandb(metrics)
-
-                # log to console
-                if is_master_process():
-                    _logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}")
-
-            profiler.end_timer("log_time")
-
-            # -----------------------------------------------------------------
-            # Evaluation
-            # -----------------------------------------------------------------
-
-            profiler.start_timer()
-
-            if eval_period > 0 and step % eval_period == 0:
-                # run evaluation now
-                if not config.evaluation.asynchronous:
-                    run_evaluation(config.evaluation, model=model, step=step)
-
-                # launch evaluation job on slurm
-                elif is_master_process():
-                    # checkpoint
-                    checkpoint.update(eval=True)
-
-                    # alias
-                    orchestration_config = config.evaluation.orchestration
-                    orchestration_config.log_dir = str(Path(orchestration_config.log_dir) / f"{step:010d}")
-
-                    # launcher config
-                    launch_config = initialize_nested_object(
-                        LauncherConfig,
-                        {
-                            "name": orchestration_config.name,
-                            "log_dir": orchestration_config.log_dir,
-                            "overwrite": False,
-                            "copy_code": False,
-                            "script": "src.apps.gssm.evaluation",
-                            "slurm": config.evaluation.slurm.to_dict(),
-                        },
-                    )
-
-                    # run config
-                    orchestration_config.train_step = step
-                    eval_config: EvaluationRunConfig = {
-                        "model": asdict(config.model),
-                        "data": asdict(config.evaluation.data),
-                        "cluster": config.evaluation.cluster.to_dict(),
-                        "orchestration": orchestration_config.to_dict(),
-                    }
-
-                    # luanch job without device binding
-                    with clean_environment():
-                        launch_job(launch_config, eval_config)
-
-                    orchestration_config.log_dir = str(Path(orchestration_config.log_dir).parent)
-
-            profiler.end_timer("evaluation")
+            print("step", preds.std().item())
 
     _logger.info("Training done.")
 
@@ -455,15 +287,13 @@ def main() -> None:
             run_config["orchestration"][key] = launcher[key]
 
     # configuration inheritance between training and evaluation
-    eval_config = run_config.pop("evaluation", {})
     run_config["slurm"] = launcher.pop("slurm", {})
-    config_inheritance(run_config, eval_config)
     run_config.pop("slurm")
 
-    # grid id system to handle multiple datasets
-    grid_id = run_config.get("grid_id", 0)
-    run_config["data"]["path"] = run_config["data"]["path"].replace("$GRIDID", str(grid_id))
-    run_config["evaluation"]["data"]["path"] = run_config["evaluation"]["data"]["path"].replace("$GRIDID", str(grid_id))
+    # # grid id system to handle multiple datasets
+    # grid_id = run_config.get("grid_id", 0)
+    # run_config["data"]["path"] = run_config["data"]["path"].replace("$GRIDID", str(grid_id))
+    # run_config["evaluation"]["data"]["path"] = run_config["evaluation"]["data"]["path"].replace("$GRIDID", str(grid_id))
 
     # initialize configuration
     implementation = run_config.get("model", {}).get("implementation", "").lower()

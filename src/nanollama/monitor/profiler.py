@@ -17,7 +17,6 @@ from logging import getLogger
 from pathlib import Path, PosixPath
 from types import TracebackType
 from typing import Any
-import os
 
 import torch
 import torch.profiler as profiler
@@ -159,7 +158,7 @@ class LightProfiler(BaseProfiler):
 
     def __enter__(self):
         logger.info(f"Light profiler active. Traces will be saved at {self.path}")
-        self.file = open(os.path.expandvars(self.path), "a")
+        self.file = open(self.path, "a")
         self.start_timer()
 
     def __call__(self) -> None:

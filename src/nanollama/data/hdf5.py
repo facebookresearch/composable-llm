@@ -173,7 +173,7 @@ class FileDataLoader(DataLoader):
                     duplicate = None
 
                 # read from hdf5 data file
-                with h5py.File(os.path.expandvars(self.path), "r") as f:
+                with h5py.File(self.path, "r") as f:
                     batch = f["data"][batch_idx]
 
                 # handle duplicate
@@ -231,7 +231,7 @@ class ChunkEvaluator(DataLoader):
             end = min(end, self.end_ind)
 
             # read from hdf5 data file
-            with h5py.File(os.path.expandvars(self.path), "r") as f:
+            with h5py.File(self.path, "r") as f:
                 batch = f["data"][begin:end]
             yield batch
 

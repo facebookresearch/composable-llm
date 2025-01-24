@@ -16,7 +16,6 @@ from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path, PosixPath
 from types import TracebackType
-import os
 
 import torch
 from torch import nn
@@ -103,7 +102,7 @@ class Checkpointer(Monitor):
 
         logger.info("Reloading train state")
         file_path = path / self.state_name.format(self.device_rank)
-        with open(os.path.expandvars(file_path)) as f:
+        with open(file_path) as f:
             train_state_dict = json.load(f)
         self.state.load_state_dict(train_state_dict)
         logger.info("Train state reloaded")
@@ -145,7 +144,7 @@ class Checkpointer(Monitor):
         logger.info(f"Saving checkpoint at step {self.state.optim.step} to {str(save_dir)}")
 
         filename = self.state_name.format(self.device_rank)
-        with open(os.path.expandvars(save_dir / filename), "w") as f:
+        with open(save_dir / filename, "w") as f:
             json.dump(self.state.state_dict(), f, indent=2)
 
         if is_master_process():

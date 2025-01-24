@@ -9,18 +9,17 @@ located in the root directory of this repository.
 @ 2025, Meta
 """
 
+import copy
 import logging
 import os
 from contextlib import ExitStack
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import yaml
-import copy
-from .hidden_markov_model import HMM
 
 from ...nanollama.data.gssm import DataConfig, OnlineDataLoader, init_dataloader_state
 from ...nanollama.distributed import ClusterConfig, ClusterManager, is_master_process
@@ -40,7 +39,8 @@ from ...nanollama.optim import (
     init_optimizer_state,
     init_scheduler,
 )
-from ...nanollama.utils import TrainState, initialize_nested_object
+from ...nanollama.utils import TrainState, flatten_config, initialize_nested_object
+from .hidden_markov_model import HMM
 
 _logger = logging.getLogger("nanollama")
 
@@ -170,6 +170,19 @@ def rnn_config_gen() -> Any:
 # ------------------------------------------------------------------------------
 
 
+def make_nodes_nice(config: dict[str, Any]) -> dict[str, Any]:
+    if "data" not in config:
+        return
+    if "gssm" not in config["data"]:
+        return
+    if "nodes" not in config["data"]["gssm"]:
+        return
+    nodes = config["data"]["gssm"]["nodes"]
+    nodes = {n["name"]: n for n in nodes}
+    config["data"]["gssm"]["nodes"] = nodes
+    return config
+
+
 def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     vocab_size = preds.size(-1)
     return F.cross_entropy(preds.reshape(-1, vocab_size), targets.reshape(-1))
@@ -185,7 +198,12 @@ def train(config: TrainingConfig) -> None:
         cluster: ClusterManager = context_stack.enter_context(ClusterManager(config.cluster))
         logger: Logger = context_stack.enter_context(Logger(config.orchestration.logging))
         utils: UtilityManager = context_stack.enter_context(UtilityManager(config.orchestration.utils))
-        wandb: WandbLogger = context_stack.enter_context(WandbLogger(config.orchestration.wandb, run_config=config))
+        wandb: WandbLogger = context_stack.enter_context(
+            WandbLogger(
+                config.orchestration.wandb,
+                run_config=flatten_config(make_nodes_nice(asdict(config)), flatten_list=True),
+            )
+        )
 
         # ---------------------------------------------------------------------
         # Build and Parallelize model, optimizer, scheduler
@@ -325,7 +343,9 @@ def train(config: TrainingConfig) -> None:
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
 
-                entropy = hmm.entropy_of_observations(batch.T, fast=True, small_mem=config.low_memory_hmm) / y_batch.shape[1]
+                entropy = (
+                    hmm.entropy_of_observations(batch.T, fast=True, small_mem=config.low_memory_hmm) / y_batch.shape[1]
+                )
 
                 metrics = {
                     "loss": loss.item(),
@@ -340,24 +360,30 @@ def train(config: TrainingConfig) -> None:
 
                 # log to console
                 if is_master_process():
-                    _logger.info(f"Step: {metrics['step']}, Loss: {round(metrics['loss'], 4):>7}, entropy: {round(metrics['entropy'], 4):>7}, loss-entropy: {round(metrics['loss-entropy'], 4):>7}")
+                    _logger.info(
+                        f"Step: {metrics['step']}, "
+                        f"Loss: {round(metrics['loss'], 4):>7}, "
+                        f"entropy: {round(metrics['entropy'], 4):>7}, "
+                        f"loss-entropy: {round(metrics['loss-entropy'], 4):>7}"
+                    )
 
             profiler.end_timer("log_time")
 
     _logger.info("Training done.")
 
 
-def train_config_from_run_config(run_config):
-  # initialize configuratiou
-  run_config = copy.deepcopy(run_config)
-  implementation = run_config.get("model", {}).get("implementation", "").lower()
-  if implementation == "mamba":
-      config_gen = mamba_config_gen()
-  elif implementation in ["hawk", "mingru", "minlstm"]:
-      config_gen = rnn_config_gen()
-  else:
-      config_gen = TransformerTrainingConfig
-  return initialize_nested_object(config_gen, run_config)
+def train_config_from_run_config(run_config: dict[str, Any]) -> TrainingConfig:
+    # initialize configuratiou
+    run_config = copy.deepcopy(run_config)
+    implementation = run_config.get("model", {}).get("implementation", "").lower()
+    if implementation == "mamba":
+        config_gen = mamba_config_gen()
+    elif implementation in ["hawk", "mingru", "minlstm"]:
+        config_gen = rnn_config_gen()
+    else:
+        config_gen = TransformerTrainingConfig
+    return initialize_nested_object(config_gen, run_config)
+
 
 def main() -> None:
     """

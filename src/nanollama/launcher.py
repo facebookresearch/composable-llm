@@ -307,14 +307,14 @@ def launch_job(config: LauncherConfig, file_config: Any) -> None:
         for i, nested_config in enumerate(all_configs, start=1):
             config_path = config_dir / f"{i}.yaml"
             file_config["run_config"] = nested_config
-            with open(os.path.expandvars(config_path), "w") as f:
+            with open(config_path, "w") as f:
                 yaml.dump(file_config, f, default_flow_style=False)
 
         slurm_extra = f"#SBATCH --array=1-{i}\n"
         config_path = config_dir / "$SLURM_ARRAY_TASK_ID.yaml"
     else:
         config_path = config_dir / "0.yaml"
-        with open(os.path.expandvars(config_path), "w") as f:
+        with open(config_path, "w") as f:
             yaml.dump(file_config, f, default_flow_style=False)
 
         slurm_extra = ""
@@ -362,7 +362,7 @@ def launch_job(config: LauncherConfig, file_config: Any) -> None:
     )
 
     run_path = log_dir / "run.sh"
-    with open(os.path.expandvars(run_path), "w") as f:
+    with open(run_path, "w") as f:
         f.write(bash_command)
 
     logger.info(f"Launching job with `{config.launcher}` command.")
@@ -390,10 +390,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("config", type=str, help="Path to configuration file")
     args = parser.parse_args()
-    path = args.config
+    path = os.path.expandvars(args.config)
 
     # obtain configuration from file
-    with open(os.path.expandvars(path)) as f:
+    with open(path) as f:
         file_config: dict[str, Any] = yaml.safe_load(f)
 
     # initialize configuration

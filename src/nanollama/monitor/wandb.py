@@ -21,7 +21,6 @@ from typing import Any
 import wandb
 
 from ..distributed import is_master_process
-from ..utils import flatten_config
 
 logger = getLogger("nanollama")
 
@@ -52,7 +51,7 @@ class WandbConfig:
 
 
 class WandbLogger:
-    def __init__(self, config: WandbConfig, run_config: Any = None):
+    def __init__(self, config: WandbConfig, run_config: dict[str, Any] = None):
         self.active = config.active and is_master_process()
         if not self.active:
             return
@@ -74,9 +73,9 @@ class WandbLogger:
             return self
 
         # Read run id from id file if it exists
-        if os.path.exists(os.path.expandvars(self.id_file)):
+        if os.path.exists(self.id_file):
             resuming = True
-            with open(os.path.expandvars(self.id_file)) as file:
+            with open(self.id_file) as file:
                 run_id = file.read().strip()
         else:
             resuming = False
@@ -98,10 +97,9 @@ class WandbLogger:
             logger.info(f"Resuming run with ID: {run_id}")
 
         else:
-            run_config = make_nodes_nice(self.run_config)
             # Starting a new run
             self.run = wandb.init(
-                config=flatten_config(run_config, flatten_list=True),
+                config=self.run_config,
                 project=self.project,
                 entity=self.entity,
                 name=self.name,
@@ -109,7 +107,7 @@ class WandbLogger:
             logger.info(f"Starting new run with ID: {self.run.id}")
 
             # Save run id to id file
-            with open(os.path.expandvars(self.id_file), "w") as file:
+            with open(self.id_file, "w") as file:
                 file.write(self.run.id)
 
         self.run_config = None
@@ -137,18 +135,6 @@ class WandbLogger:
         except Exception as e:
             logger.warning(e)
 
-def make_nodes_nice(config):
-    config = asdict(config)
-    if "data" not in config:
-        return
-    if "gssm" not in config["data"]:
-        return
-    if "nodes" not in config["data"]["gssm"]:
-      return
-    nodes = config["data"]["gssm"]["nodes"]
-    nodes = {n["name"]: n for n in nodes}
-    config["data"]["gssm"]["nodes"] = nodes
-    return config
 
 def jsonl_to_wandb(
     path: str,

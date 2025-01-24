@@ -72,7 +72,7 @@ class OrchestratorConfig:
             job_id = os.environ.get("SLURM_JOB_ID")
             path = log_dir / "stdout"
             path.mkdir(parents=True, exist_ok=True)
-            with open(os.path.expandvars(path / "id_mapping"), "a") as f:
+            with open(path / "id_mapping", "a") as f:
                 f.write(f"task {task_id}: {job_id}\n")
 
         # check validity of submodule
@@ -150,7 +150,7 @@ class EvalOrchestratorConfig:
             job_id = os.environ.get("SLURM_JOB_ID")
             path = Path(self.log_dir) / "stdout"
             path.mkdir(parents=True, exist_ok=True)
-            with open(os.path.expandvars(path / "id_mapping"), "a") as f:
+            with open(path / "id_mapping", "a") as f:
                 f.write(f"task {task_id}: {job_id}\n")
 
     def to_dict(self) -> dict[str, Any]:
