@@ -33,10 +33,10 @@ launcher:
         - - {name: Z1, state_dim: 64, alpha: 6e-3}
           - {name: Z2, state_dim: 64, alpha: 6e-3}
           - {name: X, state_dim: 32, parents: [Z1,Z2], alpha: 1e-2, observed: true}
-        - - {name: Z1, state_dim: 8, alpha: 1e-2}
-          - {name: Z2, state_dim: 8, alpha: 1e-2}
-          - {name: Z3, state_dim: 8, alpha: 1e-2}
-          - {name: Z4, state_dim: 8, alpha: 1e-2}
+        - - {name: Z1, state_dim: 8, alpha: 2e-2}
+          - {name: Z2, state_dim: 8, alpha: 2e-2}
+          - {name: Z3, state_dim: 8, alpha: 2e-2}
+          - {name: Z4, state_dim: 8, alpha: 2e-2}
           - {name: X, state_dim: 32, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true}
         # more X alpha (entropy 2.05)
         - - {name: Z1, state_dim: 4096, alpha: 1.7e-4}
@@ -50,10 +50,10 @@ launcher:
         - - {name: Z1, state_dim: 64, alpha: 6e-3}
           - {name: Z2, state_dim: 64, alpha: 6e-3}
           - {name: X, state_dim: 32, parents: [Z1,Z2], alpha: 5e-2, observed: true}
-        - - {name: Z1, state_dim: 8, alpha: 1e-2}
-          - {name: Z2, state_dim: 8, alpha: 1e-2}
-          - {name: Z3, state_dim: 8, alpha: 1e-2}
-          - {name: Z4, state_dim: 8, alpha: 1e-2}
+        - - {name: Z1, state_dim: 8, alpha: 2e-2}
+          - {name: Z2, state_dim: 8, alpha: 2e-2}
+          - {name: Z3, state_dim: 8, alpha: 2e-2}
+          - {name: Z4, state_dim: 8, alpha: 2e-2}
           - {name: X, state_dim: 32, parents: [Z1,Z2,Z3,Z4], alpha: 5e-2, observed: true}
         # more X state dim (entropy 1.2)
         - - {name: Z1, state_dim: 4096, alpha: 1.7e-4}
@@ -67,10 +67,10 @@ launcher:
         - - {name: Z1, state_dim: 64, alpha: 6e-3}
           - {name: Z2, state_dim: 64, alpha: 6e-3}
           - {name: X, state_dim: 64, parents: [Z1,Z2], alpha: 5e-3, observed: true}
-        - - {name: Z1, state_dim: 8, alpha: 1e-2}
-          - {name: Z2, state_dim: 8, alpha: 1e-2}
-          - {name: Z3, state_dim: 8, alpha: 1e-2}
-          - {name: Z4, state_dim: 8, alpha: 1e-2}
+        - - {name: Z1, state_dim: 8, alpha: 2e-2}
+          - {name: Z2, state_dim: 8, alpha: 2e-2}
+          - {name: Z3, state_dim: 8, alpha: 2e-2}
+          - {name: Z4, state_dim: 8, alpha: 2e-2}
           - {name: X, state_dim: 64, parents: [Z1,Z2,Z3,Z4], alpha: 5e-3, observed: true}
         # more X state dim and alpha (entropy 2.05)
         - - {name: Z1, state_dim: 4096, alpha: 1.7e-4}
@@ -84,10 +84,10 @@ launcher:
         - - {name: Z1, state_dim: 64, alpha: 6e-3}
           - {name: Z2, state_dim: 64, alpha: 6e-3}
           - {name: X, state_dim: 64, parents: [Z1,Z2], alpha: 2.5e-2, observed: true}
-        - - {name: Z1, state_dim: 8, alpha: 1e-2}
-          - {name: Z2, state_dim: 8, alpha: 1e-2}
-          - {name: Z3, state_dim: 8, alpha: 1e-2}
-          - {name: Z4, state_dim: 8, alpha: 1e-2}
+        - - {name: Z1, state_dim: 8, alpha: 2e-2}
+          - {name: Z2, state_dim: 8, alpha: 2e-2}
+          - {name: Z3, state_dim: 8, alpha: 2e-2}
+          - {name: Z4, state_dim: 8, alpha: 2e-2}
           - {name: X, state_dim: 64, parents: [Z1,Z2,Z3,Z4], alpha: 2.5e-2, observed: true}
         # even more X state dim (entropy 1.2)
         - - {name: Z1, state_dim: 4096, alpha: 1.7e-4}
@@ -101,10 +101,10 @@ launcher:
         - - {name: Z1, state_dim: 64, alpha: 6e-3}
           - {name: Z2, state_dim: 64, alpha: 6e-3}
           - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 2.5e-3, observed: true}
-        - - {name: Z1, state_dim: 8, alpha: 1e-2}
-          - {name: Z2, state_dim: 8, alpha: 1e-2}
-          - {name: Z3, state_dim: 8, alpha: 1e-2}
-          - {name: Z4, state_dim: 8, alpha: 1e-2}
+        - - {name: Z1, state_dim: 8, alpha: 2e-2}
+          - {name: Z2, state_dim: 8, alpha: 2e-2}
+          - {name: Z3, state_dim: 8, alpha: 2e-2}
+          - {name: Z4, state_dim: 8, alpha: 2e-2}
           - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2.5e-3, observed: true}
         # even more X state dim and more alpha (entropy 2.05)
         - - {name: Z1, state_dim: 4096, alpha: 1.7e-4}
@@ -118,10 +118,10 @@ launcher:
         - - {name: Z1, state_dim: 64, alpha: 6e-3}
           - {name: Z2, state_dim: 64, alpha: 6e-3}
           - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1.2e-2, observed: true}
-        - - {name: Z1, state_dim: 8, alpha: 1e-2}
-          - {name: Z2, state_dim: 8, alpha: 1e-2}
-          - {name: Z3, state_dim: 8, alpha: 1e-2}
-          - {name: Z4, state_dim: 8, alpha: 1e-2}
+        - - {name: Z1, state_dim: 8, alpha: 2e-2}
+          - {name: Z2, state_dim: 8, alpha: 2e-2}
+          - {name: Z3, state_dim: 8, alpha: 2e-2}
+          - {name: Z4, state_dim: 8, alpha: 2e-2}
           - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1.2e-2, observed: true}
           
 
