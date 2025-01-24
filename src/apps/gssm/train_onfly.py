@@ -61,6 +61,8 @@ class TrainingConfig:
     model: TransformerConfig = field(default_factory=None)
     model_gen: callable = field(init=False, default=None)
 
+    low_memory_hmm: bool = False
+
     def __post_init__(self):
         """
         Check validity of arguments and fill in missing values.
@@ -323,7 +325,7 @@ def train(config: TrainingConfig) -> None:
                 # For logging we undo that scaling
                 loss = loss.detach() * config.optim.grad_acc_steps
 
-                entropy = hmm.entropy_of_observations(batch.T, fast=True) / y_batch.shape[1]
+                entropy = hmm.entropy_of_observations(batch.T, fast=True, small_mem=config.low_memory_hmm) / y_batch.shape[1]
 
                 metrics = {
                     "loss": loss.item(),
