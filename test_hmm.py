@@ -15,8 +15,9 @@ gssm_config = {
             "name": "Z2",
             "state_dim": 4,
             "parents": ["Z1"],
-            "alpha": .1,
+            "alpha": 1,
             "mode": "default",
+            "kernel_type": "fullrank",
             "observed": False,
         },
         {
@@ -41,6 +42,7 @@ gssm_config = {
             "parents": ["Z1","Z3","Z4"],
             "alpha": .1,
             "mode": "default",
+            "kernel_type": "fullrank",
             "observed": True,
         },
     ]
@@ -62,6 +64,7 @@ gssm_config_ICL = {
             "parents": ["Z1"],
             "alpha": .1,
             "mode": "default",
+            "kernel_type": "fullrank",
             "observed": False,
         },
         {
@@ -78,6 +81,7 @@ gssm_config_ICL = {
             "parents": ["Z1", "Z3"],
             "alpha": .05,
             "mode": "context",
+            "kernel_type": "fullrank",
             "observed": True,
         },
     ]
@@ -107,6 +111,7 @@ small_gssm_config = {
             "parents": ["Z1","Z2"],
             "alpha": .1,
             "mode": "default",
+            "kernel_type": "fullrank",
             "observed": True,
         },
     ]
@@ -144,6 +149,7 @@ def test_entropys():
   print(((entropys1 - entropys4)).abs().mean())
 
 def test_generation(bsz=100):
+  seed = np.random.randint(29042)
   hmm = HMM(small_gssm_config, random_seed=seed)
   data1 = make_data(hmm, bsz, 50)
   data2 = make_data2(hmm, bsz, 50)
@@ -159,17 +165,16 @@ def test_generation(bsz=100):
     plt.legend()
     plt.show()
 
-# test_entropys()
-# test_generation()
+test_entropys()
+test_generation()
 
 # %%
 emb_dim = 128
 nb_heads = 4
 seq_len = 50
 nb_layers = 4
-n_train = 100000
+n_train = 40000
 n_test = 1000
-seed = np.random.randint(29042)
 
 hmm = HMM(gssm_config, random_seed=2489)
 train_data = make_data(hmm, n_train, seq_len).T

@@ -65,7 +65,7 @@ class HMM:
         return list(dict.fromkeys(__dfs(node)))
 
     @staticmethod
-    def _join_parent_kernels(node):
+    def _join_parent_kernels(node: gssm.Node):
         n_in = len(node.kernels)
         # p(x|a), p(x|b) -> p(x|ab)
         # print("individual:\n", [x.sum(-1) for x in node.kernels])
@@ -78,11 +78,16 @@ class HMM:
         return trans
 
     @staticmethod
-    def _format_transition(node):
+    def _format_transition(node: gssm.Node):
         logger.info(f"Rewriting transition matrix for {node}")
         parents = node.parents
         parent_state_dims = tuple([p.state_dim for p in parents])
-        trans = HMM._join_parent_kernels(node)
+        if node.kernel_type == "product":
+          trans = HMM._join_parent_kernels(node)
+        elif node.kernel_type == "fullrank":
+          trans = node.kernels[0]
+        else:
+          raise ValueError(f"kernel_type {node.kernel_type} is not supported in HMM")
         target_shape = (1,) if node.observed else (node.state_dim,)
         target_shape += parent_state_dims + (node.state_dim,)
         trans = trans.reshape(target_shape)
