@@ -38,7 +38,7 @@ class NodeConfig:
     alpha: float = 0
     parents: list[str] = field(default_factory=list)
     mode: str = "default"
-    kernel_type: str = "product" # or fullrank
+    kernel_type: str = "product"  # or fullrank
     observed: bool = False
 
 
@@ -100,8 +100,7 @@ class Node:
         self.state = None
         self.time = None
 
-    
-    def consistency_checks(self):
+    def consistency_checks(self) -> None:
         """Check that the node is defined correctly"""
         assert self.name, f"Node name must be specified. {self}"
         assert self.state_dim, f"`state_dim` must be specified. {self}"
@@ -119,7 +118,7 @@ class Node:
         elif self.kernel_type == "product":
             return self.sample_product_transitions(alpha)
 
-    def sample_fullrank_transitions(self, alpha) -> np.ndarray[float]:
+    def sample_fullrank_transitions(self, alpha: float) -> np.ndarray[float]:
         """Sample a full-rank transition kernel"""
         self.parents = self.parents if self.parents is not None else []
 
@@ -127,7 +126,7 @@ class Node:
         size_in = tuple() if self.observed else (self.state_dim,)
         for parent in self.parents:
             size_in += (parent.state_dim,)
-        
+
         self.size_in = size_in
         p_transition = self.sample_transition(fan_in=np.prod(size_in).item(), alpha=alpha)
         self._cumulative = np.cumsum(p_transition, axis=1)
@@ -156,11 +155,11 @@ class Node:
             argmax = transition.argmax(axis=1)
             max_val = transition[index, argmax]
             if self.mode == "dead":
-              transition[index, argmax] = transition[:, 0]
-              transition[:, 0] = max_val
+                transition[index, argmax] = transition[:, 0]
+                transition[:, 0] = max_val
             else:
-              transition[index, argmax] = transition[index, index]
-              transition[index, index] = max_val
+                transition[index, argmax] = transition[index, index]
+                transition[index, index] = max_val
 
         np.clip(transition, a_min=1e-10, a_max=None, out=transition)  # avoid underflow
         return transition
@@ -175,7 +174,7 @@ class Node:
             Batch size
         """
         for parent in self.parents:
-            if True: # parent.time != 0:
+            if True:  # parent.time != 0:
                 parent.initialize(bsz)
         self.state = np.zeros(bsz, dtype=int)
         self.time = 0
@@ -196,7 +195,7 @@ class Node:
             Current states of the parent nodes
         """
         if self.time is None:
-          raise RuntimeError("please initialize your node first")
+            raise RuntimeError("please initialize your node first")
         for parent in self.parents:
             if parent.time != self.time + 1:
                 assert parent.time == self.time, "Parent node time is not correct."
@@ -212,21 +211,21 @@ class Node:
         self.state = self._get_kernel_probas(all_states)
         self.time += 1
 
-    def _get_kernel_probas(self, all_states):
+    def _get_kernel_probas(self, all_states: list[np.ndarray[int]]) -> np.ndarray[int]:
         if self.kernel_type == "product":
-          proba = np.prod([kernel[state] for kernel, state in zip(self.kernels, all_states)], axis=0)
-          # Vectorized sampling
-          random_values = self.rng.random(self.state.shape)
-          proba.cumsum(axis=-1, out=proba)
-          proba /= proba[..., -1:]
+            proba = np.prod([kernel[state] for kernel, state in zip(self.kernels, all_states)], axis=0)
+            # Vectorized sampling
+            random_values = self.rng.random(self.state.shape)
+            proba.cumsum(axis=-1, out=proba)
+            proba /= proba[..., -1:]
 
         elif self.kernel_type == "fullrank":
-          input_state = np.vstack(all_states)
-          input_state = np.ravel_multi_index(input_state, self.size_in)
-          # Vectorized sampling
-          random_values = self.rng.random(input_state.shape)
-          proba = self._cumulative[input_state]
-        
+            input_state = np.vstack(all_states)
+            input_state = np.ravel_multi_index(input_state, self.size_in)
+            # Vectorized sampling
+            random_values = self.rng.random(input_state.shape)
+            proba = self._cumulative[input_state]
+
         return (random_values[:, None] < proba).argmax(axis=1)
 
     def __repr__(self):
@@ -239,6 +238,7 @@ class Node:
                 f"observed={self.observed})",
             ]
         )
+
 
 # ------------------------------------------------------------------------------
 # GSSM - Configuration and Building
