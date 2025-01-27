@@ -20,6 +20,9 @@ name = "data"
 scaling_key = "data.n_data"
 keys = [scaling_key, "grid_id"]
 
+data_range = range(1, 9)
+data_range = [1, 2, 3, 4, 5, 7, 8]
+
 # name = "params"
 # scaling_key = "nb_params"
 # keys = ["grid_id"]
@@ -28,27 +31,27 @@ keys = [scaling_key, "grid_id"]
 num_keys = []
 steps = [100, 300, 1000, 3000]
 
-for exp in range(1, 5):
+for exp in data_range:
     log_dir = LOG_DIR / "logs" / f"exp{exp}" / name
     process_results(log_dir, keys, num_keys, steps, eval=True, copy_num=True)
 
 # %% Load processed results in a DataFrame
 all_data = []
-for exp in range(1, 5):
+for exp in data_range:
     log_dir = LOG_DIR / "logs" / f"exp{exp}" / name
     data = get_processed_results(log_dir)
 
-    # retrieve corresponding entropy esimates
-    for key in ["gzip", "hmm"]:
-        filepath = log_dir.parent / f"{key}.jsonl"
-        keys = [f"{key}_difficulty", "grid_id"]
-        difficulty = pd.DataFrame(jsonl_to_numpy(filepath, keys))
-        data = data.merge(difficulty, left_on=["grid_id"], right_on=["grid_id"], how="left")
+    # retrieve corresponding entropy estimates
+    key = "hmm"
+    filepath = log_dir.parent / f"{key}.jsonl"
+    keys = [f"{key}_difficulty", "grid_id"]
+    difficulty = pd.DataFrame(jsonl_to_numpy(filepath, keys))
+    data = data.merge(difficulty, left_on=["grid_id"], right_on=["grid_id"], how="left")
 
     # retrieve graph information
     prefix = CODE_DIR / "src" / "apps" / "gssm" / "configs" / f"experiment{exp}"
-    filepath = prefix / "map_grid_id_gssm_id.jsonl"
-    keys = ["grid_id", "node_id", "seed"]
+    filepath = prefix / ".gssm_id_path.jsonl"
+    keys = ["grid_id", "gssm_id", "seed"]
     graph_info = pd.DataFrame(jsonl_to_numpy(filepath, keys))
     data = data.merge(graph_info, left_on=["grid_id"], right_on=["grid_id"], how="left")
 
@@ -61,18 +64,17 @@ for exp in range(1, 5):
 # %% show loss vs entropy
 
 difficulty_key = "hmm_difficulty"
-difficulty_key = "gzip_difficulty"
 
 
-for exp, data in enumerate(all_data):
+for exp, data in zip(data_range, all_data):
     plt.figure()
     # make a line y = x
-    # plt.plot([0, 3], [0, 3], color="black", ls=":")
-    all_scales = data[scaling_key].unique()[-1:]
+    # plt.plot([2.5, 5], [2.5, 5], color="black", ls=":")
+    all_scales = data[scaling_key].unique()[:3]
     nb_data = len(all_scales)
-    all_graph = data["node_id"].unique()
+    all_graph = data["gssm_id"].unique()
     for i, grid_id in enumerate(all_graph):
-        data1 = data[data["node_id"] == grid_id]
+        data1 = data[data["gssm_id"] == grid_id]
         for alpha, scale in enumerate(all_scales):
             alpha = (alpha + 1) / nb_data
             data2 = data1[data1[scaling_key] == scale]
@@ -83,10 +85,22 @@ for exp, data in enumerate(all_data):
                 color=f"C{i}",
                 alpha=alpha,
             )
+            # alpha = 0.8
+            # xaxis = data2[difficulty_key].values
+            # order = xaxis.argsort()
+            # xaxis = xaxis[order]
+            # yaxis = data2["best"].values[order]
+            # plt.plot(
+            #     xaxis,
+            #     yaxis,
+            #     label=f"{scale} {scaling_key} {grid_id}",
+            #     color=f"C{i}",
+            #     alpha=alpha,
+            # )
         # print(f"graph {grid_id} done")
     plt.xlabel(difficulty_key)
     plt.ylabel("test loss")
-    plt.title(f"exp={exp + 1}")
+    plt.title(f"exp={exp}")
     # plt.loglog()
     # plt.legend()
 
@@ -99,14 +113,16 @@ for index, name in zip([range(7), range(7, 13)], ["alpha_X", "alpha_Z"]):
     mask = None
     for i in index:
         if mask is None:
-            mask = all_data[0]["node_id"] == i
+            mask = all_data[0]["gssm_id"] == i
         else:
-            mask |= all_data[0]["node_id"] == i
+            mask |= all_data[0]["gssm_id"] == i
     tmp = data[mask]
 
-    for scale in data[scaling_key].unique()[7:8]:
+    for scale in data[scaling_key].unique()[:3]:
         _tmp = tmp[tmp[scaling_key] == scale]
-        plt.scatter(_tmp[difficulty_key], _tmp["best"], label=f"{scale} {scaling_key}, varying {name}")
+        _name = {"X": "Z", "Z": "X"}[name[-1]]
+        _key = {"data.n_data": "data"}[scaling_key]
+        plt.scatter(_tmp[difficulty_key], _tmp["best"], label=rf"{scale} {_key}, $\alpha_{_name}$" + r"$=10^{-3}$")
 plt.xlabel(difficulty_key)
 plt.ylabel("test loss")
 plt.legend()

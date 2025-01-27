@@ -16,6 +16,7 @@
 #SBATCH --time=10:00:00
 
 # go to code directory
+export CODE_DIR=/private/home/$USER/code/composable-llm
 cd $CODE_DIR
 
 # handle missing slurm variables
