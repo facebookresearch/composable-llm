@@ -1,10 +1,8 @@
 # Debugging configuration
 
-configs_path: $CODE_DIR/src/apps/gssm/configs/experiment3/map_grid_id_gssm_config.jsonl
-
 launcher:
   name: entropy
-  log_dir: /checkpoint/$USER/icml/logs/exp3/entropy
+  log_dir: /checkpoint/$USER/icml/logs/exp103/entropy
   overwrite: false
   copy_code: false
 

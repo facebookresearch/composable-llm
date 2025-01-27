@@ -32,7 +32,7 @@ run_config:
     seed: 0  # seed for data shuffling
 
   model:
-    vocab_size: 32
+    vocab_size: 128
     emb_dim: 128
     nb_layers: 4
     block:

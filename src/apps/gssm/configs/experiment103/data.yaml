@@ -11,7 +11,7 @@ gssm:
     - {name: Z6, state_dim: 2, alpha: 1e-0}
     - {name: Z7, state_dim: 2, alpha: 1e-0}
     - {name: Z8, state_dim: 2, alpha: 1e-0}
-    - {name: X, state_dim: 128, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+    - {name: X, state_dim: 128, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-2, observed: true}
   - - {name: Z1, state_dim: 2, alpha: 1e-0}
     - {name: Z2, state_dim: 2, alpha: 1e-0, parents: [Z1]}
     - {name: Z3, state_dim: 2, alpha: 1e-0}
@@ -20,7 +20,7 @@ gssm:
     - {name: Z6, state_dim: 2, alpha: 1e-0, parents: [Z5]}
     - {name: Z7, state_dim: 2, alpha: 1e-0}
     - {name: Z8, state_dim: 2, alpha: 1e-0, parents: [Z7]}
-    - {name: X, state_dim: 128, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+    - {name: X, state_dim: 128, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-2, observed: true}
   - - {name: Z1, state_dim: 2, alpha: 1e-0}
     - {name: Z2, state_dim: 2, alpha: 1e-0, parents: [Z1]}
     - {name: Z3, state_dim: 2, alpha: 1e-0, parents: [Z2]}
@@ -29,7 +29,7 @@ gssm:
     - {name: Z6, state_dim: 2, alpha: 1e-0, parents: [Z5]}
     - {name: Z7, state_dim: 2, alpha: 1e-0, parents: [Z6]}
     - {name: Z8, state_dim: 2, alpha: 1e-0, parents: [Z7]}
-    - {name: X, state_dim: 128, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+    - {name: X, state_dim: 128, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-2, observed: true}
   - - {name: Z1, state_dim: 2, alpha: 1e-0}
     - {name: Z2, state_dim: 2, alpha: 1e-0, parents: [Z1]}
     - {name: Z3, state_dim: 2, alpha: 1e-0, parents: [Z1, Z2]}
@@ -38,7 +38,7 @@ gssm:
     - {name: Z6, state_dim: 2, alpha: 1e-0, parents: [Z1, Z2, Z3, Z4, Z5]}
     - {name: Z7, state_dim: 2, alpha: 1e-0, parents: [Z1, Z2, Z3, Z4, Z5, Z6]}
     - {name: Z8, state_dim: 2, alpha: 1e-0, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7]}
-    - {name: X, state_dim: 128, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-3, observed: true}
+    - {name: X, state_dim: 128, parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8], alpha: 1e-2, observed: true}
 sets:
 - n_data: 1_000_000
   path: /checkpoint/$USER/datasets/icml/exp103/$GRIDID/trainset.h5
