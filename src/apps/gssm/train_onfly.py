@@ -172,11 +172,11 @@ def rnn_config_gen() -> Any:
 
 def make_nodes_nice(config: dict[str, Any]) -> dict[str, Any]:
     if "data" not in config:
-        return
+        return config
     if "gssm" not in config["data"]:
-        return
+        return config
     if "nodes" not in config["data"]["gssm"]:
-        return
+        return config
     nodes = config["data"]["gssm"]["nodes"]
     nodes = {n["name"]: n for n in nodes}
     config["data"]["gssm"]["nodes"] = nodes

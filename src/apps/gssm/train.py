@@ -176,6 +176,7 @@ def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]
 # ------------------------------------------------------------------------------
 
 
+
 def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     vocab_size = preds.size(-1)
     return F.cross_entropy(preds.reshape(-1, vocab_size), targets.reshape(-1))

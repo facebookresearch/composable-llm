@@ -10,7 +10,7 @@ from pathlib import Path
 
 exp_id = int(input("which exp? "))
 
-data_map_path = Path(f"src/apps/gssm/configs/experiment{exp_id}/map_grid_id_gssm_id.jsonl")
+data_map_path = Path(f"src/apps/gssm/configs/experiment{exp_id}/.gssm_id_path.jsonl")
 data_path = Path(f"/checkpoint/nolte/datasets/icml/exp{exp_id}")
 logs_path = Path(f"/checkpoint/nolte/icml/logs/exp{exp_id}/")
 entropy_path = logs_path / "entropy"
@@ -30,13 +30,9 @@ hmm_summary_path = logs_path / "hmm.jsonl"
 gzip_summary_path = logs_path / "gzip.jsonl"
 
 
-n_data_exps_expected = len(tuple(nb_data_tasks_path.iterdir()))
-n_params_exps_expected = len(tuple(nb_params_tasks_path.iterdir()))
-n_data_expected = len(data_map_path.read_text().split("\n")) - 1 # this many jsonl entries
-print(f"expecting {n_data_exps_expected} data exp, {n_params_exps_expected} params exp, {n_data_expected} data files")
 # %%
 
-def check_data():
+def check_data(n_data_expected):
   good = True
   if not os.path.exists(data_path):
     print("No data for this experiment")
@@ -57,7 +53,7 @@ def check_data():
     print("all data there")
   return good
 
-def check_entropy():
+def check_entropy(n_data_expected):
   good = True
   if not os.path.exists(entropy_path):
     print("No entropy calc for this experiment")
@@ -116,7 +112,15 @@ def check_exps():
       print("all exps there")
     return good
 
-check_data()
-check_entropy()
+
+
+n_data_expected = len(data_map_path.read_text().split("\n")) - 1 # this many jsonl entries
+print(f"expecting {n_data_expected} data files")
+check_data(n_data_expected)
+check_entropy(n_data_expected)
+
+n_data_exps_expected = len(tuple(nb_data_tasks_path.iterdir()))
+n_params_exps_expected = len(tuple(nb_params_tasks_path.iterdir()))
+print(f"expecting {n_data_exps_expected} data exp, {n_params_exps_expected} params exp")
 check_exps()
 # %%
