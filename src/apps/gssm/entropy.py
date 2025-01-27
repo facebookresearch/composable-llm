@@ -133,7 +133,7 @@ class EntropyComputer:
         except StopIteration:
             # rescale loss and save it
             self.loss /= self.scaling
-            with open(self.path, "a") as f:
+            with open(self.path, "w") as f:
                 print(json.dumps({"loss": self.loss}), file=f, flush=True)
 
             # work is done

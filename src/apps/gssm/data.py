@@ -172,6 +172,11 @@ def map_datasetid_gssm(data_path: str) -> None:
     id_path = Path(data_path).parent / ".gssm_id_path.jsonl"
     node_path = Path(data_path).parent / ".gssm_id_config.jsonl"
 
+    with open(id_path, "w") as f:
+        pass
+    with open(node_path, "w") as f:
+        pass
+
     with open(os.path.expandvars(data_path)) as f:
         file_configs = yaml.safe_load(f)
 
