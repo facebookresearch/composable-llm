@@ -75,7 +75,7 @@ eval "$({conda_exe} shell.bash hook)"
 conda activate {conda_env_path}
 
 # go to code directory
-cd $CODE_DIR
+cd {code_dir}
 
 python -m src.apps.gssm.entropy {config_path}
 """
@@ -86,7 +86,7 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
     python_env = subprocess.check_output("which python", shell=True).decode("ascii").strip()
     conda_env = str(Path(python_env).parent.parent)
 
-    code_dir = Path(code_dir)
+    code_dir = Path(os.path.expandvars(code_dir))
 
     path = code_dir / f"src/apps/gssm/configs/experiment{exp}/entropy.yaml"
     with open(os.path.expandvars(path)) as f:
@@ -109,8 +109,8 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
     for i, conf in enumerate(all_configs):
         config["run_config"]["data"]["path"] = conf["path"]
 
-        gssm_config = all_gssm[conf["gssm_id"]]
-        assert gssm_config["gssm_id"] == conf["gssm_id"]
+        gssm_config = {"gssm": all_gssm[conf["gssm_id"]]}
+        assert gssm_config["gssm"]["gssm_id"] == conf["gssm_id"]
         gssm_config["batch_size"] = "FAKE"
         gssm_config["seq_len"] = "FAKE"
         gssm_config["seed"] = conf["seed"]
@@ -213,18 +213,18 @@ def gzip_estimate(exp: int, code_dir: str) -> None:
 if __name__ == "__main__":
     code_dir = os.path.expandvars("$CODE_DIR")
 
-    if input("Entropy calculation? (Y/N))").lower()[0] == "y":
+    if input("Entropy calculation? (Y/N)) ").lower()[0] == "y":
         exp = int(input("Which experiment? "))
         print(f"Entropy calculation launch for experiment {exp}")
         launch_entropy_estimate(exp, code_dir)
 
-    if input("gzip calculation? (Y/N))").lower()[0] == "y":
+    if input("gzip calculation? (Y/N)) ").lower()[0] == "y":
         exp = int(input("Which experiment? "))
         print(f"Running experiment {exp}")
         gzip_estimate(exp, code_dir)
 
     # merge the hmm estimate in the same format
-    if input("merging hmm calculation? (Y/N))").lower()[0] == "y":
+    if input("merging hmm calculation? (Y/N)) ").lower()[0] == "y":
         exp = int(input("Which experiment? "))
         print(f"Merging hmm estimate for experiment {exp}")
         merge_hmm_estimate(exp, code_dir)

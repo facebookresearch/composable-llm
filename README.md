@@ -101,7 +101,7 @@ python -m src.apps.gssm.train_onfly src/apps/gssm/configs/debug/onfly.yaml
 ```
 For generating data first, and then training from them:
 ```bash
-python -m src.apps.gssm.train src/apps/gssm/configs/debug/train.yaml
+python -m src.apps.gssm.train src/apps/gssm/configs/debug/data.yaml
 python -m src.apps.gssm.train src/apps/gssm/configs/debug/train.yaml
 ```
 For launching a run on a Slurm cluster:

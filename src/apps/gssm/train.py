@@ -176,19 +176,6 @@ def config_inheritance(train_config: dict[str, Any], eval_config: dict[str, Any]
 # ------------------------------------------------------------------------------
 
 
-def make_nodes_nice(config: dict[str, Any]) -> dict[str, Any]:
-    if "data" not in config:
-        return
-    if "gssm" not in config["data"]:
-        return
-    if "nodes" not in config["data"]["gssm"]:
-        return
-    nodes = config["data"]["gssm"]["nodes"]
-    nodes = {n["name"]: n for n in nodes}
-    config["data"]["gssm"]["nodes"] = nodes
-    return config
-
-
 def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     vocab_size = preds.size(-1)
     return F.cross_entropy(preds.reshape(-1, vocab_size), targets.reshape(-1))
@@ -207,7 +194,7 @@ def train(config: TrainingConfig) -> None:
         wandb: WandbLogger = context_stack.enter_context(
             WandbLogger(
                 config.orchestration.wandb,
-                run_config=flatten_config(make_nodes_nice(asdict(config)), flatten_list=True),
+                run_config=flatten_config(asdict(config), flatten_list=True),
             )
         )
 
