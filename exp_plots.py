@@ -12,7 +12,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from nanollama.visualization import get_processed_results, jsonl_to_numpy, process_results
+from nanollama.visualization import get_processed_results, jsonl_to_numpy, process_results, read_indented_jsonl
+from nanollama.utils import flatten_config
 
 LOG_DIR = Path("/checkpoint/vivc/icml/")
 CODE_DIR = Path("/private/home/vivc/code/composable-llm/")
@@ -51,8 +52,15 @@ for exp in data_range:
     # retrieve graph information
     prefix = CODE_DIR / "src" / "apps" / "gssm" / "configs" / f"experiment{exp}"
     filepath = prefix / ".gssm_id_path.jsonl"
+    nodepath = prefix / ".gssm_id_config.jsonl"
     keys = ["grid_id", "gssm_id", "seed"]
     graph_info = pd.DataFrame(jsonl_to_numpy(filepath, keys))
+    def make_nice(cfg):
+        cfg["nodes"] = {n["name"]: n for n in cfg["nodes"]}
+        return flatten_config(cfg)
+    id_to_config = [make_nice(x) for x in read_indented_jsonl(nodepath)]
+    nodes_info = pd.DataFrame(id_to_config)
+    graph_info = graph_info.merge(nodes_info, left_on=["gssm_id"], right_on=["gssm_id"], how="left")
     data = data.merge(graph_info, left_on=["grid_id"], right_on=["grid_id"], how="left")
 
     all_data.append(data)
