@@ -4,13 +4,44 @@ import matplotlib.pyplot as plt
 import tqdm
 from src.nanollama.model.transfomer import Transformer, TransformerConfig, TransformerBlockConfig
 
-def make_data(hmm: HMM, batch_size, seq_len, change_state=lambda *args: None):
+# this forward algorithm allows me to 
+
+def forward_probs_full(hmm: HMM, observations: np.ndarray, device: str = "cuda", small_mem=False):
+    T, B = observations.shape
+    observations = torch.as_tensor(observations, dtype=torch.int32, device=device)
+    hmm._init_all_nodes(B)
+    prior = torch.tensor(hmm.one_hot_product_state_fast()[0], device=device, dtype=torch.float32).log()
+    transition = torch.tensor(hmm.make_prod_transition_fast(), device=device, dtype=torch.float32).log()
+    emission = torch.tensor(hmm.get_p_emission_fast(), device=device, dtype=torch.float32).log()
+    log_fwd_p, log_p_seq = hmm.forward_algorithm(observations, transition, emission, prior, device=device, small_mem=small_mem)
+    # log_fwd_p = p(Z_t, X_[t]=x_[t])
+    # make p(X_t | X_[t-1]=x_[t-1]) from it
+    # this is the same as below
+    # log_fwd_p = torch.einsum("he,ih,isb->esb", emission, transition, log_fwd_p.exp()) (normed)
+    S, T, B = log_fwd_p.shape
+    p_zt_z_x = torch.zeros(transition.shape[1], T, B, device=log_fwd_p.device)
+    p_xt_xst = torch.zeros(emission.shape[1], T, B, device=log_fwd_p.device)
+    for t in range(T):
+      p_zt_z_x[:,t,:] = torch.logsumexp(transition[:,:,None] + log_fwd_p[:,None,t,:], dim=0) #"ih,isb->hsb" forward_probs[:, None, t - 1, b] + log_T
+      p_xt_xst[:,t,:] = torch.logsumexp(emission[:,:,None] + p_zt_z_x[:,None,t,:], dim=0) #"ih,hsb->hsb" forward_probs[:, None, t - 1, b] + log_T
+    #norm
+    p_xt_xst = p_xt_xst - torch.logsumexp(p_xt_xst, dim=0,keepdim=True)
+    # note that p_xt_xst one is one forward now, i.e. p_xt_xst[:,t,:] = p(X_t+1| X_[t]=x_[t])
+    return p_xt_xst.cpu(), log_p_seq.cpu()
+
+
+def entropy_of_observations(hmm:HMM, observations: np.ndarray, device: str = "cuda"):
+    log_fwd_p, log_xst = forward_probs_full(hmm, observations, device=device)
+    H_t = -log_xst
+    return log_fwd_p, H_t
+
+
+def make_data(hmm: HMM, batch_size, seq_len):
     hmm._init_all_nodes(batch_size)
     observations = {n:np.zeros((seq_len, batch_size), dtype=int) for n,_ in hmm.topo_order}
     for i in range(seq_len):
       for name, node in hmm.topo_order:
         observations[name][i] = np.array(node.state)
-      change_state(hmm.topo_order, i)
       hmm.evolve_classic(1)
     return observations
 
@@ -35,31 +66,28 @@ def get_cfg(state_dim_control, alpha_control, state_dim, alpha, alpha_X=6e-3):
     return cfg
 
 n_data = 4
-seq_len = 64
-state_dim = 32
-alpha_controller = 8e-3
-state_dim_controller = 64
-# alpha_z = 1.55e-1
-# alpha_x = 1e-2
-alpha_z = 1e-5
-alpha_x = 1e-5
-cfg = get_cfg(state_dim_controller, alpha_controller, state_dim, alpha_z, alpha_x)
+seq_len = 20
 
-def change_state(topo_order, seq_idx): # this doesn't really work, because the HMM calculation goes overboard
-  if ((seq_idx + 1) % (seq_len//4)) == 0:
-     for name, node in topo_order:
-        if name in ["Z12","Z1"]:
-          node.state = node.rng.integers(0, node.state_dim, size=node.state.shape)
+state_dim_z = 4
+alpha_z = 1e-1
+
+alpha_x = 1e-2
+
+alpha_controller = 5e-4 # this is for the slow node
+state_dim_controller = 512
+
+
+cfg = get_cfg(state_dim_controller, alpha_controller, state_dim_z, alpha_z, alpha_x)
 
 # seed = np.random.randint(1924289)
 seed = 745706
 hmm = HMM(cfg, random_seed=seed)
 data = make_data(hmm, n_data, seq_len)
-hmm_estimate = hmm.entropy_of_observations(data["X"], fast=True, small_mem=False, final_entry_only=False)
-
+# hmm_estimate = entropy_of_observations(data["X"], fast=True, small_mem=False, final_entry_only=False)
+log_fwd_p, H_t = entropy_of_observations(hmm, data["X"])
 # %%
-for i,seq in enumerate(hmm_estimate.T):
-  scale = 10
+for i,seq in enumerate(H_t.T):
+  scale = 5
   offset = scale*i
   plt.plot(seq.diff() + offset, color=f"C{i}")
   if "Z1" in data:
@@ -74,7 +102,7 @@ plt.show()
 emb_dim = 32
 nb_heads = 2
 nb_layers = 2
-n_train = 1500
+n_train = 500
 n_test = 100
 
 train_data_all = make_data(hmm, n_train, seq_len)
@@ -104,6 +132,7 @@ model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=3e-4, weight_decay=1e-4)
 
 # training loop
+min_loss_test = 1e5
 for epoch in (pbar:=tqdm.trange(epochs)):
     model.train()
     for batch_i in range(0, len(train_data), batch_size):
@@ -119,29 +148,38 @@ for epoch in (pbar:=tqdm.trange(epochs)):
     with torch.inference_mode():
       model.eval()
       loss_test = loss_func(model(test_data)[:,:-1], test_data[:,1:]).mean().item()
-      # update progress bar
       pbar.set_description(f"Epoch {epoch + 1}, Loss: {loss.item():.3f}/{loss_test:.4f}, hmm: {hmm_mean:.4f}, kl:{loss_test-hmm_mean:.4f}")
+      #early stopping
+      if loss_test <= min_loss_test:
+        updated = epoch
+        min_loss_test = loss_test
+      else:
+        if epoch - updated > 5:
+          break
 
 # %%
 model.eval()
 which_seqs = slice(0,100)
 with torch.inference_mode():
   x = test_data[which_seqs]
-  out = model(x).cpu()[:,:-1]
-  tgt = test_data[which_seqs].cpu()[:,1:]
-  entropys = hmm.entropy_of_observations(x.cpu().T, fast=True, small_mem=False, final_entry_only=False).T.diff(dim=-1)
-  nll = loss_func(out, tgt).view(entropys.shape)
-  kl = nll - entropys
+  out = model(x).cpu()
+  tgt = test_data[which_seqs].cpu()
+  log_fwd_p, entropys = entropy_of_observations(hmm, x.cpu().T)
+  entropys = entropys.T.diff(dim=-1) # diff makes them conditional
+  nll = loss_func(out[:,:-1], tgt[:,1:]).view(entropys.shape)
+  # KL(p_true(X_t | X_<t=x_<t) | p_model(X_t | X_<t=x_<t))
+  kl = torch.kl_div(torch.log_softmax(out, dim=-1), log_fwd_p.permute(2,1,0), log_target=True).sum(-1)
 # %%
-for i in range(50):
-  plt.plot(nll[i], label="pred nll")
-  plt.plot(entropys[i], "--", label="true nll")
+for i in range(30):
+  plt.plot(entropys[i] + kl[i][:-1], label="true NLL + KL")
+  plt.plot(entropys[i], "--", label="true NLL")
+  # plt.plot(nll[i], "--", label="model NLL")
   if "Z1" in test_data_all:
     z_changeds = (np.diff(test_data_all["Z1"][:,i]) != 0) | (np.diff(test_data_all["Z2"][:,i]) != 0)
   else:
     z_changeds = (np.diff(test_data_all["Z12"][:,i]) != 0)
   [plt.axvline(j, alpha=.5) for j,did in enumerate(z_changeds) if did]
-  plt.yscale('log')
+  plt.legend()
   plt.show()
 
 # %%
