@@ -19,32 +19,7 @@ from typing import Any
 import h5py
 import yaml
 
-# ------------------------------------------------------------------------------
-# Utils
-# ------------------------------------------------------------------------------
-
-
-def read_indented_jsonl(filepath: str) -> list[dict[str, Any]]:
-    data = []
-    with open(filepath) as file:
-        content = file.read()
-
-    # split the content into individual JSON objects
-    json_objects = content.split("}\n{")
-
-    # adjust format
-    if json_objects:
-        json_objects[0] = json_objects[0] + "}"
-        json_objects[-1] = "{" + json_objects[-1]
-        for i in range(1, len(json_objects) - 1):
-            json_objects[i] = "{" + json_objects[i] + "}"
-
-    # parse each JSON object
-    for json_str in json_objects:
-        json_object = json.loads(json_str)
-        data.append(json_object)
-    return data
-
+from src.nanollama.visualization import read_indented_jsonl
 
 # ------------------------------------------------------------------------------
 # Slurm launcher
@@ -70,9 +45,6 @@ SBATCH = """#!/bin/bash
 #SBATCH --time=10:00:00
 #SBATCH --array=1-{nb_tasks}
 
-# activate conda environment
-eval "$({conda_exe} shell.bash hook)"
-conda activate {conda_env_path}
 
 # go to code directory
 cd {code_dir}
@@ -82,9 +54,6 @@ python -m src.apps.gssm.entropy {config_path}
 
 
 def launch_entropy_estimate(exp: int, code_dir: str) -> None:
-    conda_exe = os.environ.get("CONDA_EXE", "conda")
-    python_env = subprocess.check_output("which python", shell=True).decode("ascii").strip()
-    conda_env = str(Path(python_env).parent.parent)
 
     code_dir = Path(os.path.expandvars(code_dir))
 
@@ -127,12 +96,9 @@ def launch_entropy_estimate(exp: int, code_dir: str) -> None:
                     exp=exp,
                     code_dir=str(code_dir),
                     nb_tasks=nb_tasks,
-                    conda_exe=conda_exe,
-                    conda_env_path=conda_env,
                     config_path=config_path,
                 )
             )
-
     os.system(f"sbatch {run_file}")
 
 

@@ -37,17 +37,13 @@ def check_data(n_data_expected):
   if not os.path.exists(data_path):
     print("No data for this experiment")
     return False
-  count = 0
-  for dir in data_path.iterdir():
-    count += 1
+
+  for i in range(n_data_expected):
+    dir = data_path / str(i)
     for h5file in ["trainset.h5", "testset.h5"]:
       if not (dir / h5file).exists():
         print(f"missing {h5file} at {dir}")
         good = False
-
-  if count != n_data_expected:
-    print(f"missing data {count} vs {n_data_expected}")
-    good=False
 
   if good:
     print("all data there")
@@ -59,18 +55,13 @@ def check_entropy(n_data_expected):
     print("No entropy calc for this experiment")
     return False
 
-  count = 0
-
-  for dir in entropy_path.iterdir():
-    if dir.is_dir() and dir.name != "tasks":
-      count += 1
+  for i in range(n_data_expected):
+    dir = entropy_path / str(i)
+    if dir.is_dir():
       if not (dir / "eval_0.jsonl").exists():
         print(f"missing entropy calc at {dir}")
         good = False
 
-  if count != n_data_expected:
-    print(f"missing entropy folder {count} vs {n_data_expected}")
-    good=False
 
   if not (gzip_summary_path.exists() and hmm_summary_path.exists()):
     print("missing gzip / hmm summary, run launcher_gzip")
@@ -86,7 +77,7 @@ def check_exps():
   expected_nums = [n_params_exps_expected, n_data_exps_expected]
   for path,n_expected in zip(paths, expected_nums):
     if not os.path.exists(path):
-      print("No nb_params data for this experiment")
+      print(f"No data for this experiment {path}")
       return False
     count = 0
     for dir in path.iterdir():
@@ -108,9 +99,9 @@ def check_exps():
       print(f"missing exps {path},  {count} vs {n_expected}")
       good=False
 
-    if good:
-      print("all exps there")
-    return good
+  if good:
+    print("all exps there")
+  return good
 
 
 

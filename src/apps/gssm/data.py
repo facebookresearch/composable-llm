@@ -169,8 +169,9 @@ def map_datasetid_gssm(data_path: str) -> None:
     """
     Retrieve gssm configuration linked to datasets generated from the main function.
     """
-    id_path = Path(data_path).parent / ".gssm_id_path.jsonl"
-    node_path = Path(data_path).parent / ".gssm_id_config.jsonl"
+    id_path = os.path.expandvars(Path(data_path).parent / ".gssm_id_path.jsonl")
+    node_path = os.path.expandvars(Path(data_path).parent / ".gssm_id_config.jsonl")
+
 
     with open(id_path, "w") as f:
         pass
