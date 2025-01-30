@@ -132,6 +132,10 @@ class LauncherConfig:
         """
         assert self.script, "No script specified to run the job."
 
+        for key in self.grid:
+          if isinstance(self.grid[key], str):
+              self.grid[key] = eval(self.grid[key])
+
         if not self.log_dir:
             self.log_dir = str(Path.home() / "logs" / self.name)
             logger.info(f"No logging directory specified, default to {self.log_dir}")

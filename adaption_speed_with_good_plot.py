@@ -108,9 +108,9 @@ for i,seq in enumerate(H_t.T):
 plt.show()
 
 # %%
-emb_dim = 64
-nb_heads = 4
-nb_layers = 4
+emb_dim = 32
+nb_heads = 2
+nb_layers = 2
 n_train = 3000
 n_test = 100
 
@@ -193,12 +193,13 @@ for i in range(16,17):
   else:
     z_changeds = (np.diff(test_data_all["Z12"][:,i]) != 0)
   # [plt.axvline(j-1, alpha=.5) for j,did in enumerate(z_changeds) if did and j > 0]
-  plt.legend()
+  plt.legend(fontsize=12)
   # plt.xscale('log')
   # plt.yscale('log')
   plt.ylim(0,.6)
-  plt.ylabel('NLL or NLL+KL')
-  plt.xlabel('sequence position')
+  plt.ylabel('NLL or NLL+KL', fontsize=14)
+  plt.xlabel('sequence position', fontsize=14)
+  plt.tight_layout()
   plt.savefig("adaption_speed_plot.pdf")
   plt.show()
 

@@ -137,7 +137,7 @@ def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 device = "cuda"
 
 batch_size = 128
-epochs = 250
+epochs = 300
 
 train_data = torch.as_tensor(train_data_all["X"].T).to(device)
 test_data = torch.as_tensor(test_data_all["X"].T).to(device)
@@ -183,6 +183,7 @@ with torch.inference_mode():
   # KL(p_true(X_t | X_<t=x_<t) | p_model(X_t | X_<t=x_<t))
   kl = torch.kl_div(torch.log_softmax(out, dim=-1), log_fwd_p.permute(2,1,0), log_target=True).sum(-1)
 # %%
+
 for i in range(56,57):
   plt.plot(entropys[i] + kl[i][:-1], label="true NLL + KL")
   # plt.plot(kl[i][:-1], label="true NLL + KL")
@@ -194,12 +195,13 @@ for i in range(56,57):
   else:
     z_changeds = (np.diff(test_data_all["Z12"][:,i]) != 0)
   # [plt.axvline(j-1, alpha=.5) for j,did in enumerate(z_changeds) if did and j > 0]
-  plt.legend()
+  plt.legend(fontsize=12)
   # plt.xscale('log')
   # plt.yscale('log')
   plt.ylim(0,.2)
-  plt.ylabel('NLL or NLL+KL')
-  plt.xlabel('sequence position')
+  plt.ylabel('NLL or NLL+KL', fontsize=14)
+  plt.xlabel('sequence position', fontsize=14)
+  plt.tight_layout()
   plt.savefig("adaption_speed_plot_wobbly.pdf")
   plt.show()
 

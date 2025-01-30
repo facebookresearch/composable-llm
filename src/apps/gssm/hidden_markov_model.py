@@ -290,7 +290,7 @@ class HMM:
 
         log_p_seq = torch.logsumexp(forward_probs, dim=0)
 
-        return forward_probs.cpu(), log_p_seq.cpu()
+        return forward_probs, log_p_seq
 
     def forward_probs(self, observations: np.ndarray, device: str = "cuda", small_mem=False):
         T, B = observations.shape
@@ -341,7 +341,7 @@ class HMM:
               _, log_xst = self.forward_probs_fast(observations, device=device, small_mem=small_mem)
             else:
               _, log_xst = self.forward_probs(observations, device=device, small_mem=small_mem)
-        H_t = -log_xst
+        H_t = -log_xst.cpu()
         if final_entry_only:
             return H_t[-1]
         else:
@@ -389,7 +389,7 @@ class HMM:
                 # conditional_log_xst should be of shape [T,1]
                 _, conditional_log_xst = random_hmm.forward_probs(observations[:,[i]])
                 # print(f"conditional_log_xst {conditional_log_xst}")
-                conditional_log_xst = conditional_log_xst[:,0].numpy() # Now conditional_log_xst ~= [log(P(X_[1] | hmm)),...,log(P(X_[T]| hmm))]
+                conditional_log_xst = conditional_log_xst[:,0].cpu().numpy() # Now conditional_log_xst ~= [log(P(X_[1] | hmm)),...,log(P(X_[T]| hmm))]
                 # [N2, T]
                 conditional_logliks_of_the_observation.append(conditional_log_xst)
                 # negloglik_of_single_observation is a scalar

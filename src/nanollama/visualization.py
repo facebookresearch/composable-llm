@@ -90,6 +90,27 @@ def jsonl_to_numpy(path: str, keys: list[str]) -> dict[str, np.ndarray]:
     return {k: np.array(v) for k, v in data.items()}
 
 
+def read_indented_jsonl(filepath: str) -> list[dict[str, Any]]:
+    data = []
+    with open(filepath) as file:
+        content = file.read()
+
+    # split the content into individual JSON objects
+    json_objects = content.split("}\n{")
+
+    # adjust format
+    if json_objects:
+        json_objects[0] = json_objects[0] + "}"
+        json_objects[-1] = "{" + json_objects[-1]
+        for i in range(1, len(json_objects) - 1):
+            json_objects[i] = "{" + json_objects[i] + "}"
+
+    # parse each JSON object
+    for json_str in json_objects:
+        json_object = json.loads(json_str)
+        data.append(json_object)
+    return data
+
 def get_keys(path: str, readall: bool = True) -> list[str]:
     """
     Get keys from a jsonl file
