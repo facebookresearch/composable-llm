@@ -1,0 +1,67 @@
+seq_len: 257
+eed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+chunk_size: 10_000
+gssm:
+  nodes:
+        - - {name: Z1, state_dim: 2048, alpha: 0.625e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 2048, alpha: 1.25e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 2048, alpha: 2.5e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+
+        - - {name: Z1, state_dim: 1024, alpha: 1.25e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 1024, alpha: 2.5e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 1024, alpha: 5e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+
+        - - {name: Z1, state_dim: 512, alpha: 2.5e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 512, alpha: 5e-3}                            
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 512, alpha: 1e-2}                            
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+                                                                               
+        - - {name: Z1, state_dim: 256, alpha: 5e-3}                            
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 256, alpha: 1e-2}                            
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 256, alpha: 2e-2}                            
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: "fullrank"}
+
+        #larger X state dim
+        - - {name: Z1, state_dim: 2048, alpha: 0.625e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 2048, alpha: 1.25e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 2048, alpha: 2.5e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+
+        - - {name: Z1, state_dim: 1024, alpha: 1.25e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 1024, alpha: 2.5e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 1024, alpha: 5e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+
+        - - {name: Z1, state_dim: 512, alpha: 2.5e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 512, alpha: 5e-3}                            
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 512, alpha: 1e-2}                            
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+                                                                               
+        - - {name: Z1, state_dim: 256, alpha: 5e-3}                            
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 256, alpha: 1e-2}                            
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+        - - {name: Z1, state_dim: 256, alpha: 2e-2}                            
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 2e-3, observed: true, kernel_type: "fullrank"}
+
+sets:
+- n_data: 100_000
+  path: /checkpoint/$USER/datasets/icml/exp13/$GRIDID/trainset.h5
+- n_data: 10_000
+  path: /checkpoint/$USER/datasets/icml/exp13/$GRIDID/testset.h5

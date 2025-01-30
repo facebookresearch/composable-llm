@@ -5,41 +5,40 @@ gssm_config = {
     "nodes": [
         {
             "name": "Z1",
-            "state_dim": 4,
+            "state_dim": 6,
             "parents": [],
-            "alpha": .1,
-            "mode": "slow",
+            "alpha": 5e-2,
+            "mode": "default",
             "observed": False,
         },
         {
             "name": "Z2",
-            "state_dim": 4,
-            "parents": ["Z1"],
-            "alpha": 1,
+            "state_dim": 6,
+            "parents": [],
+            "alpha": 5e-2,
             "mode": "default",
-            "kernel_type": "fullrank",
             "observed": False,
         },
         {
             "name": "Z3",
-            "state_dim": 4,
-            "parents": ["Z1","Z2"],
-            "alpha": 1,
+            "state_dim": 6,
+            "parents": [],
+            "alpha": 5e-2,
             "mode": "default",
             "observed": False,
         },
         {
             "name": "Z4",
-            "state_dim": 4,
-            "parents": ["Z1","Z2"],
-            "alpha": 1,
+            "state_dim": 6,
+            "parents": [],
+            "alpha": 5e-2,
             "mode": "default",
             "observed": False,
         },
         {
             "name": "X",
             "state_dim": 32,
-            "parents": ["Z1","Z3","Z4"],
+            "parents": ["Z1","Z2","Z3","Z4"],
             "alpha": .1,
             "mode": "default",
             "kernel_type": "fullrank",
@@ -48,68 +47,29 @@ gssm_config = {
     ]
 }
 
-gssm_config_ICL = {
+gssm_config2 = {
     "nodes": [
         {
             "name": "Z1",
-            "state_dim": 4,
+            "state_dim": 36,
             "parents": [],
-            "alpha": .1,
+            "alpha": 2e-2,
             "mode": "default",
             "observed": False,
         },
         {
             "name": "Z2",
-            "state_dim": 4,
-            "parents": ["Z1"],
-            "alpha": .1,
+            "state_dim": 36,
+            "parents": [],
+            "alpha": 2e-2,
             "mode": "default",
-            "kernel_type": "fullrank",
-            "observed": False,
-        },
-        {
-            "name": "Z3",
-            "state_dim": 4,
-            "parents": ["Z2"],
-            "alpha": 1,
-            "mode": "context",
             "observed": False,
         },
         {
             "name": "X",
-            "state_dim": 8,
-            "parents": ["Z1", "Z3"],
+            "state_dim": 32,
+            "parents": ["Z1","Z2"],
             "alpha": .05,
-            "mode": "context",
-            "kernel_type": "fullrank",
-            "observed": True,
-        },
-    ]
-}
-
-small_gssm_config = {
-    "nodes": [
-        {
-            "name": "Z1",
-            "state_dim": 4,
-            "parents": [],
-            "alpha": .1,
-            "mode": "slow",
-            "observed": False,
-        },
-        {
-            "name": "Z2",
-            "state_dim": 4,
-            "parents": ["Z1"],
-            "alpha": .1,
-            "mode": "default",
-            "observed": False,
-        },
-        {
-            "name": "X",
-            "state_dim": 32,
-            "parents": ["Z1","Z2"],
-            "alpha": .1,
             "mode": "default",
             "kernel_type": "fullrank",
             "observed": True,
@@ -126,49 +86,6 @@ def make_data(hmm: HMM, batch_size, seq_len):
         hmm.evolve_classic(1)
     return observations
 
-def make_data2(hmm: HMM, batch_size, seq_len):
-    hmm._init_all_nodes(batch_size)
-    observations = np.zeros((seq_len, batch_size), dtype=int)
-    prod_trans = hmm.make_prod_transition()
-    for i in range(seq_len):
-        observations[i] = np.array(hmm.top_node.state)
-        data = hmm.fwd_via_matmul(prod_trans)
-        for (st, (_,node)) in zip(data, hmm.topo_order):
-          node.state = st
-    return observations
-
-def test_entropys():
-  hmm = HMM(gssm_config, random_seed=np.random.randint(29042))
-  data1 = make_data(hmm, batch_size=20, seq_len=20)
-  entropys1 = hmm.entropy_of_observations(data1, small_mem=False, fast=False) # the old but gold
-  entropys2 = hmm.entropy_of_observations(data1, small_mem=True, fast=False)
-  entropys3 = hmm.entropy_of_observations(data1, small_mem=False, fast=True)
-  entropys4 = hmm.entropy_of_observations(data1, small_mem=True, fast=True)
-  print(((entropys1 - entropys2)).abs().mean())
-  print(((entropys1 - entropys3)).abs().mean())
-  print(((entropys1 - entropys4)).abs().mean())
-
-def test_generation(bsz=100):
-  seed = np.random.randint(29042)
-  hmm = HMM(small_gssm_config, random_seed=seed)
-  data1 = make_data(hmm, bsz, 50)
-  data2 = make_data2(hmm, bsz, 50)
-  entropys1 = hmm.entropy_of_observations(data1)
-  entropys2 = hmm.entropy_of_observations(data2)
-  hmm_mean1 = (entropys2 / (seq_len - 1)).mean().item()
-  hmm_mean2 = (entropys2 / (seq_len - 1)).mean().item()
-  print("entropy means", hmm_mean1, hmm_mean2)
-  import matplotlib.pyplot as plt
-  for i in range(5, 10):
-    plt.hist(data1[i], alpha=.5, range=(0, hmm.top_node.state_dim), label="true evolve")
-    plt.hist(data2[i], alpha=.5, range=(0, hmm.top_node.state_dim), label="hmm evolve")
-    plt.legend()
-    plt.show()
-
-test_entropys()
-test_generation()
-
-# %%
 emb_dim = 128
 nb_heads = 4
 seq_len = 50
@@ -176,13 +93,15 @@ nb_layers = 4
 n_train = 40000
 n_test = 1000
 
-hmm = HMM(gssm_config, random_seed=2489)
+hmm = HMM(gssm_config2, random_seed=np.random.randint(3289402))
 train_data = make_data(hmm, n_train, seq_len).T
 test_data = make_data(hmm, n_test, seq_len).T
 hmm_estimate = hmm.entropy_of_observations(test_data.T, fast=True, small_mem=False)
 hmm_mean = (hmm_estimate / (seq_len - 1)).mean().item()
 train_data.shape, test_data.shape, hmm_estimate.shape
 hmm_mean
+# %%
+hmm.top_node.parents[3].kernels[0].max(axis=1)
 # %%
 from src.nanollama.model.transfomer import Transformer, TransformerConfig, TransformerBlockConfig
 block_cfg = TransformerBlockConfig(seq_len=seq_len, emb_dim=emb_dim, nb_heads=nb_heads)
@@ -197,7 +116,7 @@ def loss_func(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 device = "cuda"
 
 batch_size = 512
-epochs = 500
+epochs = 5
 
 train_data = torch.as_tensor(train_data).to(device)
 test_data = torch.as_tensor(test_data).to(device)
@@ -217,9 +136,9 @@ for epoch in (pbar:=tqdm.trange(epochs)):
         optimizer.step()
     # eval
     with torch.inference_mode():
-      loss_test = loss_func(model(test_data)[:,:-1], test_data[:,1:])
+      loss_test = loss_func(model(test_data)[:,:-1], test_data[:,1:]).mean().item()
       # update progress bar
-      pbar.set_description(f"Epoch {epoch + 1}, Loss: {loss.item():.3f}/{loss_test.mean().item():.4f}, hmm: {hmm_mean:.4f}")
+      pbar.set_description(f"Epoch {epoch + 1}, Loss: {loss.item():.3f}/{loss_test:.4f}, hmm: {hmm_mean:.4f}, kl:{loss_test-hmm_mean:.4f}")
 
 # %%
 # they are not duplicates

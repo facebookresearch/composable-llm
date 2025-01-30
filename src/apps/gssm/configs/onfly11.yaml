@@ -1,3 +1,4 @@
+# this tests how well multiple nodes are disentangled when running default vs slow vs dead mode, with different X alphas, num nodes, emb dims
 launcher:
   name: onfly
   overwrite: true
@@ -15,24 +16,124 @@ launcher:
 
   grid:
     model:
-      emb_dim: [128, 512]
+      emb_dim: [128, 256, 512]
     data:
       seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-      seq_len: [128, 512]
+      seq_len: [512]
       gssm:
         nodes:
         # lower X alpha
-        - - {name: Z1, state_dim: 8, alpha: 2e-2}
-          - {name: Z2, state_dim: 8, alpha: 2e-2}
-          - {name: Z3, state_dim: 8, alpha: 2e-2}
-          - {name: Z4, state_dim: 8, alpha: 2e-2}
-          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2.5e-3, observed: true}
+        - - {name: Z1, state_dim: 8, alpha: 5e-2}
+          - {name: Z2, state_dim: 8, alpha: 5e-2}
+          - {name: Z3, state_dim: 8, alpha: 5e-2}
+          - {name: Z4, state_dim: 8, alpha: 5e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2e-3, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3}
+          - {name: Z2, state_dim: 64, alpha: 9e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 2e-3, observed: true}
         # higher X alpha
-        - - {name: Z1, state_dim: 8, alpha: 2e-2}
-          - {name: Z2, state_dim: 8, alpha: 2e-2}
-          - {name: Z3, state_dim: 8, alpha: 2e-2}
-          - {name: Z4, state_dim: 8, alpha: 2e-2}
-          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1.2e-2, observed: true}
+        - - {name: Z1, state_dim: 8, alpha: 5e-2}
+          - {name: Z2, state_dim: 8, alpha: 5e-2}
+          - {name: Z3, state_dim: 8, alpha: 5e-2}
+          - {name: Z4, state_dim: 8, alpha: 5e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3}
+          - {name: Z2, state_dim: 64, alpha: 9e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-2, observed: true}
+        # even higher X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2}
+          - {name: Z2, state_dim: 8, alpha: 5e-2}
+          - {name: Z3, state_dim: 8, alpha: 5e-2}
+          - {name: Z4, state_dim: 8, alpha: 5e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 5e-2, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3}
+          - {name: Z2, state_dim: 64, alpha: 9e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 5e-2, observed: true}
+        # one more X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2}
+          - {name: Z2, state_dim: 8, alpha: 5e-2}
+          - {name: Z3, state_dim: 8, alpha: 5e-2}
+          - {name: Z4, state_dim: 8, alpha: 5e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2e-1, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3}
+          - {name: Z2, state_dim: 64, alpha: 9e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 2e-1, observed: true}
+
+        # all as before but now with slow nodes
+        # lower X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z2, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z3, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z4, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2e-3, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3, mode: slow}
+          - {name: Z2, state_dim: 64, alpha: 9e-3, mode: slow}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 2e-3, observed: true}
+        # higher X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z2, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z3, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z4, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3, mode: slow}
+          - {name: Z2, state_dim: 64, alpha: 9e-3, mode: slow}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-2, observed: true}
+        # even higher X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z2, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z3, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z4, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 5e-2, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3, mode: slow}
+          - {name: Z2, state_dim: 64, alpha: 9e-3, mode: slow}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 5e-2, observed: true}
+        # one more X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z2, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z3, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: Z4, state_dim: 8, alpha: 5e-2, mode: slow}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2e-1, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3, mode: slow}
+          - {name: Z2, state_dim: 64, alpha: 9e-3, mode: slow}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 2e-1, observed: true}
+
+        # all as before but now with dead nodes
+        # lower X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z2, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z3, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z4, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2e-3, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3, mode: dead}
+          - {name: Z2, state_dim: 64, alpha: 9e-3, mode: dead}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 2e-3, observed: true}
+        # higher X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z2, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z3, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z4, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3, mode: dead}
+          - {name: Z2, state_dim: 64, alpha: 9e-3, mode: dead}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-2, observed: true}
+        # even higher X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z2, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z3, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z4, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 5e-2, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3, mode: dead}
+          - {name: Z2, state_dim: 64, alpha: 9e-3, mode: dead}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 5e-2, observed: true}
+        # one more X alpha
+        - - {name: Z1, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z2, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z3, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: Z4, state_dim: 8, alpha: 5e-2, mode: dead}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 2e-1, observed: true}
+        - - {name: Z1, state_dim: 64, alpha: 9e-3, mode: dead}
+          - {name: Z2, state_dim: 64, alpha: 9e-3, mode: dead}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 2e-1, observed: true}
 
 run_config:
   low_memory_hmm: false
@@ -46,8 +147,9 @@ run_config:
     seed: 453942
     gssm:
       nodes:
-      - {name: Z1, state_dim: 512, alpha: 1.5e-3}
-      - {name: X, state_dim: 128, parents: [Z1], alpha: 2.5e-3, observed: true}
+      - {name: Z1, state_dim: 64, alpha: 7e-3, mode: slow}
+      - {name: Z2, state_dim: 64, alpha: 7e-3}
+      - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 5e-2, observed: true}
 
   model:
     emb_dim: 512

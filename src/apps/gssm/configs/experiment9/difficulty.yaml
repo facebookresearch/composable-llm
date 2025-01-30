@@ -1,0 +1,124 @@
+# Script to fit alpha_Z
+# Run with the `difficulty` script
+# python -m src.apps.gssm.difficulty <path to this file>
+
+one_node:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 20
+    min: 1e-3
+    max: 1e1
+  path: $HOME/logs/exp9/difficulty/one_node.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 256
+      parents: []
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+two_nodes:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 20
+    min: 1e-3
+    max: 1e1
+  path: $HOME/logs/exp9/difficulty/two_nodes.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 16
+      parents: []
+    - name: Z2
+      state_dim: 16
+      parents: []
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2]
+      observed: true
+
+four_nodes:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 20
+    min: 1e-3
+    max: 1e3
+  path: $HOME/logs/exp9/difficulty/four_nodes.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 4
+      parents: []
+    - name: Z2
+      state_dim: 4
+      parents: []
+    - name: Z3
+      state_dim: 4
+      parents: []
+    - name: Z4
+      state_dim: 4
+      parents: []
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4]
+      observed: true
+
+eight_nodes:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 20
+    min: 1e-3
+    max: 1e1
+  path: $HOME/logs/exp9/difficulty/eight_nodes.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 2
+      parents: []
+    - name: Z2
+      state_dim: 2
+      parents: []
+    - name: Z3
+      state_dim: 2
+      parents: []
+    - name: Z4
+      state_dim: 2
+      parents: []
+    - name: Z5
+      state_dim: 2
+      parents: []
+    - name: Z6
+      state_dim: 2
+      parents: []
+    - name: Z7
+      state_dim: 2
+      parents: []
+    - name: Z8
+      state_dim: 2
+      parents: []
+    - name: X
+      state_dim: 32
+      parents: [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+      observed: true

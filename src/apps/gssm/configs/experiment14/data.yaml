@@ -1,0 +1,128 @@
+seq_len: 257
+seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+chunk_size: 10_000
+gssm:
+  nodes:
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 5e-2}
+          - {name: Z2, state_dim: 6, alpha: 5e-2}
+          - {name: Z3, state_dim: 6, alpha: 5e-2, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 5e-2, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 5e-2}
+          - {name: Z2, state_dim: 6, alpha: 5e-2}
+          - {name: Z3, state_dim: 6, alpha: 5e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 5e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 6e-2}
+          - {name: Z2, state_dim: 6, alpha: 6e-2}
+          - {name: Z3, state_dim: 6, alpha: 6e-2, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 6e-2, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 6e-2}
+          - {name: Z2, state_dim: 6, alpha: 6e-2}
+          - {name: Z3, state_dim: 6, alpha: 6e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 6e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 7e-2}
+          - {name: Z2, state_dim: 6, alpha: 7e-2}
+          - {name: Z3, state_dim: 6, alpha: 7e-2, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 7e-2, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 7e-2}
+          - {name: Z2, state_dim: 6, alpha: 7e-2}
+          - {name: Z3, state_dim: 6, alpha: 7e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 7e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 8e-2}
+          - {name: Z2, state_dim: 6, alpha: 8e-2}
+          - {name: Z3, state_dim: 6, alpha: 8e-2, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 8e-2, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 8e-2}
+          - {name: Z2, state_dim: 6, alpha: 8e-2}
+          - {name: Z3, state_dim: 6, alpha: 8e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 8e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 9e-2}
+          - {name: Z2, state_dim: 6, alpha: 9e-2}
+          - {name: Z3, state_dim: 6, alpha: 9e-2, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 9e-2, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 9e-2}
+          - {name: Z2, state_dim: 6, alpha: 9e-2}
+          - {name: Z3, state_dim: 6, alpha: 9e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 9e-2, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+
+
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 1e-1}
+          - {name: Z2, state_dim: 6, alpha: 1e-1}
+          - {name: Z3, state_dim: 6, alpha: 1e-1, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 1e-1, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 1e-1}
+          - {name: Z2, state_dim: 6, alpha: 1e-1}
+          - {name: Z3, state_dim: 6, alpha: 1e-1, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 1e-1, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 1.5e-1}
+          - {name: Z2, state_dim: 6, alpha: 1.5e-1}
+          - {name: Z3, state_dim: 6, alpha: 1.5e-1, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 1.5e-1, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 1.5e-1}
+          - {name: Z2, state_dim: 6, alpha: 1.5e-1}
+          - {name: Z3, state_dim: 6, alpha: 1.5e-1, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 1.5e-1, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 2e-1}
+          - {name: Z2, state_dim: 6, alpha: 2e-1}
+          - {name: Z3, state_dim: 6, alpha: 2e-1, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 2e-1, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 2e-1}
+          - {name: Z2, state_dim: 6, alpha: 2e-1}
+          - {name: Z3, state_dim: 6, alpha: 2e-1, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 2e-1, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+
+        # sparse
+        - - {name: Z1, state_dim: 6, alpha: 3e-1}
+          - {name: Z2, state_dim: 6, alpha: 3e-1}
+          - {name: Z3, state_dim: 6, alpha: 3e-1, parents: [Z1], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 3e-1, parents: [Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+        #dense
+        - - {name: Z1, state_dim: 6, alpha: 3e-1}
+          - {name: Z2, state_dim: 6, alpha: 3e-1}
+          - {name: Z3, state_dim: 6, alpha: 3e-1, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: Z4, state_dim: 6, alpha: 3e-1, parents: [Z1, Z2], kernel_type: fullrank}
+          - {name: X, state_dim: 128, parents: [Z3,Z4], alpha: 6e-3, observed: true, kernel_type: fullrank}
+
+sets:
+- n_data: 100_000
+  path: /checkpoint/$USER/datasets/icml/exp14/$GRIDID/trainset.h5
+- n_data: 10_000
+  path: /checkpoint/$USER/datasets/icml/exp14/$GRIDID/testset.h5

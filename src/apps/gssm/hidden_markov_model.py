@@ -1,7 +1,7 @@
 
 # %%
-# import sys
-# sys.path.append("../../../")
+import sys
+sys.path.append("../../../")
 from functools import lru_cache
 from logging import getLogger
 import numpy as np
@@ -270,7 +270,7 @@ class HMM:
         forward_probs = torch.zeros((num_states, T, B), device=device, dtype=torch.float32)
 
         forward_probs[:, 0, :] = log_pi[:, None]# + log_E[:, obs[0]] <- don't need this because we start the emission with the prior
-        #forward_probs[:,t,:] = p(Z_t, X_[t])
+        #forward_probs[:,t,:] = p(Z_t, X_[t]=x_[t])
         
         if small_mem:
           import tqdm
@@ -404,74 +404,57 @@ class HMM:
         
 # %%
 
-gssm_config = {
-    "nodes": [
-        {
-            "name": "Z1",
-            "state_dim": 4,
-            "parents": [],
-            "alpha": .5,
-            "mode": "slow",
-            "observed": False,
-        },
-        {
-            "name": "Z2",
-            "state_dim": 4,
-            "parents": ["Z1"],
-            "alpha": .1,
-            "mode": "default",
-            "observed": False,
-        },
-        {
-            "name": "Z3",
-            "state_dim": 4,
-            "parents": ["Z1","Z2"],
-            "alpha": 1,
-            "mode": "default",
-            "observed": False,
-        },
-        {
-            "name": "Z4",
-            "state_dim": 4,
-            "parents": ["Z1","Z3"],
-            "alpha": 1,
-            "mode": "default",
-            "observed": False,
-        },
-        {
-            "name": "X",
-            "state_dim": 32,
-            "parents": ["Z1","Z2","Z4"],
-            "alpha": .5,
-            "mode": "default",
-            "observed": True,
-        },
-    ]
-}
 
 if __name__ == "__main__":
-    hmm = HMM(gssm_config)
+    gssm_config = {
+        "nodes": [
+            {
+                "name": "Z1",
+                "state_dim": 49,
+                "parents": [],
+                "alpha": 1e-2,
+                "mode": "default",
+                "kernel_type": "fullrank",
+                "observed": False,
+            },
+            {
+                "name": "Z2",
+                "state_dim": 49,
+                "parents": [],
+                "alpha": 1e-2,
+                "mode": "default",
+                "kernel_type": "fullrank",
+                "observed": False,
+            },
+            {
+                "name": "X",
+                "state_dim": 128,
+                "parents": ["Z1","Z2"],
+                "alpha": 2e-3,
+                "mode": "default",
+                "kernel_type": "fullrank",
+                "observed": True,
+            },
+        ]
+    }
 
-    prod_trans = hmm.make_prod_transition()
-    p_emission = hmm.get_p_emission()
-    other_prod_trans = hmm.make_prod_transition_fast()
-    other_p_emission = hmm.get_p_emission_fast()
+    entropys = []
+    for _ in range(10):
+      hmm = HMM(gssm_config, random_seed=np.random.randint(93492))
 
-    seq_len = 10
+      seq_len = 30
 
-    def make_data(hmm: HMM, batch_size):
-        hmm._init_all_nodes(batch_size)
-        observations = np.zeros((seq_len, batch_size), dtype=int)
-        for i in range(seq_len):
-            observations[i] = np.array(hmm.top_node.state)
-            hmm.evolve_classic(1)
-        return observations
+      def make_data(hmm: HMM, batch_size):
+          hmm._init_all_nodes(batch_size)
+          observations = np.zeros((seq_len, batch_size), dtype=int)
+          for i in range(seq_len):
+              observations[i] = np.array(hmm.top_node.state)
+              hmm.evolve_classic(1)
+          return observations
 
-    data1 = make_data(hmm, 10)
-    entropys1 = hmm.entropy_of_observations(data1, small_mem=False, final_entry_only=False)
-    entropys2 = hmm.entropy_of_observations(data1, small_mem=False, fast=True, final_entry_only=False)
-    print(entropys1, entropys2)
-    # print(((entropys1 - entropys2)))
-    # print(np.allclose(prod_trans, other_prod_trans))
+      data = make_data(hmm, 100)
+      entropy = hmm.entropy_of_observations(data, small_mem=False, fast=True, final_entry_only=True).mean().item() / (seq_len - 1)
+      entropys.append(entropy)
+    print(f"{np.mean(entropys):.3f} ± {np.std(entropys):.3f}")
 
 # %%

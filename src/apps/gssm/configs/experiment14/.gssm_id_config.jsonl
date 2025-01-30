@@ -1,0 +1,810 @@
+{
+    "gssm_id": 0,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "5e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "5e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "5e-2",
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "5e-2",
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 1,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "5e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "5e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "5e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "5e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 2,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "6e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "6e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "6e-2",
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "6e-2",
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 3,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "6e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "6e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "6e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "6e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 4,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "7e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "7e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "7e-2",
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "7e-2",
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 5,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "7e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "7e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "7e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "7e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 6,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "8e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "8e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "8e-2",
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "8e-2",
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 7,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "8e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "8e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "8e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "8e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 8,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "9e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "9e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "9e-2",
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "9e-2",
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 9,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "9e-2"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "9e-2"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "9e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "9e-2",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 10,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "1e-1"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "1e-1"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "1e-1",
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "1e-1",
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 11,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "1e-1"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "1e-1"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "1e-1",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "1e-1",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 12,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": 0.15
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": 0.15
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": 0.15,
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": 0.15,
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 13,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": 0.15
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": 0.15
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": 0.15,
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": 0.15,
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 14,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "2e-1"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "2e-1"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "2e-1",
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "2e-1",
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 15,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "2e-1"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "2e-1"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "2e-1",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "2e-1",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 16,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "3e-1"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "3e-1"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "3e-1",
+            "parents": [
+                "Z1"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "3e-1",
+            "parents": [
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}
+{
+    "gssm_id": 17,
+    "nodes": [
+        {
+            "name": "Z1",
+            "state_dim": 6,
+            "alpha": "3e-1"
+        },
+        {
+            "name": "Z2",
+            "state_dim": 6,
+            "alpha": "3e-1"
+        },
+        {
+            "name": "Z3",
+            "state_dim": 6,
+            "alpha": "3e-1",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "Z4",
+            "state_dim": 6,
+            "alpha": "3e-1",
+            "parents": [
+                "Z1",
+                "Z2"
+            ],
+            "kernel_type": "fullrank"
+        },
+        {
+            "name": "X",
+            "state_dim": 128,
+            "parents": [
+                "Z3",
+                "Z4"
+            ],
+            "alpha": "6e-3",
+            "observed": true,
+            "kernel_type": "fullrank"
+        }
+    ]
+}

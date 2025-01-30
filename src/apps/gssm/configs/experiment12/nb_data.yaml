@@ -1,0 +1,69 @@
+launcher:
+  name: exp12data
+  overwrite: true
+  log_dir: /checkpoint/$USER/icml/logs/exp12/data
+
+  script: src.apps.gssm.train
+
+  slurm:
+    nodes: 1
+    nb_gpus: 1
+    mem: 16G
+    partition: scavenge
+    time: 60          # job time in minutes
+    signal_time: 120  # alert time in seconds
+
+  grid:
+    data:
+      n_data: [30, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
+    grid_id: range(len(os.listdir(os.path.expandvars('/checkpoint/$USER/datasets/icml/exp12'))))
+run_config:
+  grid_id: 0
+
+  cluster:
+    compile_model: true
+
+  data:
+    n_data: 10_000
+    path: /checkpoint/$USER/datasets/icml/exp12/$GRIDID/trainset.h5
+    batch_size: 128
+    asynchronous: false
+    seed: 0  # seed for data shuffling
+
+  model:
+    vocab_size: 128
+    emb_dim: 512
+    nb_layers: 4
+    block:
+      seq_len: 256
+      nb_heads: 4
+
+  optim:
+    steps: 3000
+    lr: 1e-3
+    weight_decay: 0
+    scheduler: constant
+
+  orchestration:
+    utils:
+      seed: 100  # seed for model initialization
+
+    logging:
+      period: 1
+      level: info
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1
+
+    wandb:
+      active: true
+      project: exp12
+
+  evaluation:
+    period: 100
+    asynchronous: false
+    data:
+      path: /checkpoint/$USER/datasets/icml/exp12/$GRIDID/testset.h5
+      n_data: 10_000

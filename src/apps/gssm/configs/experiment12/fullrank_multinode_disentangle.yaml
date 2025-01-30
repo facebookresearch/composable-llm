@@ -1,0 +1,211 @@
+# checks whether in the fullrank setting we can disentangle multiple nodes
+launcher:
+  name: onfly
+  overwrite: true
+  log_dir: $HOME/logs/fullrank_multinode_disentangle/onfly
+
+  script: src.apps.gssm.train_onfly
+
+  slurm:
+    nodes: 1
+    nb_gpus: 1
+    mem: 16G
+    partition: learnfair
+    time: 240          # job time in minutes
+    signal_time: 120  # alert time in seconds
+
+  grid:
+    model:
+      emb_dim: [128, 256, 512]
+    data:
+      seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      seq_len: [256, 512]
+      gssm:
+        nodes:
+        - - {name: Z1, state_dim: 1296, alpha: 2e-4}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 1296, alpha: 2e-4}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-1, observed: true, kernel_type: fullrank}
+        # more alpha_z
+        - - {name: Z1, state_dim: 1296, alpha: 4e-4}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 1296, alpha: 4e-4}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 1296, alpha: 1e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 1296, alpha: 1e-3}
+          - {name: X, state_dim: 32, parents: [Z1], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        # more nodes
+        - - {name: Z1, state_dim: 36, alpha: 4e-3}
+          - {name: Z2, state_dim: 36, alpha: 4e-3}
+          - {name: X, state_dim: 32, parents: [Z1,Z2], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 36, alpha: 4e-3}
+          - {name: Z2, state_dim: 36, alpha: 4e-3}
+          - {name: X, state_dim: 32, parents: [Z1,Z2], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 36, alpha: 8e-3}
+          - {name: Z2, state_dim: 36, alpha: 8e-3}
+          - {name: X, state_dim: 32, parents: [Z1,Z2], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 36, alpha: 8e-3}
+          - {name: Z2, state_dim: 36, alpha: 8e-3}
+          - {name: X, state_dim: 32, parents: [Z1,Z2], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 36, alpha: 2e-2}
+          - {name: Z2, state_dim: 36, alpha: 2e-2}
+          - {name: X, state_dim: 32, parents: [Z1,Z2], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 36, alpha: 2e-2}
+          - {name: Z2, state_dim: 36, alpha: 2e-2}
+          - {name: X, state_dim: 32, parents: [Z1,Z2], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        # more nodes
+        - - {name: Z1, state_dim: 6, alpha: 1e-2}
+          - {name: Z2, state_dim: 6, alpha: 1e-2}
+          - {name: Z3, state_dim: 6, alpha: 1e-2}
+          - {name: Z4, state_dim: 6, alpha: 1e-2}
+          - {name: X, state_dim: 32, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 6, alpha: 1e-2}
+          - {name: Z2, state_dim: 6, alpha: 1e-2}
+          - {name: Z3, state_dim: 6, alpha: 1e-2}
+          - {name: Z4, state_dim: 6, alpha: 1e-2}
+          - {name: X, state_dim: 32, parents: [Z1,Z2,Z3,Z4], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 6, alpha: 2e-2}
+          - {name: Z2, state_dim: 6, alpha: 2e-2}
+          - {name: Z3, state_dim: 6, alpha: 2e-2}
+          - {name: Z4, state_dim: 6, alpha: 2e-2}
+          - {name: X, state_dim: 32, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 6, alpha: 2e-2}
+          - {name: Z2, state_dim: 6, alpha: 2e-2}
+          - {name: Z3, state_dim: 6, alpha: 2e-2}
+          - {name: Z4, state_dim: 6, alpha: 2e-2}
+          - {name: X, state_dim: 32, parents: [Z1,Z2,Z3,Z4], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 6, alpha: 5e-2}
+          - {name: Z2, state_dim: 6, alpha: 5e-2}
+          - {name: Z3, state_dim: 6, alpha: 5e-2}
+          - {name: Z4, state_dim: 6, alpha: 5e-2}
+          - {name: X, state_dim: 32, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 6, alpha: 5e-2}
+          - {name: Z2, state_dim: 6, alpha: 5e-2}
+          - {name: Z3, state_dim: 6, alpha: 5e-2}
+          - {name: Z4, state_dim: 6, alpha: 5e-2}
+          - {name: X, state_dim: 32, parents: [Z1,Z2,Z3,Z4], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+
+        # x state dim different
+        - - {name: Z1, state_dim: 1296, alpha: 2e-4}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 1296, alpha: 2e-4}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1e-1, observed: true, kernel_type: fullrank}
+          
+        - - {name: Z1, state_dim: 1296, alpha: 4e-4}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 1296, alpha: 4e-4}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 1296, alpha: 1e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 1296, alpha: 1e-3}
+          - {name: X, state_dim: 128, parents: [Z1], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+
+        - - {name: Z1, state_dim: 36, alpha: 4e-3}
+          - {name: Z2, state_dim: 36, alpha: 4e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 36, alpha: 4e-3}
+          - {name: Z2, state_dim: 36, alpha: 4e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 36, alpha: 8e-3}
+          - {name: Z2, state_dim: 36, alpha: 8e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 36, alpha: 8e-3}
+          - {name: Z2, state_dim: 36, alpha: 8e-3}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 36, alpha: 2e-2}
+          - {name: Z2, state_dim: 36, alpha: 2e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 36, alpha: 2e-2}
+          - {name: Z2, state_dim: 36, alpha: 2e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+
+        - - {name: Z1, state_dim: 6, alpha: 1e-2}
+          - {name: Z2, state_dim: 6, alpha: 1e-2}
+          - {name: Z3, state_dim: 6, alpha: 1e-2}
+          - {name: Z4, state_dim: 6, alpha: 1e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 6, alpha: 1e-2}
+          - {name: Z2, state_dim: 6, alpha: 1e-2}
+          - {name: Z3, state_dim: 6, alpha: 1e-2}
+          - {name: Z4, state_dim: 6, alpha: 1e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 6, alpha: 2e-2}
+          - {name: Z2, state_dim: 6, alpha: 2e-2}
+          - {name: Z3, state_dim: 6, alpha: 2e-2}
+          - {name: Z4, state_dim: 6, alpha: 2e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 6, alpha: 2e-2}
+          - {name: Z2, state_dim: 6, alpha: 2e-2}
+          - {name: Z3, state_dim: 6, alpha: 2e-2}
+          - {name: Z4, state_dim: 6, alpha: 2e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+        - - {name: Z1, state_dim: 6, alpha: 5e-2}
+          - {name: Z2, state_dim: 6, alpha: 5e-2}
+          - {name: Z3, state_dim: 6, alpha: 5e-2}
+          - {name: Z4, state_dim: 6, alpha: 5e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-2, observed: true, kernel_type: fullrank}
+        - - {name: Z1, state_dim: 6, alpha: 5e-2}
+          - {name: Z2, state_dim: 6, alpha: 5e-2}
+          - {name: Z3, state_dim: 6, alpha: 5e-2}
+          - {name: Z4, state_dim: 6, alpha: 5e-2}
+          - {name: X, state_dim: 128, parents: [Z1,Z2,Z3,Z4], alpha: 1e-1, observed: true, kernel_type: fullrank}
+
+run_config:
+  low_memory_hmm: false
+
+  cluster:
+    compile_model: true
+
+  data:
+    seq_len: 256
+    batch_size: 64
+    seed: 453942
+    gssm:
+      nodes:
+      - {name: Z1, state_dim: 512, alpha: 1.5e-3}
+      - {name: X, state_dim: 128, parents: [Z1], alpha: 1.25e-2, observed: true, kernel_type: fullrank}
+
+  model:
+    emb_dim: 128
+    nb_layers: 4
+    block:
+      nb_heads: 4
+
+  optim:
+    steps: 2000
+    lr: 1e-3
+    weight_decay: 0
+    scheduler: constant
+
+  orchestration:
+    utils:
+      seed: 100
+
+    logging:
+      period: 30
+      level: info
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1
+
+    wandb:
+      active: true
+      project: fullrank_exp10
