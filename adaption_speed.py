@@ -55,11 +55,11 @@ def get_cfg(state_dim_control, alpha_control, state_dim, alpha, alpha_X=6e-3):
             # { "name": "Z2", "state_dim": state_dim_control, "parents": [], "alpha": alpha_control, "mode": "slow", "observed": False},
 
             # one or two hidden nodes?
-            { "name": "Z3", "state_dim": state_dim, "parents": ["Z12"], "alpha": alpha, "mode": "default", "kernel_type": "product", "observed": False},
+            { "name": "Z3", "state_dim": state_dim, "parents": ["Z12"], "alpha": alpha, "mode": "default", "kernel_type": "fullrank", "observed": False},
             # { "name": "Z4", "state_dim": state_dim, "parents": ["Z12"], "alpha": alpha, "mode": "default", "kernel_type": "product", "observed": False},
 
             # who are X's parents?
-            { "name": "X", "state_dim": 128, "parents": ["Z12"], "alpha": alpha_X, "mode": "default", "kernel_type": "fullrank", "observed": True},
+            { "name": "X", "state_dim": 128, "parents": ["Z3"], "alpha": alpha_X, "mode": "default", "kernel_type": "fullrank", "observed": True},
             # { "name": "X", "state_dim": 128, "parents": ["Z3", "Z4"], "alpha": alpha_X, "mode": "default", "kernel_type": "product", "observed": True},
         ]
     }
@@ -68,13 +68,13 @@ def get_cfg(state_dim_control, alpha_control, state_dim, alpha, alpha_X=6e-3):
 n_data = 4
 seq_len = 128
 
-state_dim_z = 16
-alpha_z = 1e-3
+state_dim_z = 128
+alpha_z = 1e-6
 
-alpha_x = 1e-2
+alpha_x = 1e-5
 
-alpha_controller = 3e-4 # this is for the slow node
-state_dim_controller = 1024
+alpha_controller = 3e-2 # this is for the slow node
+state_dim_controller = 16
 
 def hardcode_controller_transition(hmm:HMM, controller_node_names, enable_states=slice(1,state_dim_controller)):
     controller_nodes = [node for name,node in hmm.topo_order if name in controller_node_names]
@@ -88,7 +88,7 @@ def hardcode_controller_transition(hmm:HMM, controller_node_names, enable_states
 
 cfg = get_cfg(state_dim_controller, alpha_controller, state_dim_z, alpha_z, alpha_x)
 # seed = np.random.randint(1924289)
-seed = 745706
+seed = 2498
 hmm = HMM(cfg, random_seed=seed)
 hardcode_controller_transition(hmm, "Z12")
 data = make_data(hmm, n_data, seq_len)
@@ -108,9 +108,9 @@ for i,seq in enumerate(H_t.T):
 plt.show()
 
 # %%
-emb_dim = 64
-nb_heads = 4
-nb_layers = 4
+emb_dim = 32
+nb_heads = 2
+nb_layers = 2
 n_train = 3000
 n_test = 100
 
@@ -183,22 +183,24 @@ with torch.inference_mode():
   # KL(p_true(X_t | X_<t=x_<t) | p_model(X_t | X_<t=x_<t))
   kl = torch.kl_div(torch.log_softmax(out, dim=-1), log_fwd_p.permute(2,1,0), log_target=True).sum(-1)
 # %%
-for i in range(30):
+for i in range(56,57):
   plt.plot(entropys[i] + kl[i][:-1], label="true NLL + KL")
+  # plt.plot(kl[i][:-1], label="true NLL + KL")
   plt.plot(entropys[i], "--", label="true NLL")
+  plt.fill_between(range(seq_len-1), entropys[i], entropys[i] + kl[i][:-1], alpha=.5, label="excess loss (KL)")
   # plt.plot(nll[i][1:], "--", label="model NLL")
   if "Z1" in test_data_all:
     z_changeds = (np.diff(test_data_all["Z1"][:,i]) != 0) | (np.diff(test_data_all["Z2"][:,i]) != 0)
   else:
     z_changeds = (np.diff(test_data_all["Z12"][:,i]) != 0)
-  [plt.axvline(j-1, alpha=.5) for j,did in enumerate(z_changeds) if did and j > 0]
+  # [plt.axvline(j-1, alpha=.5) for j,did in enumerate(z_changeds) if did and j > 0]
   plt.legend()
   # plt.xscale('log')
   # plt.yscale('log')
-  plt.ylim(0,3)
+  plt.ylim(0,.2)
   plt.ylabel('NLL or NLL+KL')
   plt.xlabel('sequence position')
-  # plt.savefig("adaption_speed_plot.pdf")
+  plt.savefig("adaption_speed_plot_wobbly.pdf")
   plt.show()
 
 # %%

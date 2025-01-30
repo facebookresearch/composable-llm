@@ -187,6 +187,7 @@ for i in range(16,17):
   plt.plot(entropys[i] + kl[i][:-1], label="true NLL + KL")
   plt.plot(entropys[i], "--", label="true NLL")
   # plt.plot(nll[i][1:], "--", label="model NLL")
+  plt.fill_between(range(seq_len-1), entropys[i], entropys[i] + kl[i][:-1], alpha=.5, label="excess loss (KL)")
   if "Z1" in test_data_all:
     z_changeds = (np.diff(test_data_all["Z1"][:,i]) != 0) | (np.diff(test_data_all["Z2"][:,i]) != 0)
   else:
