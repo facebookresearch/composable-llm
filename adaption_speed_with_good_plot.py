@@ -71,7 +71,7 @@ seq_len = 128
 state_dim_z = 16
 alpha_z = 1e-3
 
-alpha_x = 1e-2
+alpha_x = 1e-4
 
 alpha_controller = 3e-4 # this is for the slow node
 state_dim_controller = 1024
@@ -183,7 +183,7 @@ with torch.inference_mode():
   # KL(p_true(X_t | X_<t=x_<t) | p_model(X_t | X_<t=x_<t))
   kl = torch.kl_div(torch.log_softmax(out, dim=-1), log_fwd_p.permute(2,1,0), log_target=True).sum(-1)
 # %%
-for i in range(30):
+for i in range(16,17):
   plt.plot(entropys[i] + kl[i][:-1], label="true NLL + KL")
   plt.plot(entropys[i], "--", label="true NLL")
   # plt.plot(nll[i][1:], "--", label="model NLL")
@@ -191,14 +191,14 @@ for i in range(30):
     z_changeds = (np.diff(test_data_all["Z1"][:,i]) != 0) | (np.diff(test_data_all["Z2"][:,i]) != 0)
   else:
     z_changeds = (np.diff(test_data_all["Z12"][:,i]) != 0)
-  [plt.axvline(j-1, alpha=.5) for j,did in enumerate(z_changeds) if did and j > 0]
+  # [plt.axvline(j-1, alpha=.5) for j,did in enumerate(z_changeds) if did and j > 0]
   plt.legend()
   # plt.xscale('log')
   # plt.yscale('log')
-  plt.ylim(0,3)
+  plt.ylim(0,.6)
   plt.ylabel('NLL or NLL+KL')
   plt.xlabel('sequence position')
-  # plt.savefig("adaption_speed_plot.pdf")
+  plt.savefig("adaption_speed_plot.pdf")
   plt.show()
 
 # %%
