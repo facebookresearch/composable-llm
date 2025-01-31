@@ -1,14 +1,3 @@
-"""
-Model as blocks acting in an embedding space.
-
-License
--------
-This source code is licensed under the terms specified in the `LICENSE` file,
-located in the root directory of this repository.
-
-@ 2025, Meta
-"""
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any

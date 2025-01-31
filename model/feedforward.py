@@ -1,14 +1,3 @@
-"""
-Feed-forward network.
-
-License
--------
-This source code is licensed under the terms specified in the `LICENSE` file,
-located in the root directory of this repository.
-
-@ 2025, Meta
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
