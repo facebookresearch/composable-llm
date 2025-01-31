@@ -1,0 +1,263 @@
+# Script to fit alpha_Z
+# Run with the `difficulty` script
+# python -m src.apps.gssm.difficulty <path to this file>
+
+first:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 1e-3
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+second:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 3e-3
+  alpha_Z:
+    num: 1
+    min: 1e-3
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+third:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-2
+  alpha_Z:
+    num: 1
+    min: 1e-3
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+fourth:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 3e-2
+  alpha_Z:
+    num: 1
+    min: 1e-3
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+fifth:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-1
+  alpha_Z:
+    num: 1
+    min: 1e-3
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+sixth:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 3e-1
+  alpha_Z:
+    num: 1
+    min: 1e-3
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+seventh:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-0
+  alpha_Z:
+    num: 1
+    min: 1e-3
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+eight:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 3e-3
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+ninth:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 1e-2
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+tenth:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 3e-2
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+eleventh:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 1e-1
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+twelfth:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 3e-1
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true
+
+thirdteenth:
+  seq_len: 2048
+  seeds: [0, 1, 2, 3, 4, 5]
+  batch_size: 1024
+  alpha_X:
+    num: 1
+    min: 1e-3
+  alpha_Z:
+    num: 1
+    min: 1e-0
+  path: $HOME/logs/exp2/difficulty/all.jsonl
+  gssm:
+    nodes:
+    - name: Z1
+      state_dim: 64
+    - name: X
+      state_dim: 32
+      parents: [Z1]
+      observed: true

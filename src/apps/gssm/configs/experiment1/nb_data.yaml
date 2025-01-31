@@ -1,0 +1,70 @@
+launcher:
+  name: exp1data
+  overwrite: true
+  log_dir: /checkpoint/$USER/icml/logs/exp1/data
+
+  script: src.apps.gssm.train
+
+  slurm:
+    nodes: 1
+    nb_gpus: 1
+    mem: 16G
+    partition: scavenge
+    time: 60          # job time in minutes
+    signal_time: 120  # alert time in seconds
+
+  grid:
+    data:
+      n_data: [30, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000]
+    grid_id: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129]
+
+run_config:
+  grid_id: 10
+
+  cluster:
+    compile_model: true
+
+  data:
+    n_data: 10_000
+    path: /checkpoint/$USER/datasets/icml/exp1/$GRIDID/trainset.h5
+    batch_size: 16
+    asynchronous: false
+    seed: 0  # seed for data shuffling
+
+  model:
+    vocab_size: 32
+    emb_dim: 128
+    nb_layers: 4
+    block:
+      seq_len: 256
+      nb_heads: 4
+
+  optim:
+    steps: 3000
+    lr: 1e-3
+    weight_decay: 0
+    scheduler: constant
+
+  orchestration:
+    utils:
+      seed: 100  # seed for model initialization
+
+    logging:
+      period: 1
+      level: info
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1
+
+    wandb:
+      active: true
+      project: exp1
+
+  evaluation:
+    period: 100
+    asynchronous: false
+    data:
+      path: /checkpoint/$USER/datasets/icml/exp1/$GRIDID/testset.h5
+      n_data: 10_000

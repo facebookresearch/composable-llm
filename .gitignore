@@ -1,22 +1,19 @@
 
-# Data and figures
-data/
-*.pdf
-
-# Package and cache
+# configurations and caches
+.vscode/
+.ruff_cache
 *.egg-info
 *__pycache__
+.nfs*
 
 # Checkpointing and runs
-models/
+logs/
 savings/
-
-# Configuration files
-.vscode/
+wandb/
 
 # Personal file and folder
-src/mathllm/
-tutorial/
-Notes.md
-old_*
-
+MYTODO.md
+*.ipynb
+tmp_*
+tests/
+*DS_Store

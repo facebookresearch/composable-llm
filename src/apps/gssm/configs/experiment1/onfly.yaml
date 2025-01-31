@@ -1,0 +1,74 @@
+launcher:
+  name: onfly
+  overwrite: true
+  log_dir: $HOME/logs/exp1/onfly
+
+  script: src.apps.gssm.train_onfly
+
+  slurm:
+    nodes: 1
+    nb_gpus: 1
+    mem: 16G
+    partition: scavenge
+    time: 60          # job time in minutes
+    signal_time: 120  # alert time in seconds
+
+  grid:
+    model:
+      emb_dim: [8, 32, 128]
+    data:
+      seed: [0, 1, 2, 3, 4, 5]
+      gssm:
+        nodes:
+          - [{name: Z1, state_dim: 64, alpha: 1e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
+
+run_config:
+  cluster:
+    compile_model: true
+
+  data:
+    seq_len: 2048
+    batch_size: 16
+    seed: 42
+    gssm:
+      nodes:
+      - name: Z1
+        state_dim: 64
+        alpha: 1e-3
+      - name: X
+        state_dim: 32
+        parents: [Z1]
+        alpha: 1
+
+  model:
+    emb_dim: 64
+    nb_layers: 4
+    block:
+      nb_heads: 4
+
+  optim:
+    steps: 2000
+    lr: 1e-3
+    weight_decay: 0
+    scheduler: constant
+
+  orchestration:
+    utils:
+      seed: 100
+
+    checkpoint:
+      period: 100
+      keep_only: 3
+
+    logging:
+      period: 1
+      level: info
+
+    profiler:
+      active: true
+      wait: 1
+      steps: -1
+
+    wandb:
+      active: true
+      project: exp1

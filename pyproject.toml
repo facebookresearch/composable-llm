@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cot"
+name = "nanollama"
 version = "0.0.0"
 authors = [
   { name="Vivien Cabannes", email="vivien.cabannes@gmail.com" },
@@ -12,52 +12,69 @@ description = "Get started with LLMs on math tasks"
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 dependencies = [
-    # essential
-    "numpy",
-    "torch",
+  "h5py",           # file system
+  "numpy",
+  "pyaml",          # configuration
+  "torch",
+  "wandb",          # logging
+]
 
-    # argument parsing
-    "fire",
+[project.optional-dependencies]
+dev = [
+  "ruff",               # formatting
+  "torch_tb_profiler",  # visualizing profiling trace with tensorboard
+  "viztracer",          # visualizing profiling trace with perfetto
+]
 
-    # transformer libraries
-    "sentencepiece",
-    "tiktoken",
-    "transformers",
+llm = [
+  "sentencepiece",  # tokenizer
+  "tiktoken",       # tokenizer
+  "blobfile",       # tiktoken dependency
+]
 
-    # visualization
-    "ipykernel",
-    "ipywidgets",
-    "matplotlib",
+visu = [
+  "ipykernel",    # jupyter notebooks
+  "ipywidgets",   # jupyter widgets
+  "matplotlib",   # plots 
+  "nbformat",     # jupyter format
+  "pandas",       # dataframes
+  "plotly",       # interactive plots
+]
 
-    # formatting
-    "black",
-    "flake8",
-    "flake8-pyproject",
-    "isort",
+ssm = [
+  "accelerated_scan",
+  "causal_conv1d",
+  "mamba_ssm",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/VivienCabannes/LLMs"
-"Bug Tracker" = "https://github.com/VivienCabannes/LLMs/issues"
+"Homepage" = "https://github.com/fairinternal/composable-llm/"
+"Bug Tracker" = "https://github.com/fairinternal/composable-llm/issues"
 
-[tool.black]
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["src.apps", "src.evals"]
+
+[tool.ruff]
 line-length = 120
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",  # Default rules
+  "ANN001",       # Function arguments should annotate types
+  "ANN201",       # Public function should annotate return type
+  "B",            # Common bugs
+  "DTZ",          # Timezone issues
+  "I",            # Sort inputs
+  "PLE",          # Common errors
+  "RUF100",       # Remove unused noqa
+  "UP",           # Modern syntax
+]
 
-[tool.flake8]
-max-line-length = 120
-ignore = [
-    "E203",  # whitespace before ':'
-    "E722",  # do not use bare 'except'
-    "W503",  # line break before binary operator
-]
-per-file-ignores = [
-    '__init__.py:F401',
-]
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]

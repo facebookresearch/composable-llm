@@ -1,0 +1,23 @@
+seq_len: 257
+seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+chunk_size: 10_000
+gssm:
+  nodes:
+  - [{name: Z1, state_dim: 64, alpha: 1e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 3e-3, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-2, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 3e-2, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-1, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 3e-1, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-0, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 3e-3}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-2}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 3e-2}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-1}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 3e-1}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
+  - [{name: Z1, state_dim: 64, alpha: 1e-0}, {name: X, state_dim: 32, parents: [Z1], alpha: 1e-3, observed: true}]
+sets:
+- n_data: 1_000_000
+  path: /checkpoint/$USER/datasets/icml/exp1/$GRIDID/trainset.h5
+- n_data: 10_000
+  path: /checkpoint/$USER/datasets/icml/exp1/$GRIDID/testset.h5
